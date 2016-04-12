@@ -1,0 +1,29 @@
+Full Bus List
+============
+01A    Mabohai -> Mall Gadong: Mabohai - Airport Lama - Mall Gadong - Jame'Asr - RIPAS - Sumbiling
+01C    Sumbiling -> Gadong: Sumbiling - RIPAS - Jame'Asr - Mall Gadong - Airport Lama - Mabohai
+20     Batu Bersurat: Kiulap Commercial - Jame'Asr - Mall Gadong - Batu Bersurat
+21
+22     BSB -> Rimba/ITB/UBD/JIS -> BSB: Tamu Gadong - UNISSA - J.Tungku - Rimba - ITB - UBD - JIS
+23     RPN Lambak Kiri & Berakas Kem: J.Kumbang Pasang - Airport - J.Psr. Muara - RPN Lambak Kiri - Berakas Kem
+24     RPN Lambank Kanan: J.Kumbang Pasang - J.Berakas - Airport - Madang - RPN Lamnak Kanan
+33
+34
+35
+36     ICC Stadium -> Airport: Mabohai - Immigration - Stadium - Pulaie - J.Kebangssan Lama - Delima 1 - J.Muara - J.Berakas
+37     Pekan Muara: J.Subok - J.Sg Akar - J.Muara (Salambigar - Kapok) - Kg Sabun - Pekan Muara
+38     Pekan Muara: J.Kumbang Pasang - Times Sq/Airport Mall - Airport - J.Muara - Pekan Muara
+39     Pekan Muara: J.Kota Batu - Museum - Mangrove resort - RPN Kg Mentiri - Kg Kapok - Muara
+42
+43
+44
+45
+46
+47
+48
+49
+55
+56
+57
+58
+NCR
