@@ -6,7 +6,7 @@ Full Bus List
 21
 22     BSB -> Rimba/ITB/UBD/JIS -> BSB: Tamu Gadong - UNISSA - J.Tungku - Rimba - ITB - UBD - JIS
 23     RPN Lambak Kiri & Berakas Kem: J.Kumbang Pasang - Airport - J.Psr. Muara - RPN Lambak Kiri - Berakas Kem
-24     RPN Lambank Kanan: J.Kumbang Pasang - J.Berakas - Airport - Madang - RPN Lamnak Kanan
+24     RPN Lambank Kanan: J.Kumbang Pasang - J.Berakas - Airport - Madang - RPN Lambak Kanan
 33
 34
 35
