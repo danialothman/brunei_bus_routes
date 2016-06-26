@@ -30,3 +30,14 @@ Done
 37
 38
 39
+
+
+# Company That Supplies the bus
+===============================
+- Apparently there are several companies (I was told 5) that supply the buses for different routes
+
+## ADBS Sdn Bhd Lot 25104,Km 11 1/2 Jln Berakas Kg Lambak
+- 2390241 / 2390243
+- ibrahim1316@yahoo.co.uk
+- Location: 4°58'55.8"N 114°57'12.1"E [Google map link](https://www.google.com.bn/maps/place/4%C2%B058'55.8%22N+114%C2%B057'12.1%22E/@4.9681913,114.9233953,15z/data=!4m5!3m4!1s0x0:0x0!8m2!3d4.982156!4d114.953362?hl=en)
+- Source: ![ADBS details](/misc/adbs_details.gif) from ![ADBS GIF](/misc/adbs.gif)
