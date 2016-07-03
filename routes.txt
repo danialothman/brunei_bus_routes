@@ -1,29 +1,29 @@
 Full Bus List
 ============
-01A    Mabohai -> Mall Gadong: Mabohai - Airport Lama - Mall Gadong - Jame'Asr - RIPAS - Sumbiling
-01C    Sumbiling -> Gadong: Sumbiling - RIPAS - Jame'Asr - Mall Gadong - Airport Lama - Mabohai
-20     Batu Bersurat: Kiulap Commercial - Jame'Asr - Mall Gadong - Batu Bersurat
-21
+01A    BSB -> Mabohai -> Mall Gadong: Mabohai - Airport Lama - Mall Gadong - Jame'Asr - RIPAS - Sumbiling
+01C    BSB -> Sumbiling -> Gadong: Sumbiling - RIPAS - Jame'Asr - Mall Gadong - Airport Lama - Mabohai
+20     BSB -> Batu Bersurat: Kiulap Commercial - Jame'Asr - Mall Gadong - Batu Bersurat
+21     BSB -> Rimba (via Batu Bersurat)
 22     BSB -> Rimba/ITB/UBD/JIS -> BSB: Tamu Gadong - UNISSA - J.Tungku - Rimba - ITB - UBD - JIS
-23     RPN Lambak Kiri & Berakas Kem: J.Kumbang Pasang - Airport - J.Psr. Muara - RPN Lambak Kiri - Berakas Kem
-24     RPN Lambank Kanan: J.Kumbang Pasang - J.Berakas - Airport - Madang - RPN Lambak Kanan
-33
-34
-35
-36     ICC Stadium -> Airport: Mabohai - Immigration - Stadium - Pulaie - J.Kebangssan Lama - Delima 1 - J.Muara - J.Berakas
-37     Pekan Muara: J.Subok - J.Sg Akar - J.Muara (Salambigar - Kapok) - Kg Sabun - Pekan Muara
-38     Pekan Muara: J.Kumbang Pasang - Times Sq/Airport Mall - Airport - J.Muara - Pekan Muara
-39     Pekan Muara: J.Kota Batu - Museum - Mangrove resort - RPN Kg Mentiri - Kg Kapok - Muara
-42
-43
-44
-45
-46
-47
-48
-49
-55
-56
-57
-58
+23     BSB -> RPN Lambak Kiri & Berakas Kem: J.Kumbang Pasang - Airport - J.Psr. Muara - RPN Lambak Kiri - Berakas Kem
+24     BSB -> RPN Lambank Kanan: J.Kumbang Pasang - J.Berakas - Airport - Madang - RPN Lambak Kanan
+33     Flotilla Muara -> Perpindahan Serasa
+34     BSB -> Hua Ho Manggis
+35     BSB -> Pusat Dakwah
+36     BSB -> ICC Stadium -> Airport: Mabohai - Immigration - Stadium - Pulaie - J.Kebangssan Lama - Delima 1 - J.Muara - J.Berakas
+37     BSB -> Pekan Muara: J.Subok - J.Sg Akar - J.Muara (Salambigar - Kapok) - Kg Sabun - Pekan Muara
+38     BSB -> Pekan Muara: J.Kumbang Pasang - Times Sq/Airport Mall - Airport - J.Muara - Pekan Muara
+39     BSB -> Pekan Muara: J.Kota Batu - Museum - Mangrove resort - RPN Kg Mentiri - Kg Kapok - Muara
+42     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sengkurong, Kg Pasai, Kg Bebatik, Kg Masin)
+43     Kg Sungai Kebun -> Kg Putat
+44     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Junjongan)
+45     BSB -> Sengkurong (via Kg Bengkurong)
+46     BSB -> Kg Sungai Kebun (via Kg Lumapas)
+47     Kg Bengkurong -> Ban 3-6
+48     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sinarubai, Kg Pangkalan Batu)
+49     BSB -> Ban 3-6
+55     BSB -> Jerudong (via Terrace Hotel, Mall, Kg Jangsak, Sengkurong)
+56     BSB -> Kg Lugu (via Kg Bengkurong, Kg Sengkurong, Kg Tanjong Nangka)
+57     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
+58     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
 NCR
