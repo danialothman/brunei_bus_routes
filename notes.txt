@@ -1,12 +1,6 @@
 To do
 ============
-- 57     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
-- 58     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
 - NCR
-
-
-
-
 
 Done
 ============
@@ -37,6 +31,8 @@ Done but based on [bus route overview map](/bus route overview.jpg) thus likely 
 - 49     BSB -> Ban 3-6
 - 56     BSB -> Kg Lugu (via Kg Bengkurong, Kg Sengkurong, Kg Tanjong Nangka)
 - 55     BSB -> Jerudong (via Terrace Hotel, Mall, Kg Jangsak, Sengkurong)
+- 57     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
+- 58     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
 
 
 
