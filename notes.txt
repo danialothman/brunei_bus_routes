@@ -1,8 +1,5 @@
 To do
 ============
-- 45     BSB -> Sengkurong (via Kg Bengkurong)
-- 47     Kg Bengkurong -> Ban 3-6
-- 49     BSB -> Ban 3-6
 - 55     BSB -> Jerudong (via Terrace Hotel, Mall, Kg Jangsak, Sengkurong)
 - 56     BSB -> Kg Lugu (via Kg Bengkurong, Kg Sengkurong, Kg Tanjong Nangka)
 - 57     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
@@ -34,9 +31,12 @@ Done but based on [bus route overview map](/bus route overview.jpg) thus likely 
 - 34     BSB -> Hua Ho Manggis
 - 35     BSB -> Pusat Dakwah
 - 43     Kg Sungai Kebun -> Kg Putat & Kg Sengkurong -> Spg 525 Jalan Mulaut-Limuas Manis (2 different routes??!?!?)
+- 45     BSB -> Sengkurong (via Kg Bengkurong) (perhaps Kg Sengkurong -> Spg 525 Jalan Mulaut-Limuas Manis of 43 above should be 45?)
 - 44     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Junjongan)
 - 46     BSB -> Kg Sungai Kebun (via Kg Lumapas)
+- 47     Kg Bengkurong -> Ban 3-6
 - 48     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sinarubai, Kg Pangkalan Batu)
+- 49     BSB -> Ban 3-6
 
 
 
