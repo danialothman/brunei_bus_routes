@@ -33,7 +33,7 @@ Done but based on [bus route overview map](/bus route overview.jpg) thus likely 
 - 33     Flotilla Muara -> Perpindahan Serasa
 - 34     BSB -> Hua Ho Manggis
 - 35     BSB -> Pusat Dakwah
-- 43     Kg Sungai Kebun -> Kg Putat
+- 43     Kg Sungai Kebun -> Kg Putat & Kg Sengkurong -> Spg 525 Jalan Mulaut-Limuas Manis (2 different routes??!?!?)
 - 44     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Junjongan)
 - 46     BSB -> Kg Sungai Kebun (via Kg Lumapas)
 - 48     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sinarubai, Kg Pangkalan Batu)
