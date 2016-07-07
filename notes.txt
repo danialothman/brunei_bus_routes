@@ -1,11 +1,11 @@
 Done
 ============
-- 01A    BSB -> Mabohai -> Mall Gadong: Mabohai - Airport Lama - Mall Gadong - Jame'Asr - RIPAS - Sumbiling
-- 01C    BSB -> Sumbiling -> Gadong: Sumbiling - RIPAS - Jame'Asr - Mall Gadong - Airport Lama - Mabohai
-- 20     BSB -> Batu Bersurat: Kiulap Commercial - Jame'Asr - Mall Gadong - Batu Bersurat
+- 01A    BSB -> Mabohai -> Mall Gadong -> Sumbiling -> BSB: Mabohai - Airport Lama - Mall Gadong - Jame'Asr - RIPAS - Sumbiling
+- 01C    BSB -> Sumbiling -> Mall Gadong -> Mabohai -> BSB: Sumbiling - RIPAS - Jame'Asr - Mall Gadong - Airport Lama - Mabohai
+- 20     BSB -> Mall Gadong -> Batu Bersurat: Kiulap Commercial- Jame'Asr - Mall Gadong - Batu Bersurat
 - 22     BSB -> Rimba/ITB/UBD/JIS -> BSB: Tamu Gadong - UNISSA - J.Tungku - Rimba - ITB - UBD - JIS
 - 23     BSB -> RPN Lambak Kiri & Berakas Kem: J.Kumbang Pasang - Airport - J.Psr. Muara - RPN Lambak Kiri - Berakas Kem
-- 24     BSB -> RPN Lambank Kanan: J.Kumbang Pasang - J.Berakas - Airport - Madang - RPN Lambak Kanan
+- 24     BSB -> RPN Lambak Kanan: J.Kumbang Pasang - J.Berakas - Airport - Madang - RPN Lambak Kanan
 - 36     BSB -> ICC Stadium -> Airport: Mabohai - Immigration - Stadium - Pulaie - J.Kebangssan Lama - Delima 1 - J.Muara - J.Berakas
 - 37     BSB -> Pekan Muara: J.Subok - J.Sg Akar - J.Muara (Salambigar - Kapok) - Kg Sabun - Pekan Muara
 - 38     BSB -> Pekan Muara: J.Kumbang Pasang - Times Sq/Airport Mall - Airport - J.Muara - Pekan Muara

@@ -1,12 +1,12 @@
 Full Bus List
 ============
-01A    BSB -> Mabohai -> Mall Gadong: Mabohai - Airport Lama - Mall Gadong - Jame'Asr - RIPAS - Sumbiling
-01C    BSB -> Sumbiling -> Gadong: Sumbiling - RIPAS - Jame'Asr - Mall Gadong - Airport Lama - Mabohai
-20     BSB -> Batu Bersurat: Kiulap Commercial - Jame'Asr - Mall Gadong - Batu Bersurat
+01A    BSB -> Mabohai -> Mall Gadong -> Sumbiling -> BSB: Mabohai - Airport Lama - Mall Gadong - Jame'Asr - RIPAS - Sumbiling
+01C    BSB -> Sumbiling -> Mall Gadong -> Mabohai -> BSB: Sumbiling - RIPAS - Jame'Asr - Mall Gadong - Airport Lama - Mabohai
+20     BSB -> Mall Gadong -> Batu Bersurat: Kiulap Commercial- Jame'Asr - Mall Gadong - Batu Bersurat
 21     BSB -> Rimba (via Batu Bersurat)
 22     BSB -> Rimba/ITB/UBD/JIS -> BSB: Tamu Gadong - UNISSA - J.Tungku - Rimba - ITB - UBD - JIS
 23     BSB -> RPN Lambak Kiri & Berakas Kem: J.Kumbang Pasang - Airport - J.Psr. Muara - RPN Lambak Kiri - Berakas Kem
-24     BSB -> RPN Lambank Kanan: J.Kumbang Pasang - J.Berakas - Airport - Madang - RPN Lambak Kanan
+24     BSB -> RPN Lambak Kanan: J.Kumbang Pasang - J.Berakas - Airport - Madang - RPN Lambak Kanan
 33     Flotilla Muara -> Perpindahan Serasa
 34     BSB -> Hua Ho Manggis
 35     BSB -> Pusat Dakwah
@@ -15,9 +15,9 @@ Full Bus List
 38     BSB -> Pekan Muara: J.Kumbang Pasang - Times Sq/Airport Mall - Airport - J.Muara - Pekan Muara
 39     BSB -> Pekan Muara: J.Kota Batu - Museum - Mangrove resort - RPN Kg Mentiri - Kg Kapok - Muara
 42     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sengkurong, Kg Pasai, Kg Bebatik, Kg Masin)
-43     Kg Sungai Kebun -> Kg Putat
+43     Kg Sungai Kebun -> Kg Putat & Kg Sengkurong -> Spg 525 Jalan Mulaut-Limuas Manis (2 different routes??!?!?)
 44     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Junjongan)
-45     BSB -> Sengkurong (via Kg Bengkurong)
+45     BSB -> Sengkurong (via Kg Bengkurong) (perhaps Kg Sengkurong -> Spg 525 Jalan Mulaut-Limuas Manis of 43 above should be 45?)
 46     BSB -> Kg Sungai Kebun (via Kg Lumapas)
 47     Kg Bengkurong -> Ban 3-6
 48     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sinarubai, Kg Pangkalan Batu)
@@ -26,4 +26,4 @@ Full Bus List
 56     BSB -> Kg Lugu (via Kg Bengkurong, Kg Sengkurong, Kg Tanjong Nangka)
 57     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
 58     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
-NCR
+NCR    Airport -> Gadong -> Rimba -> UBD -> Berakas -> Manggis > Airport
