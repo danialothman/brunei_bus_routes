@@ -1,12 +1,8 @@
 To do
 ============
 - 42     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sengkurong, Kg Pasai, Kg Bebatik, Kg Masin)
-- 43     Kg Sungai Kebun -> Kg Putat
-- 44     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Junjongan)
 - 45     BSB -> Sengkurong (via Kg Bengkurong)
-- 46     BSB -> Kg Sungai Kebun (via Kg Lumapas)
 - 47     Kg Bengkurong -> Ban 3-6
-- 48     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sinarubai, Kg Pangkalan Batu)
 - 49     BSB -> Ban 3-6
 - 55     BSB -> Jerudong (via Terrace Hotel, Mall, Kg Jangsak, Sengkurong)
 - 56     BSB -> Kg Lugu (via Kg Bengkurong, Kg Sengkurong, Kg Tanjong Nangka)
@@ -37,6 +33,10 @@ Done but based on [bus route overview map](/bus route overview.jpg) thus likely 
 - 33     Flotilla Muara -> Perpindahan Serasa
 - 34     BSB -> Hua Ho Manggis
 - 35     BSB -> Pusat Dakwah
+- 43     Kg Sungai Kebun -> Kg Putat
+- 44     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Junjongan)
+- 46     BSB -> Kg Sungai Kebun (via Kg Lumapas)
+- 48     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sinarubai, Kg Pangkalan Batu)
 
 
 
