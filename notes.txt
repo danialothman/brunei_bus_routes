@@ -1,6 +1,5 @@
 To do
 ============
-- 42     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sengkurong, Kg Pasai, Kg Bebatik, Kg Masin)
 - 45     BSB -> Sengkurong (via Kg Bengkurong)
 - 47     Kg Bengkurong -> Ban 3-6
 - 49     BSB -> Ban 3-6
@@ -26,6 +25,7 @@ Done
 - 37     BSB -> Pekan Muara: J.Subok - J.Sg Akar - J.Muara (Salambigar - Kapok) - Kg Sabun - Pekan Muara
 - 38     BSB -> Pekan Muara: J.Kumbang Pasang - Times Sq/Airport Mall - Airport - J.Muara - Pekan Muara
 - 39     BSB -> Pekan Muara: J.Kota Batu - Museum - Mangrove resort - RPN Kg Mentiri - Kg Kapok - Muara
+- 42     BSB -> Kuala Lurah (via Kg Bengkurong, Kg Sengkurong, Kg Pasai, Kg Bebatik, Kg Masin)
 
 Done but based on [bus route overview map](/bus route overview.jpg) thus likely has errors
 ============================================
