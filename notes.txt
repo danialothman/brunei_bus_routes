@@ -1,7 +1,3 @@
-To do
-============
-- NCR
-
 Done
 ============
 - 01A    BSB -> Mabohai -> Mall Gadong: Mabohai - Airport Lama - Mall Gadong - Jame'Asr - RIPAS - Sumbiling
@@ -33,6 +29,7 @@ Done but based on [bus route overview map](/bus route overview.jpg) thus likely 
 - 55     BSB -> Jerudong (via Terrace Hotel, Mall, Kg Jangsak, Sengkurong)
 - 57     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
 - 58     BSB -> Jerudong (via Terrace Hotel, Rimba, UBD, Empire)
+- NCR    Airport -> Gadong -> Rimba -> UBD -> Berakas -> Manggis > Airport
 
 
 
