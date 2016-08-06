@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+  <head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="../../favicon.ico">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="stylesheet" href="bootstrap.min.css" type="text/css">
+    <link rel="stylesheet" href="offcanvas.css" type="text/css">
+    <link rel="stylesheet" href="ol2.css" type="text/css">
+
+    <style type="text/css">
+        html,body {
+            height: 99%;
+        }
+        #map {
+            width: 100%;
+            height: 98%;
+        }
+        #routes{
+            max-height: 98%;
+            overflow-x: hidden;
+        }
+        #routes .list-group-item{
+            padding: 5px;
+        }
+        #routes input {
+            margin-right: 7px;
+        }
+        nav {
+            height: 50px;
+        }        
+        BODY{
+            padding-top:50px;
+        }
+
+        footer {
+            padding: 0;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            text-align: center;
+        }
+        .col-lg-1, .col-lg-10, .col-lg-11, .col-lg-12, .col-lg-2, .col-lg-3, .col-lg-4, .col-lg-5, .col-lg-6, .col-lg-7, .col-lg-8, .col-lg-9, .col-md-1, .col-md-10, .col-md-11, .col-md-12, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-md-9, .col-sm-1, .col-sm-10, .col-sm-11, .col-sm-12, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-xs-1, .col-xs-10, .col-xs-11, .col-xs-12, .col-xs-2, .col-xs-3, .col-xs-4, .col-xs-5, .col-xs-6, .col-xs-7, .col-xs-8, .col-xs-9
+        {
+            padding:0;
+        }
+        @media (max-width: 767px){
+            footer{
+                position: relative;
+            }
+
+            #map{
+                padding: 0 15px;
+            }
+        }
+
+    </style>
+    <script src="ol2.js"></script>
+    <script src="jquery.min.js"></script>
+    <script type="text/javascript">
+    var map;
+    var layers = {};
+
+    var layersEnabled = {};
+    var routes = [
+        "1. BSB Circular (A).kml",
+        "2. BSB Circular (C).kml",
+        "3. BSB Central.kml",
+        "4. Empire Route.kml",
+        "5. WER.kml",
+        "6. Muara 01.kml",
+        "7. Muara 02.kml",
+        "8. Muara 03.kml",
+        "9. WE Central.kml",
+        "10. Kuala Lurah 01.kml",
+        "11. Kuala Lurah 02.kml",
+        "12. Kilanas Circle.kml",
+        "13. Jerudong 01.kml",
+        "14. NCR Lambak.kml",
+        "15. Jame' - Rimba.kml",
+        "16. Muara Express.kml",
+        "17. Serusop - Lambak Kanan.kml",
+        "18. Jerudong 02.kml",
+        "19 Kuala Lurah 03.kml",
+        "20. Rimba - Lambak Kiri.kml",
+        "21. ECR-C.kml",
+        "22. ECR-A.kml",
+        "23. Jame' - Bebatik.kml",
+        "24.Serusop - Pulaie (C).kml",
+        "25. Serusop - Pulaie (A).kml",
+        "26. Jame' - Tungku.kml",
+        "27. Lugu Route.kml",
+        "28. Muara Circle.kml",
+        "KB Seria.kml",
+        "Lambak Feeder Stop.kml",
+//        "Landmarks.kml",
+        "Meragang & TJ Feeder Stop.kml",
+        "Proposed Interchange.kml",
+//        "Road.kml",
+        "Temburong.kml",
+        "Tutong.kml",
+        "intradistrict.kml",
+        "mosques.kml"
+    ];
+    function init(){
+        map = new OpenLayers.Map('map');
+
+        var wms = new OpenLayers.Layer.WMS(
+            "OpenLayers WMS",
+            "http://vmap0.tiles.osgeo.org/wms/vmap0",
+            {layers: 'basic'}
+        );
+        map.addLayer(wms);
+        map.zoomToExtent(new OpenLayers.Bounds(68.774414,11.381836,123.662109,34.628906));
+        map.setCenter(new OpenLayers.LonLat([114.7277,4.5353]),9);
+
+
+        var output = $("#routes");
+        output.on('click', 'input', function(){
+            var file = $(this).val();
+            var layer = layers[file];
+
+            if(layersEnabled[file]){
+                map.removeLayer(layer);
+            }
+            else{            
+                map.addLayer(layer);
+            }
+            layersEnabled[file] = !layersEnabled[file];
+        })
+
+
+        for(var i = 0; i < routes.length;i ++){
+            var file = routes[i];
+            var route = new OpenLayers.Layer.Vector("KML", {
+                projection: map.displayProjection,
+                strategies: [new OpenLayers.Strategy.Fixed()],
+                protocol: new OpenLayers.Protocol.HTTP({
+                    url: "data/" + file,
+                    format: new OpenLayers.Format.KML({
+                        extractStyles: true,
+                        extractAttributes: true
+                    })
+                })
+            });
+            layers[file] = route;
+            var me = $("<label></label>").addClass('list-group-item').text(file.replace(".kml", ""));
+            var input = $("<input type='checkbox'>").val(file);
+            me.prepend(input);
+            output.append(me);
+        }
+
+    }
+
+    </script>
+  </head>
+  <body onload="init()">
+    <nav class="navbar navbar-fixed-top navbar-inverse">
+      <div class="container">
+        <div class="navbar-header">
+          <a class="navbar-brand" href="#">Brunei Bus Routes</a>
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <button type="button" class="visible-xs pull-right btn btn-primary btn-sm" data-toggle="offcanvas">Show Routes</button>
+          </button>
+        </div>
+      </div><!-- /.container -->
+    </nav><!-- /.navbar -->
+
+
+    <div class="container-fluid" style="height: 100%; ">
+
+      <div class="row row-offcanvas row-offcanvas-right"  style="height: 100%; ">
+
+        <div class="col-xs-12 col-sm-9" style="height: 100%; ">
+            <div id="map"></div>
+        </div>
+        <div class="col-xs-6 col-sm-3 sidebar-offcanvas" style="height: 90%; ">
+            <h3 class="hidden-xs" style="margin:0px;">
+                <div style="display:block; border-radius: 0" class="label label-default" disabled>Show Routes</div>
+            </h3>
+          <div class="list-group" id="routes">
+          </div>
+        </div>
+      </div>
+
+      <footer>Data via Land Transport Department <a href='https://drive.google.com/open?id=0B0I7PqbhCMvea2VCaVNiaURRM1U'>docs</a> provided for EOI for the Provision of Public Bus Services (<a href='http://ltd.gov.bn/SitePages/EOIPubBus.aspx'>website</a> / <a href='http://ltd.gov.bn/PublishingImages/SitePages/EOIPubBus/EOI%20for%20the%20provision%20of%20public%20bus%20services%20in%20Brunei%20FINAL.pdf'>PDF</a>)</footer>
+    </div>
+
+    <script src="bootstrap.min.js"></script>
+    <script src="offcanvas.js"></script>
+
+  </body>
+</html>
