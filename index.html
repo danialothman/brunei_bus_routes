@@ -12,7 +12,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="bootstrap.min.css" type="text/css">
     <link rel="stylesheet" href="offcanvas.css" type="text/css">
-    <link rel="stylesheet" href="ol2.css" type="text/css">
+    <link rel="stylesheet" href="ol3.css" type="text/css">
 
     <style type="text/css">
         html,body {
@@ -62,7 +62,7 @@
         }
 
     </style>
-    <script src="ol2.js"></script>
+    <script src="ol3.js"></script>
     <script src="jquery.min.js"></script>
     <script type="text/javascript">
     var map;
@@ -109,17 +109,27 @@
         "intradistrict.kml",
         "mosques.kml"
     ];
-    function init(){
-        map = new OpenLayers.Map('map');
 
-        var wms = new OpenLayers.Layer.WMS(
-            "OpenLayers WMS",
-            "http://vmap0.tiles.osgeo.org/wms/vmap0",
-            {layers: 'basic'}
-        );
-        map.addLayer(wms);
-        map.zoomToExtent(new OpenLayers.Bounds(68.774414,11.381836,123.662109,34.628906));
-        map.setCenter(new OpenLayers.LonLat([114.7277,4.5353]),9);
+    function toOL(coordinate){
+      return ol.proj.transform(coordinate, 'EPSG:4326', 'EPSG:3857');
+    }
+    function toNormal(coordinate){
+      return ol.proj.transform(coordinate, 'EPSG:3857', 'EPSG:4326');
+    }
+
+
+    function init(){
+
+        var projection = ol.proj.get('EPSG:3857');
+        map = new ol.Map({
+            target: document.getElementById('map'),
+            view: new ol.View({
+                center: toOL([114.7277,4.5353]),
+                projection: projection,
+                zoom: 9
+            })
+        });
+        map.addLayer(new ol.layer.Tile({source: new ol.source.OSM()}));
 
 
         var output = $("#routes");
@@ -139,17 +149,13 @@
 
         for(var i = 0; i < routes.length;i ++){
             var file = routes[i];
-            var route = new OpenLayers.Layer.Vector("KML", {
-                projection: map.displayProjection,
-                strategies: [new OpenLayers.Strategy.Fixed()],
-                protocol: new OpenLayers.Protocol.HTTP({
+            var route = new ol.layer.Vector({
+                source: new ol.source.Vector({
                     url: "data/" + file,
-                    format: new OpenLayers.Format.KML({
-                        extractStyles: true,
-                        extractAttributes: true
-                    })
+                    format: new ol.format.KML()
                 })
             });
+
             layers[file] = route;
             var me = $("<label></label>").addClass('list-group-item').text(file.replace(".kml", ""));
             var input = $("<input type='checkbox'>").val(file);
