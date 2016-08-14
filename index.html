@@ -22,6 +22,10 @@
             width: 100%;
             height: 98%;
         }
+        div.fill {
+            width: 100%;
+            height: 100%;
+        }
         #routes{
             max-height: 98%;
             overflow-x: hidden;
@@ -64,6 +68,8 @@
     </style>
     <script src="ol3.js"></script>
     <script src="jquery.min.js"></script>
+    <script src="http://maps.google.com/maps/api/js?v=3&amp;sensor=false"></script>
+
     <script type="text/javascript">
     var map;
     var layers = {};
@@ -120,16 +126,41 @@
 
     function init(){
 
-        var projection = ol.proj.get('EPSG:3857');
-        map = new ol.Map({
-            target: document.getElementById('map'),
-            view: new ol.View({
-                center: toOL([114.7277,4.5353]),
-                projection: projection,
-                zoom: 9
-            })
+        // Google map usage with OpenStreetmaps taken from https://gist.github.com/elemoine/e82c7dd4b1d0ef45a9a4
+        var gmap = new google.maps.Map(document.getElementById('gmap'), {
+            disableDefaultUI: true,
+            keyboardShortcuts: false,
+            draggable: false,
+            disableDoubleClickZoom: true,
+            scrollwheel: false,
+            streetViewControl: false
         });
-        map.addLayer(new ol.layer.Tile({source: new ol.source.OSM()}));
+        var view = new ol.View({
+            // make sure the view doesn't go beyond the 22 zoom levels of Google Maps
+            maxZoom: 21
+        });
+        view.on('change:center', function() {
+            var center = ol.proj.transform(view.getCenter(), 'EPSG:3857', 'EPSG:4326');
+            gmap.setCenter(new google.maps.LatLng(center[1], center[0]));
+        });
+        view.on('change:resolution', function() {
+            gmap.setZoom(view.getZoom());
+        });
+
+        var olMapDiv = document.getElementById('olmap');
+        map = new ol.Map({
+            interactions: ol.interaction.defaults({
+                altShiftDragRotate: false,
+                dragPan: false,
+                rotate: false
+            }).extend([new ol.interaction.DragPan({kinetic: null})]),
+            target: olMapDiv,
+            view: view
+        });
+        view.setCenter(toOL([114.7277,4.5353]));
+        view.setZoom(9);
+        olMapDiv.parentNode.removeChild(olMapDiv);
+        gmap.controls[google.maps.ControlPosition.TOP_LEFT].push(olMapDiv);
 
 
         var output = $("#routes");
@@ -185,7 +216,10 @@
       <div class="row row-offcanvas row-offcanvas-right"  style="height: 100%; ">
 
         <div class="col-xs-12 col-sm-9" style="height: 100%; ">
-            <div id="map"></div>
+            <div id="map">
+                <div id="gmap" class="fill"></div>
+                <div id="olmap" class="fill"></div>
+            </div>
         </div>
         <div class="col-xs-6 col-sm-3 sidebar-offcanvas" style="height: 90%; ">
             <h3 class="hidden-xs" style="margin:0px;">
