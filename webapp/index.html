@@ -1,129 +1,174 @@
 <!DOCTYPE html>
 <html>
   <head>
-
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
-    <meta name="description" content="">
-    <meta name="author" content="">
-    <link rel="icon" href="../../favicon.ico">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="stylesheet" href="bootstrap.min.css" type="text/css">
-    <link rel="stylesheet" href="offcanvas.css" type="text/css">
-    <link rel="stylesheet" href="ol3.css" type="text/css">
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Brunei Bus Routes Map" />
+    <meta name="author" content="" />
+    <link rel="icon" href="favicon.ico" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="stylesheet" href="bootstrap.min.css" type="text/css" />
+    <link rel="stylesheet" href="offcanvas.css" type="text/css" />
+    <link rel="stylesheet" href="ol3.css" type="text/css" />
 
     <style type="text/css">
-        html,body {
-            height: 99%;
-        }
-        #offcanvas {
-            margin-right: 1em;
-            border-top-right-radius: 0;
-            border-top-left-radius: 0;
-        }
-        #loading{
-            padding: 5px;
-            background-color: rgba(255,255,255, 0.8);
-            display: none;
-            top: 1.5em;
-            left: 0;
-            right: 0;
-            margin-left: auto;
-            margin-right: auto;
-            width: 10em;
-            text-align: center;
-            position: absolute;
-            z-index:1050;
-        }
-        #info{
-            background-color: rgba(255,255,255, 0.5);
-            display: none;
-            text-align: center;
-            position: absolute;
-            width: 90%;
-            margin: 0 auto;
-            left: 0;
-            right: 0;
-            padding: 5px;
-            top: auto;
-            bottom: 0;
-        }
-        #info h3 {
-            margin-top: 0;
-        }
-        #info .dismiss{
-            float: right;
+      html,
+      body {
+        height: 99%;
+      }
+      #offcanvas {
+        margin-right: 1em;
+        border-top-right-radius: 0;
+        border-top-left-radius: 0;
+      }
+      #loading {
+        padding: 5px;
+        background-color: rgba(255, 255, 255, 0.8);
+        display: none;
+        top: 1.5em;
+        left: 0;
+        right: 0;
+        margin-left: auto;
+        margin-right: auto;
+        width: 10em;
+        text-align: center;
+        position: absolute;
+        z-index: 1050;
+      }
+      #info {
+        background-color: rgba(255, 255, 255, 0.5);
+        display: none;
+        text-align: center;
+        position: absolute;
+        width: 90%;
+        margin: 0 auto;
+        left: 0;
+        right: 0;
+        padding: 5px;
+        top: auto;
+        bottom: 0;
+      }
+      #info h3 {
+        margin-top: 0;
+      }
+      #info .dismiss {
+        float: right;
+      }
+      #map {
+        width: 100%;
+        height: 98%;
+      }
+      div.fill {
+        width: 100%;
+        height: 100%;
+      }
+      #routes {
+        max-height: 98%;
+        overflow-x: hidden;
+      }
+      #routes .list-group-item {
+        padding: 5px;
+      }
+      #routes input {
+        margin-right: 7px;
+      }
+      nav {
+        height: 50px;
+      }
+      BODY {
+        padding-top: 50px;
+      }
+      footer {
+        padding: 0;
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        text-align: center;
+      }
+      .col-lg-1,
+      .col-lg-10,
+      .col-lg-11,
+      .col-lg-12,
+      .col-lg-2,
+      .col-lg-3,
+      .col-lg-4,
+      .col-lg-5,
+      .col-lg-6,
+      .col-lg-7,
+      .col-lg-8,
+      .col-lg-9,
+      .col-md-1,
+      .col-md-10,
+      .col-md-11,
+      .col-md-12,
+      .col-md-2,
+      .col-md-3,
+      .col-md-4,
+      .col-md-5,
+      .col-md-6,
+      .col-md-7,
+      .col-md-8,
+      .col-md-9,
+      .col-sm-1,
+      .col-sm-10,
+      .col-sm-11,
+      .col-sm-12,
+      .col-sm-2,
+      .col-sm-3,
+      .col-sm-4,
+      .col-sm-5,
+      .col-sm-6,
+      .col-sm-7,
+      .col-sm-8,
+      .col-sm-9,
+      .col-xs-1,
+      .col-xs-10,
+      .col-xs-11,
+      .col-xs-12,
+      .col-xs-2,
+      .col-xs-3,
+      .col-xs-4,
+      .col-xs-5,
+      .col-xs-6,
+      .col-xs-7,
+      .col-xs-8,
+      .col-xs-9 {
+        padding: 0;
+      }
+      @media (max-width: 767px) {
+        footer {
+          position: relative;
         }
         #map {
-            width: 100%;
-            height: 98%;
+          padding: 0 15px;
         }
-        div.fill {
-            width: 100%;
-            height: 100%;
-        }
-        #routes{
-            max-height: 98%;
-            overflow-x: hidden;
-        }
-        #routes .list-group-item{
-            padding: 5px;
-        }
-        #routes input {
-            margin-right: 7px;
-        }
-        nav {
-            height: 50px;
-        }        
-        BODY{
-            padding-top:50px;
-        }
-
-        footer {
-            padding: 0;
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            text-align: center;
-        }
-        .col-lg-1, .col-lg-10, .col-lg-11, .col-lg-12, .col-lg-2, .col-lg-3, .col-lg-4, .col-lg-5, .col-lg-6, .col-lg-7, .col-lg-8, .col-lg-9, .col-md-1, .col-md-10, .col-md-11, .col-md-12, .col-md-2, .col-md-3, .col-md-4, .col-md-5, .col-md-6, .col-md-7, .col-md-8, .col-md-9, .col-sm-1, .col-sm-10, .col-sm-11, .col-sm-12, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-xs-1, .col-xs-10, .col-xs-11, .col-xs-12, .col-xs-2, .col-xs-3, .col-xs-4, .col-xs-5, .col-xs-6, .col-xs-7, .col-xs-8, .col-xs-9
-        {
-            padding:0;
-        }
-        @media (max-width: 767px){
-            footer{
-                position: relative;
-            }
-
-            #map{
-                padding: 0 15px;
-            }
-        }
-
-
+      }
     </style>
     <script src="ol3.js"></script>
     <script src="jquery.min.js"></script>
-    <script src="http://maps.google.com/maps/api/js?v=3&sensor=false&key=AIzaSyAUL1vq-AYKyTzqKiPcZPcqAXWOglPTWAk"></script>
 
     <script type="text/javascript">
-    var map;
-    var layers = {};
-    var loading = {};
+      var map;
+      var layers = {};
+      var loading = {};
+      var layersEnabled = {};
 
-    var layersEnabled = {};
+      var style1 = new ol.style.Style({
+        stroke: new ol.style.Stroke({ color: "#ff3333", width: 5 }),
+      });
+      var style2 = new ol.style.Style({
+        stroke: new ol.style.Stroke({ color: "#cc33ff", width: 3 }),
+      });
+      var style3 = new ol.style.Style({
+        stroke: new ol.style.Stroke({ color: "#ff9600", width: 3 }),
+      });
 
-    var style1 =   new ol.style.Style({stroke: new ol.style.Stroke({color: '#ff3333',width: 5})});
-    var style2 =   new ol.style.Style({stroke: new ol.style.Stroke({color: '#cc33ff',width: 3})});
-    var style3 =   new ol.style.Style({stroke: new ol.style.Stroke({color: '#ff9600',width: 3})});
+      var selection = true;
+      var select = new ol.interaction.Select();
 
-    var selection = true;
-    var select = new ol.interaction.Select();
-
-    var routes = [
+      var routes = [
         "1. BSB Circular (A).kml",
         "2. BSB Circular (C).kml",
         "3. BSB Central.kml",
@@ -154,199 +199,202 @@
         "28. Muara Circle.kml",
         "KB Seria.kml",
         "Lambak Feeder Stop.kml",
-//        "Landmarks.kml",
         "Meragang & TJ Feeder Stop.kml",
         "Proposed Interchange.kml",
-//        "Road.kml",
         "Temburong.kml",
         "Tutong.kml",
         "intradistrict.kml",
-        "mosques.kml"
-    ];
+        "mosques.kml",
+      ];
 
-    function toOL(coordinate){
-      return ol.proj.transform(coordinate, 'EPSG:4326', 'EPSG:3857');
-    }
-    function toNormal(coordinate){
-      return ol.proj.transform(coordinate, 'EPSG:3857', 'EPSG:4326');
-    }
-    function showInfo(feature){
-        if(!feature){
-            $("#info").hide();
-            return;
+      function toOL(coordinate) {
+        return ol.proj.transform(coordinate, "EPSG:4326", "EPSG:3857");
+      }
+      function toNormal(coordinate) {
+        return ol.proj.transform(coordinate, "EPSG:3857", "EPSG:4326");
+      }
+      function showInfo(feature) {
+        if (!feature) {
+          $("#info").hide();
+          return;
         }
-        var name = feature.get('name');
+        var name = feature.get("name");
         $("#info .name").text(name);
 
         var coord = toNormal(feature.getGeometry().getCoordinates());
-        if(isNaN(coord[0])) $("#info .location").hide();
-        else $("#info .location").text(coord[0].toFixed(7) + ", " + coord[1].toFixed(7)).show();
+        if (isNaN(coord[0])) $("#info .location").hide();
+        else
+          $("#info .location")
+            .text(coord[0].toFixed(7) + ", " + coord[1].toFixed(7))
+            .show();
 
         $("#info").show();
-    }
-    function hideInfo(feature){
+      }
+      function hideInfo(feature) {
         select.getFeatures().clear();
         $("#info").hide();
-    }
-    function showLoading(layer){
-        if(typeof(loading[layer]) == "undefined" ||
-            typeof(loading[layer]) !== "undefined" && loading[layer] !== 1) {
-            loading[layer] = -1;
-            $("#loading").show();
+      }
+      function showLoading(layer) {
+        if (
+          typeof loading[layer] == "undefined" ||
+          (typeof loading[layer] !== "undefined" && loading[layer] !== 1)
+        ) {
+          loading[layer] = -1;
+          $("#loading").show();
         }
-    }
-    function hideLoading(layer, forced){
-        if(typeof(loading[layer]) !== "undefined" && loading[layer] != 1){
-            loading[layer] = 0;
+      }
+      function hideLoading(layer, forced) {
+        if (typeof loading[layer] !== "undefined" && loading[layer] != 1) {
+          loading[layer] = 0;
         }
         var stilLoading = false;
-        for(var key in loading){
-            if(loading[key] == -1) {
-                stilLoading = true;
-                break;
-            }
+        for (var key in loading) {
+          if (loading[key] == -1) {
+            stilLoading = true;
+            break;
+          }
         }
-        if(!stilLoading || forced){
-            $("#loading").hide();
+        if (!stilLoading || forced) {
+          $("#loading").hide();
         }
-    }
-    function init(){
-        $("#loading").click(function(e){ e.preventDefault(); hideLoading(null, true); });
-
-        // Google map usage with OpenStreetmaps taken from https://gist.github.com/elemoine/e82c7dd4b1d0ef45a9a4
-        var gmap = new google.maps.Map(document.getElementById('gmap'), {
-            disableDefaultUI: true,
-            keyboardShortcuts: false,
-            draggable: false,
-            disableDoubleClickZoom: true,
-            scrollwheel: false,
-            streetViewControl: false
+      }
+      function init() {
+        $("#loading").click(function (e) {
+          e.preventDefault();
+          hideLoading(null, true);
         });
+
         var view = new ol.View({
-            // make sure the view doesn't go beyond the 22 zoom levels of Google Maps
-            maxZoom: 21
-        });
-        view.on('change:center', function() {
-            var center = ol.proj.transform(view.getCenter(), 'EPSG:3857', 'EPSG:4326');
-            gmap.setCenter(new google.maps.LatLng(center[1], center[0]));
-        });
-        view.on('change:resolution', function() {
-            gmap.setZoom(view.getZoom());
+          center: toOL([114.7277, 4.5353]),
+          zoom: 9,
         });
 
-        var olMapDiv = document.getElementById('olmap');
+        // Create OSM layer
+        var osmLayer = new ol.layer.Tile({
+          source: new ol.source.OSM(),
+        });
+
         map = new ol.Map({
-            interactions: ol.interaction.defaults({
-                altShiftDragRotate: false,
-                dragPan: false,
-                rotate: false,
-                pinchRotate: false
-            }).extend([new ol.interaction.DragPan({kinetic: null})]),
-            target: olMapDiv,
-            view: view
+          target: "map",
+          layers: [osmLayer],
+          view: view,
         });
-        view.setCenter(toOL([114.7277,4.5353]));
-        view.setZoom(9);
-        olMapDiv.parentNode.removeChild(olMapDiv);
-        gmap.controls[google.maps.ControlPosition.TOP_LEFT].push(olMapDiv);
-
 
         var output = $("#routes");
-        output.on('click', 'input', function(){
-            var file = $(this).val();
-            var layer = layers[file];
+        output.on("click", "input", function () {
+          var file = $(this).val();
+          var layer = layers[file];
 
-            if(layersEnabled[file]){
-                hideLoading(file);
-                map.removeLayer(layer);
+          if (layersEnabled[file]) {
+            hideLoading(file);
+            map.removeLayer(layer);
+          } else {
+            showLoading(file);
+            map.addLayer(layer);
+          }
+          layersEnabled[file] = !layersEnabled[file];
+        });
+
+        for (var i = 0; i < routes.length; i++) {
+          var file = routes[i];
+          var prefix = "data/";
+          var vectorSource = new ol.source.Vector({
+            url: prefix + file,
+            format: new ol.format.KML(),
+          });
+          var route = new ol.layer.Vector({
+            source: vectorSource,
+          });
+          vectorSource.on("change", function (e) {
+            var source = e.target;
+            if (source.getState() == "ready") {
+              var file = source.getUrl().substring(prefix.length);
+              loading[file] = 1;
+              hideLoading(file);
             }
-            else{
-                showLoading(file);
-                map.addLayer(layer);
-            }
-            layersEnabled[file] = !layersEnabled[file];
-        })
+          });
 
-
-        for(var i = 0; i < routes.length;i ++){
-            var file = routes[i];
-            var prefix = "data/";
-            var vectorSource = new ol.source.Vector({
-                url: prefix + file,
-                format: new ol.format.KML()
-            });
-            var route = new ol.layer.Vector({
-                source: vectorSource
-            });
-            vectorSource.on("change", function(e){
-                var source = e.target;
-                if(source.getState() == "ready"){
-                    var file = source.getUrl().substring(prefix.length);
-                    loading[file] = 1;
-                    hideLoading(file);
-                }
-            });
-
-            layers[file] = route;
-            var me = $("<label></label>").addClass('list-group-item').text(file.replace(".kml", ""));
-            var input = $("<input type='checkbox'>").val(file);
-            me.prepend(input);
-            output.append(me);
+          layers[file] = route;
+          var me = $("<label></label>")
+            .addClass("list-group-item")
+            .text(file.replace(".kml", ""));
+          var input = $("<input type='checkbox'>").val(file);
+          me.prepend(input);
+          output.append(me);
         }
 
-        // selecting stops / markers on the map
-        $("#info .dismiss").click(function(){hideInfo();});
-        map.addInteraction(select);
-        select.on('select', function(e) {
-            var features = e.target.getFeatures().getArray();
-            showInfo(features[0]);
+        $("#info .dismiss").click(function () {
+          hideInfo();
         });
-    }
+        map.addInteraction(select);
+        select.on("select", function (e) {
+          var features = e.target.getFeatures().getArray();
+          showInfo(features[0]);
+        });
+      }
 
+      $(document).ready(init);
     </script>
   </head>
-  <body onload="init()">
+  <body>
     <nav class="navbar navbar-fixed-top navbar-inverse">
       <div class="container">
         <div class="navbar-header">
           <a class="navbar-brand" href="#">Brunei Bus Routes</a>
-          <button id="offcanvas" type="button" class="visible-xs pull-right btn btn-primary btn-sm" data-toggle="offcanvas">Show Routes</button>
+          <button
+            id="offcanvas"
+            type="button"
+            class="visible-xs pull-right btn btn-primary btn-sm"
+            data-toggle="offcanvas"
+          >
+            Show Routes
+          </button>
         </div>
-      </div><!-- /.container -->
-    </nav><!-- /.navbar -->
+      </div>
+    </nav>
 
-
-    <div class="container-fluid" style="height: 100%; ">
-
-      <div class="row row-offcanvas row-offcanvas-right"  style="height: 100%; ">
-
-        <div class="col-xs-12 col-sm-9" style="height: 100%; ">
-            <div id="map">
-                <div id="gmap" class="fill"></div>
-                <div id="olmap" class="fill"></div>
-            </div>
-            <div id="info">
-                <a class="btn btn-danger dismiss">X</a>
-                <h3 class="name"></h3>
-                <h5 class="location"></h5>
-            </div>
-        </div>
-        <div class="col-xs-6 col-sm-3 sidebar-offcanvas" style="height: 90%; ">
-            <h3 class="hidden-xs" style="margin:0px;">
-                <div style="display:block; border-radius: 0" class="label label-default" disabled>Show Routes</div>
-            </h3>
-          <div class="list-group" id="routes">
+    <div class="container-fluid" style="height: 100%">
+      <div class="row row-offcanvas row-offcanvas-right" style="height: 100%">
+        <div class="col-xs-12 col-sm-9" style="height: 100%">
+          <div id="map"></div>
+          <div id="info">
+            <a class="btn btn-danger dismiss">X</a>
+            <h3 class="name"></h3>
+            <h5 class="location"></h5>
           </div>
         </div>
+        <div class="col-xs-6 col-sm-3 sidebar-offcanvas" style="height: 90%">
+          <h3 class="hidden-xs" style="margin: 0px">
+            <div
+              style="display: block; border-radius: 0"
+              class="label label-default"
+              disabled
+            >
+              Show Routes
+            </div>
+          </h3>
+          <div class="list-group" id="routes"></div>
+        </div>
       </div>
-      <div id="loading">
-        Loading... <a class="btn btn-danger">X</a>
-      </div>
-      <footer>Data via Land Transport Department <a href='https://drive.google.com/open?id=0B0I7PqbhCMvea2VCaVNiaURRM1U'>docs</a> provided for EOI for the Provision of Public Bus Services (<a href='http://ltd.gov.bn/SitePages/EOIPubBus.aspx'>website</a> / <a href='http://ltd.gov.bn/PublishingImages/SitePages/EOIPubBus/EOI%20for%20the%20provision%20of%20public%20bus%20services%20in%20Brunei%20FINAL.pdf'>PDF</a>)</footer>
+      <div id="loading">Loading... <a class="btn btn-danger">X</a></div>
+      <footer>
+        Data via Land Transport Department
+        <a href="https://drive.google.com/open?id=0B0I7PqbhCMvea2VCaVNiaURRM1U"
+          >docs</a
+        >
+        provided for EOI for the Provision of Public Bus Services (<a
+          href="http://ltd.gov.bn/SitePages/EOIPubBus.aspx"
+          >website</a
+        >
+        /
+        <a
+          href="http://ltd.gov.bn/PublishingImages/SitePages/EOIPubBus/EOI%20for%20the%20provision%20of%20public%20bus%20services%20in%20Brunei%20FINAL.pdf"
+          >PDF</a
+        >)
+      </footer>
     </div>
 
     <script src="bootstrap.min.js"></script>
     <script src="offcanvas.js"></script>
-
   </body>
 </html>
