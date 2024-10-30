@@ -3,8 +3,8 @@ import os
 
 app = Flask(
     __name__,
-    static_folder="static",  # Updated static folder path
-    template_folder="templates",  # Updated template folder path
+    static_folder="static",
+    template_folder="templates",
 )
 
 
@@ -23,8 +23,17 @@ def get_routes():
 
 @app.route("/data/kml/<path:filename>")
 def serve_kml(filename):
-    # Serve KML files from the data/kml directory
-    return send_from_directory(os.path.join(app.static_folder, "data", "kml"), filename)
+    # First try the static folder
+    static_kml_path = os.path.join(app.static_folder, "data", "kml")
+    if os.path.exists(os.path.join(static_kml_path, filename)):
+        return send_from_directory(static_kml_path, filename)
+
+    # If not found in static, try the data folder
+    data_kml_path = os.path.join("data", "kml")
+    if os.path.exists(os.path.join(data_kml_path, filename)):
+        return send_from_directory(data_kml_path, filename)
+
+    return "KML file not found", 404
 
 
 @app.route("/favicon.png")
@@ -33,4 +42,4 @@ def favicon():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8000)
+    app.run(debug=True, host="0.0.0.0", port=8000)
