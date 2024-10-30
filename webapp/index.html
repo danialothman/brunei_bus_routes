@@ -378,10 +378,31 @@
           var prefix = "../data/kml/";
           var vectorSource = new ol.source.Vector({
             url: prefix + file,
-            format: new ol.format.KML(),
+            format: new ol.format.KML({
+              // Add KML specific styling options
+              scale: 0.5, // This will make icons 50% of their original size
+              defaultStyle: [
+                new ol.style.Style({
+                  image: new ol.style.Icon({
+                    scale: 0.5, // This will make icons 50% of their original size
+                    anchor: [0.5, 0.5],
+                    anchorXUnits: "fraction",
+                    anchorYUnits: "fraction",
+                  }),
+                }),
+              ],
+            }),
           });
           var route = new ol.layer.Vector({
             source: vectorSource,
+            style: function (feature) {
+              // Get the original style from the KML
+              var kmlStyle = feature.getStyleFunction()(feature);
+              if (kmlStyle[0].getImage()) {
+                kmlStyle[0].getImage().setScale(0.5); // Set scale for icons
+              }
+              return kmlStyle;
+            },
           });
           vectorSource.on("change", function (e) {
             var source = e.target;
