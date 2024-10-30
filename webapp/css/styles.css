@@ -1,0 +1,113 @@
+html,
+body {
+  height: 99%;
+}
+
+#offcanvas {
+  margin-right: 1em;
+  border-top-right-radius: 0;
+  border-top-left-radius: 0;
+}
+
+#loading {
+  padding: 5px;
+  background-color: rgba(255, 255, 255, 0.8);
+  display: none;
+  top: 1.5em;
+  left: 0;
+  right: 0;
+  margin-left: auto;
+  margin-right: auto;
+  width: 10em;
+  text-align: center;
+  position: absolute;
+  z-index: 1050;
+}
+
+#info {
+  background-color: rgba(255, 255, 255, 0.5);
+  display: none;
+  text-align: center;
+  position: absolute;
+  width: 90%;
+  margin: 0 auto;
+  left: 0;
+  right: 0;
+  padding: 5px;
+  top: auto;
+  bottom: 0;
+}
+
+#info h3 {
+  margin-top: 0;
+}
+
+#info .dismiss {
+  float: right;
+}
+
+#map {
+  width: 100%;
+  height: 98%;
+}
+
+.fill {
+  width: 100%;
+  height: 100%;
+}
+
+#routes {
+  max-height: 98%;
+  overflow-x: hidden;
+}
+
+#routes .list-group-item {
+  padding: 5px;
+}
+
+#routes input {
+  margin-right: 7px;
+}
+
+nav {
+  height: 50px;
+}
+
+body {
+  padding-top: 50px;
+}
+
+footer {
+  padding: 0;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  text-align: center;
+}
+
+[class*="col-"] {
+  padding: 0;
+}
+
+@media (max-width: 767px) {
+  footer {
+    position: relative;
+  }
+  #map {
+    padding: 0 15px;
+  }
+}
+
+.navbar-nav {
+  margin: 0;
+}
+
+.navbar-nav > li > a {
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+#mapStyle {
+  margin-top: 8px;
+}
