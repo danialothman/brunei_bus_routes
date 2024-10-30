@@ -37,8 +37,7 @@ brunei_bus_routes/
 │   ├── js/                 # JavaScript files
 │   └── index.html          # Main application page
 │
-└── tools/                  # Development tools
-    └── serve.py           # Local development server
+└── run.py                  # Local development server
 ```
 
 ## How to Run
@@ -55,7 +54,7 @@ cd brunei_bus_routes
 3. Start the server:
 
 ```bash
-python3 tools/serve.py
+python3 run.py
 ```
 
 4. Open http://localhost:8000 in your web browser
