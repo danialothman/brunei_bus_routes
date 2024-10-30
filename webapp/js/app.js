@@ -252,6 +252,7 @@ class BusMap {
     const view = new ol.View({
       center: this.toOL([114.7277, 4.5353]),
       zoom: 9,
+      minZoom: 10, // Added minZoom to prevent zooming out too far
     });
 
     this.baseLayer = MAP_STYLES.osm.create();
