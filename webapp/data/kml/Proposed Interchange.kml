@@ -1,0 +1,774 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>Proposed Interchange.kml</name>
+	<Style id="sh_ylw-pushpin9">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<StyleMap id="msn_red-pushpin">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_red-pushpin</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_red-pushpin</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="sh_red-pushpin">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/red-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<StyleMap id="msn_ylw-pushpin1">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_ylw-pushpin0</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_ylw-pushpin9</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="s_ylw-pushpin5">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<StyleMap id="m_ylw-pushpin2">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin4</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl2</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="s_ylw-pushpin_hl4">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<StyleMap id="m_ylw-pushpin010">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin02</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl40</styleUrl>
+		</Pair>
+	</StyleMap>
+	<StyleMap id="m_ylw-pushpin10">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin5</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl4</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="sn_ylw-pushpin20">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<StyleMap id="msn_ylw-pushpin7">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_ylw-pushpin20</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_ylw-pushpin71</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="s_ylw-pushpin02">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="sn_ylw-pushpin0">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<StyleMap id="m_ylw-pushpin01">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#s_ylw-pushpin020</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#s_ylw-pushpin_hl400</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="s_ylw-pushpin020">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl2">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="sh_ylw-pushpin0">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<StyleMap id="msn_ylw-pushpin9">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#sn_ylw-pushpin5</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#sh_ylw-pushpin0</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="s_ylw-pushpin_hl400">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="sh_ylw-pushpin71">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="s_ylw-pushpin4">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="sn_red-pushpin">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/red-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="s_ylw-pushpin_hl40">
+		<IconStyle>
+			<scale>1.3</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="sn_ylw-pushpin5">
+		<IconStyle>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://maps.google.com/mapfiles/kml/pushpin/ylw-pushpin.png</href>
+			</Icon>
+			<hotSpot x="20" y="2" xunits="pixels" yunits="pixels"/>
+		</IconStyle>
+	</Style>
+	<Folder>
+		<name>Proposed Interchange</name>
+		<visibility>0</visibility>
+		<Placemark>
+			<name>Mengkubau FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>115.0096264107771</longitude>
+				<latitude>4.98111002998525</latitude>
+				<altitude>0</altitude>
+				<heading>13.16729497924047</heading>
+				<tilt>34.94230382505833</tilt>
+				<range>300.7089346883271</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>115.0087301713929,4.981062754852285,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Tanah Jambu FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>115.0125200573339</longitude>
+				<latitude>4.997899671645222</latitude>
+				<altitude>0</altitude>
+				<heading>5.142700741547883</heading>
+				<tilt>28.38294221274368</tilt>
+				<range>267.2477139622494</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>115.0123590602937,4.997822260781211,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Lambak MNI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.951581694365</longitude>
+				<latitude>4.968469465669196</latitude>
+				<altitude>0</altitude>
+				<heading>2.919781921652799</heading>
+				<tilt>26.84251403148571</tilt>
+				<range>3294.958499672241</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin010</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.9509758968818,4.963415951224387,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Serasa MJI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>115.0665599064113</longitude>
+				<latitude>5.015400682727703</latitude>
+				<altitude>0</altitude>
+				<heading>5.146742325418232</heading>
+				<tilt>29.45806578942705</tilt>
+				<range>1061.550722333362</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_red-pushpin</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>115.0646775926048,5.014826776804346,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Muara FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>115.0713976882812</longitude>
+				<latitude>5.028084394169071</latitude>
+				<altitude>0</altitude>
+				<heading>5.14698152293903</heading>
+				<tilt>30.0024007515372</tilt>
+				<range>651.7182907883896</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>115.0696230045486,5.02831828440925,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Meragang MNI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>115.0425927841422</longitude>
+				<latitude>5.034634109376908</latitude>
+				<altitude>0</altitude>
+				<heading>5.146042644599898</heading>
+				<tilt>24.1053951328594</tilt>
+				<range>411.4143110667828</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>115.041629565848,5.034710369111435,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Mentiri FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>115.032030528157</longitude>
+				<latitude>4.966039598390452</latitude>
+				<altitude>0</altitude>
+				<heading>5.14437222907534</heading>
+				<tilt>28.35820823382746</tilt>
+				<range>498.0029846870656</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>115.0319904787111,4.96627348109069,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Lambak Kanan MNI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.9643016256263</longitude>
+				<latitude>4.981333821113506</latitude>
+				<altitude>0</altitude>
+				<heading>5.137060852555374</heading>
+				<tilt>30.00161128411161</tilt>
+				<range>475.9062228326319</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.9638272444737,4.980891299236241,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Bukit Kebun MNI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>115.0312697125784</longitude>
+				<latitude>5.010636825875788</latitude>
+				<altitude>0</altitude>
+				<heading>5.143722675666647</heading>
+				<tilt>22.52734147090679</tilt>
+				<range>538.9358893756425</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>115.0310994128607,5.011024477932753,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Empire FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.8565740171396</longitude>
+				<latitude>4.963830354105824</latitude>
+				<altitude>0</altitude>
+				<heading>5.12925052218862</heading>
+				<tilt>21.60101838267101</tilt>
+				<range>2121.297026741448</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.8532928936891,4.968109050729103,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Jerudong MJI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.8350350342651</longitude>
+				<latitude>4.93666821925231</latitude>
+				<altitude>0</altitude>
+				<heading>5.123344653465828</heading>
+				<tilt>29.88860894379632</tilt>
+				<range>692.6280320165573</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_red-pushpin</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.8335065081779,4.935322055329261,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Rimba MNI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.9070546742758</longitude>
+				<latitude>4.953011516400619</latitude>
+				<altitude>0</altitude>
+				<heading>5.129529296442779</heading>
+				<tilt>30.00293080854861</tilt>
+				<range>652.6196012761573</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.906174130211,4.952871368118709,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>MPC MNI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.9284227662439</longitude>
+				<latitude>4.926196303793945</latitude>
+				<altitude>0</altitude>
+				<heading>5.132710561882942</heading>
+				<tilt>26.72577764598861</tilt>
+				<range>1044.497562373279</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.9277570665314,4.925948265884992,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Imigresen FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.9507425981663</longitude>
+				<latitude>4.917208292203348</latitude>
+				<altitude>0</altitude>
+				<heading>5.134235593444322</heading>
+				<tilt>28.20966134539545</tilt>
+				<range>715.9956104883731</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.9504825709804,4.916585790049454,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>SG KEBUN FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.9449383197685</longitude>
+				<latitude>4.87973849515042</latitude>
+				<altitude>0</altitude>
+				<heading>5.133639573944977</heading>
+				<tilt>28.37202277493389</tilt>
+				<range>779.2093415810457</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.943058455285,4.878963322422645,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Lumapas FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.9074972716646</longitude>
+				<latitude>4.822314408567111</latitude>
+				<altitude>0</altitude>
+				<heading>5.132316141909596</heading>
+				<tilt>23.95584425242625</tilt>
+				<range>644.2975235751596</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.9064996247199,4.822156503357438,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Kuala Lurah FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.8141500736735</longitude>
+				<latitude>4.740968142589716</latitude>
+				<altitude>0</altitude>
+				<heading>5.126759141725834</heading>
+				<tilt>25.80871229457756</tilt>
+				<range>454.6285930890037</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.8139172547293,4.741255619219735,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Kg Parit FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.8327905413745</longitude>
+				<latitude>4.805950407558006</latitude>
+				<altitude>0</altitude>
+				<heading>17.80667727133936</heading>
+				<tilt>32.55034423948367</tilt>
+				<range>721.7516809750435</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.8321983214918,4.806578825143382,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>HUA HO MULAUT FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.8454892735807</longitude>
+				<latitude>4.859354900843347</latitude>
+				<altitude>0</altitude>
+				<heading>3.041308815855423</heading>
+				<tilt>29.87574230398361</tilt>
+				<range>575.7904446967054</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.8460934587467,4.859107746292911,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>SENGKURONG FH</name>
+			<visibility>0</visibility>
+			<Camera>
+				<longitude>114.8439703269961</longitude>
+				<latitude>4.886015586158433</latitude>
+				<altitude>476.0193649384147</altitude>
+				<heading>-46.23397023534781</heading>
+				<tilt>29.25773909844224</tilt>
+				<roll>1.627994364749304</roll>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</Camera>
+			<styleUrl>#msn_ylw-pushpin9</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.8421188787147,4.887919193540649,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Tg Nangka FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.8325572623413</longitude>
+				<latitude>4.882001849692999</latitude>
+				<altitude>0</altitude>
+				<heading>-14.13495308213875</heading>
+				<tilt>30.00138113201032</tilt>
+				<range>424.7322888161153</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.83192937726,4.881195979574458,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Tg Bunut MNI</name>
+			<visibility>0</visibility>
+			<Camera>
+				<longitude>114.8589200731056</longitude>
+				<latitude>4.887731600163876</latitude>
+				<altitude>250.9568576191479</altitude>
+				<heading>-29.20001599424867</heading>
+				<tilt>29.9999775866363</tilt>
+				<roll>1.657280657768175</roll>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</Camera>
+			<styleUrl>#msn_ylw-pushpin1</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.8576363718263,4.888438093723053,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Bengkurong MNI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.8743065265641</longitude>
+				<latitude>4.843045388918828</latitude>
+				<altitude>0</altitude>
+				<heading>-14.13139596581888</heading>
+				<tilt>30.00555482094906</tilt>
+				<range>1588.347719578874</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.8725784947722,4.842043242444401,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Bunut FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.8875859065417</longitude>
+				<latitude>4.853232362848893</latitude>
+				<altitude>0</altitude>
+				<heading>-14.13056836884334</heading>
+				<tilt>25.82466729807979</tilt>
+				<range>259.4823656634314</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin01</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.8872180945315,4.85323322943564,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>BSB PT MJI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.9441554061605</longitude>
+				<latitude>4.888098699928751</latitude>
+				<altitude>0</altitude>
+				<heading>5.076736546515419</heading>
+				<tilt>29.88101870577236</tilt>
+				<range>472.459983009939</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_red-pushpin</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.9436601250148,4.887929456324734,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Jame&apos; MJI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.9248347141914</longitude>
+				<latitude>4.899200390786156</latitude>
+				<altitude>0</altitude>
+				<heading>5.075119905499001</heading>
+				<tilt>24.98097901962894</tilt>
+				<range>557.155336824938</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_red-pushpin</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.9241423670659,4.899371082273546,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Airport MJI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.9361446065416</longitude>
+				<latitude>4.944513943091708</latitude>
+				<altitude>0</altitude>
+				<heading>5.076163123471207</heading>
+				<tilt>26.37744828029973</tilt>
+				<range>474.1042392393231</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_red-pushpin</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.9353296900145,4.944843436181412,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Katok FH</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.8762041340447</longitude>
+				<latitude>4.892788582174896</latitude>
+				<altitude>0</altitude>
+				<heading>-0.1066986336820436</heading>
+				<tilt>22.04156726346841</tilt>
+				<range>1328.272412522225</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#msn_ylw-pushpin7</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.8735650959786,4.891399449332834,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Limau Manis MNI</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>114.8231264046077</longitude>
+				<latitude>4.767261446504749</latitude>
+				<altitude>0</altitude>
+				<heading>-10.05380027355239</heading>
+				<tilt>23.15221599633288</tilt>
+				<range>924.6166651227069</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin10</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>114.822065358692,4.768274277177159,0</coordinates>
+			</Point>
+		</Placemark>
+		<Placemark>
+			<name>Temburong Interchange</name>
+			<visibility>0</visibility>
+			<LookAt>
+				<longitude>115.0726616675276</longitude>
+				<latitude>4.70687962736016</latitude>
+				<altitude>0</altitude>
+				<heading>0.02375066260455956</heading>
+				<tilt>28.20239729157565</tilt>
+				<range>312.2175331871896</range>
+				<gx:altitudeMode>relativeToSeaFloor</gx:altitudeMode>
+			</LookAt>
+			<styleUrl>#m_ylw-pushpin2</styleUrl>
+			<Point>
+				<gx:drawOrder>1</gx:drawOrder>
+				<coordinates>115.0717062674782,4.706922537634759,0</coordinates>
+			</Point>
+		</Placemark>
+	</Folder>
+</Document>
+</kml>
