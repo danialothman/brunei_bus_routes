@@ -8,6 +8,7 @@
     <meta name="author" content="" />
     <link rel="icon" href="favicon.ico" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <link rel="stylesheet" href="css/bootstrap.min.css" type="text/css" />
     <link rel="stylesheet" href="css/offcanvas.css" type="text/css" />
     <link rel="stylesheet" href="css/ol3.css" type="text/css" />
@@ -145,6 +146,13 @@
           padding: 0 15px;
         }
       }
+      .navbar-nav {
+        margin: 0;
+      }
+      .navbar-nav > li > a {
+        padding-top: 15px;
+        padding-bottom: 15px;
+      }
     </style>
     <script src="js/ol3.js"></script>
     <script src="js/jquery.min.js"></script>
@@ -154,6 +162,7 @@
       var layers = {};
       var loading = {};
       var layersEnabled = {};
+      var baseLayer;
 
       var style1 = new ol.style.Style({
         stroke: new ol.style.Stroke({ color: "#ff3333", width: 5 }),
@@ -258,6 +267,72 @@
           $("#loading").hide();
         }
       }
+
+      function createOSMLayer() {
+        return new ol.layer.Tile({
+          source: new ol.source.OSM(),
+        });
+      }
+
+      function createSatelliteLayer() {
+        return new ol.layer.Tile({
+          source: new ol.source.XYZ({
+            attributions: [
+              "Powered by Esri",
+              "Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community",
+            ],
+            url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            maxZoom: 23,
+          }),
+        });
+      }
+
+      function createTerrainLayer() {
+        return new ol.layer.Tile({
+          source: new ol.source.XYZ({
+            url: "https://tile.opentopomap.org/{z}/{x}/{y}.png",
+            attributions:
+              'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
+            maxZoom: 17,
+          }),
+        });
+      }
+
+      function createDarkLayer() {
+        return new ol.layer.Tile({
+          source: new ol.source.XYZ({
+            url: "https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
+            attributions:
+              '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
+          }),
+        });
+      }
+
+      function changeMapStyle(style) {
+        if (baseLayer) {
+          map.removeLayer(baseLayer);
+        }
+
+        switch (style) {
+          case "osm":
+            baseLayer = createOSMLayer();
+            break;
+          case "satellite":
+            baseLayer = createSatelliteLayer();
+            break;
+          case "terrain":
+            baseLayer = createTerrainLayer();
+            break;
+          case "dark":
+            baseLayer = createDarkLayer();
+            break;
+          default:
+            baseLayer = createOSMLayer();
+        }
+
+        map.getLayers().insertAt(0, baseLayer);
+      }
+
       function init() {
         $("#loading").click(function (e) {
           e.preventDefault();
@@ -269,15 +344,18 @@
           zoom: 9,
         });
 
-        // Create OSM layer
-        var osmLayer = new ol.layer.Tile({
-          source: new ol.source.OSM(),
-        });
+        // Create initial OSM layer
+        baseLayer = createOSMLayer();
 
         map = new ol.Map({
           target: "map",
-          layers: [osmLayer],
+          layers: [baseLayer],
           view: view,
+        });
+
+        // Set up map style change handler
+        $("#mapStyle").change(function () {
+          changeMapStyle($(this).val());
         });
 
         var output = $("#routes");
@@ -350,6 +428,16 @@
             Show Routes
           </button>
         </div>
+        <ul class="nav navbar-nav">
+          <li>
+            <select id="mapStyle" class="form-control" style="margin-top: 8px">
+              <option value="osm">OpenStreetMap</option>
+              <option value="satellite">Satellite</option>
+              <option value="terrain">Terrain</option>
+              <option value="dark">Dark</option>
+            </select>
+          </li>
+        </ul>
       </div>
     </nav>
 
