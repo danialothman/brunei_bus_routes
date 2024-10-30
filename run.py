@@ -1,27 +1,38 @@
-import http.server
-import socketserver
+from flask import Flask, render_template, send_from_directory, json
 import os
-import sys
 
-PORT = 8000
-Handler = http.server.SimpleHTTPRequestHandler
+app = Flask(
+    __name__,
+    static_folder="webapp",  # Keep existing static files in place
+    template_folder="webapp",
+)  # Keep HTML files in place for now
 
-# Change to webapp directory
-webapp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webapp")
-os.chdir(webapp_dir)
 
-print(f"Starting server at http://localhost:{PORT}")
-print("Press Ctrl+C to stop")
+@app.route("/")
+def index():
+    return render_template("index.html")
 
-try:
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        httpd.serve_forever()
-except OSError as e:
-    if e.errno == 48:  # Address already in use
-        print(f"Error: Port {PORT} is already in use.")
-        print("Please stop any running servers or try a different port.")
-        sys.exit(1)
-    else:
-        raise
-except KeyboardInterrupt:
-    print("\nServer stopped.")
+
+@app.route("/data/routes.json")
+def get_routes():
+    # Read and return routes.json directly as JSON
+    routes_path = os.path.join(app.static_folder, "data", "routes.json")
+    with open(routes_path, "r") as f:
+        return json.load(f)
+
+
+@app.route("/data/kml/<path:filename>")
+def serve_kml(filename):
+    # Serve KML files from the data/kml directory
+    return send_from_directory(os.path.join(app.static_folder, "data", "kml"), filename)
+
+
+@app.route("/favicon.ico")
+def favicon():
+    return send_from_directory(
+        app.static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon"
+    )
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=8000)
