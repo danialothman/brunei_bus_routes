@@ -54,7 +54,12 @@ cd brunei_bus_routes
 3. Start the server:
 
 ```bash
-python3 run.py
+python app.py
+
+or
+
+export FLASK_APP=app.py && export FLASK_ENV=development && export FLASK_DEBUG=1 && flask run --host=0.0.0.0 --port=8000
+flask run
 ```
 
 4. Open http://localhost:8000 in your web browser
