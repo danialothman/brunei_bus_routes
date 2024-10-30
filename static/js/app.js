@@ -249,8 +249,8 @@ class BusMap {
       this.hideLoading(null, true);
     });
 
-    // Convert Brunei's bounding box coordinates to OpenLayers projection with minimal padding
-    const extent = this.toOL([114.4, 4.4]).concat(this.toOL([115.2, 4.8]));
+    // Convert Brunei's bounding box coordinates to OpenLayers projection with padding
+    const extent = this.toOL([114.0, 4.2]).concat(this.toOL([115.4, 5.0]));
 
     const view = new ol.View({
       // Center coordinates for Brunei (approximately centered on BSB)
@@ -268,9 +268,9 @@ class BusMap {
       // Geographical extent that limits the viewable area to Brunei's main bus route areas
       extent: extent,
 
-      // When false, constrains both center and extent of the view to stay within bounds
       // When true, only the center is constrained (allows edge panning)
-      constrainOnlyCenter: false,
+      // This helps prevent getting stuck when zooming to view routes
+      constrainOnlyCenter: true,
     });
 
     this.baseLayer = MAP_STYLES.osm.create();
