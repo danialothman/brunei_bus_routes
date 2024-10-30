@@ -3,9 +3,9 @@ import os
 
 app = Flask(
     __name__,
-    static_folder="webapp",  # Keep existing static files in place
-    template_folder="webapp",
-)  # Keep HTML files in place for now
+    static_folder="static",  # Updated static folder path
+    template_folder="templates",  # Updated template folder path
+)
 
 
 @app.route("/")
@@ -27,11 +27,9 @@ def serve_kml(filename):
     return send_from_directory(os.path.join(app.static_folder, "data", "kml"), filename)
 
 
-@app.route("/favicon.ico")
+@app.route("/favicon.png")
 def favicon():
-    return send_from_directory(
-        app.static_folder, "favicon.ico", mimetype="image/vnd.microsoft.icon"
-    )
+    return send_from_directory(app.static_folder, "favicon.png", mimetype="image/png")
 
 
 if __name__ == "__main__":
