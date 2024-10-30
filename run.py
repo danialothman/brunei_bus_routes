@@ -7,9 +7,7 @@ PORT = 8000
 Handler = http.server.SimpleHTTPRequestHandler
 
 # Change to webapp directory
-webapp_dir = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "webapp"
-)
+webapp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "webapp")
 os.chdir(webapp_dir)
 
 print(f"Starting server at http://localhost:{PORT}")
