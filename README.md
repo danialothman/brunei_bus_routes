@@ -4,7 +4,7 @@ An interactive web application for visualizing bus routes in Brunei.
 
 ## About
 
-- Current routes based on manually mapping paths based on locations indicated by signboards (the images in this repo)
+- Current routes based on manually mapping paths based on locations indicated by signboards (in docs/images)
 - Likely to have lot of errors but should give a rough outline of bus routes
 - Data sourced from Land Transport Department's EOI for Public Bus Services
 
@@ -20,6 +20,27 @@ An interactive web application for visualizing bus routes in Brunei.
   - Feeder stops and interchanges
   - Mosque locations for reference
 
+## Project Structure
+
+```
+brunei_bus_routes/
+├── data/                    # Source data files
+│   ├── geojson/            # GeoJSON route files
+│   └── kml/                # KML route files
+│
+├── docs/                    # Documentation and reference
+│   ├── images/             # Route images and signboard photos
+│   └── reference/          # Additional documentation
+│
+├── webapp/                  # Web application
+│   ├── css/                # Stylesheets
+│   ├── js/                 # JavaScript files
+│   └── index.html          # Main application page
+│
+└── tools/                  # Development tools
+    └── serve.py           # Local development server
+```
+
 ## How to Run
 
 1. Make sure you have Python 3 installed on your system
@@ -34,8 +55,7 @@ cd brunei_bus_routes
 3. Start the server:
 
 ```bash
-cd webapp
-python3 ../serve.py
+python3 tools/serve.py
 ```
 
 4. Open http://localhost:8000 in your web browser

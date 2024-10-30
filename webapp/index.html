@@ -8,9 +8,9 @@
     <meta name="author" content="" />
     <link rel="icon" href="favicon.ico" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <link rel="stylesheet" href="bootstrap.min.css" type="text/css" />
-    <link rel="stylesheet" href="offcanvas.css" type="text/css" />
-    <link rel="stylesheet" href="ol3.css" type="text/css" />
+    <link rel="stylesheet" href="css/bootstrap.min.css" type="text/css" />
+    <link rel="stylesheet" href="css/offcanvas.css" type="text/css" />
+    <link rel="stylesheet" href="css/ol3.css" type="text/css" />
 
     <style type="text/css">
       html,
@@ -146,8 +146,8 @@
         }
       }
     </style>
-    <script src="ol3.js"></script>
-    <script src="jquery.min.js"></script>
+    <script src="js/ol3.js"></script>
+    <script src="js/jquery.min.js"></script>
 
     <script type="text/javascript">
       var map;
@@ -297,7 +297,7 @@
 
         for (var i = 0; i < routes.length; i++) {
           var file = routes[i];
-          var prefix = "data/";
+          var prefix = "../data/kml/";
           var vectorSource = new ol.source.Vector({
             url: prefix + file,
             format: new ol.format.KML(),
@@ -394,7 +394,7 @@
       </footer>
     </div>
 
-    <script src="bootstrap.min.js"></script>
-    <script src="offcanvas.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script src="js/offcanvas.js"></script>
   </body>
 </html>
