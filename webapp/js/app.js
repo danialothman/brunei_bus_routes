@@ -49,6 +49,8 @@ class BusMap {
     this.layersEnabled = {};
     this.baseLayer = null;
     this.select = new ol.interaction.Select();
+    this.locationLayer = null;
+    this.locationFeature = null;
 
     this.init();
   }
@@ -115,6 +117,61 @@ class BusMap {
     }
     this.baseLayer = MAP_STYLES[style].create();
     this.map.getLayers().insertAt(0, this.baseLayer);
+  }
+
+  setupLocationTracking() {
+    if (!navigator.geolocation) {
+      console.log("Geolocation is not supported by your browser");
+      return;
+    }
+
+    // Create location feature and layer
+    this.locationFeature = new ol.Feature();
+    const locationStyle = new ol.style.Style({
+      image: new ol.style.Circle({
+        radius: 8,
+        fill: new ol.style.Fill({
+          color: "#3399CC",
+        }),
+        stroke: new ol.style.Stroke({
+          color: "#fff",
+          width: 2,
+        }),
+      }),
+    });
+    this.locationFeature.setStyle(locationStyle);
+
+    this.locationLayer = new ol.layer.Vector({
+      source: new ol.source.Vector({
+        features: [this.locationFeature],
+      }),
+    });
+    this.map.addLayer(this.locationLayer);
+
+    // Watch position
+    navigator.geolocation.watchPosition(
+      (position) => {
+        const coords = [position.coords.longitude, position.coords.latitude];
+        const olCoords = this.toOL(coords);
+        this.locationFeature.setGeometry(new ol.geom.Point(olCoords));
+
+        // Center map on first position
+        if (!this.locationFeature.getGeometry()) {
+          this.map.getView().animate({
+            center: olCoords,
+            zoom: 15,
+          });
+        }
+      },
+      (error) => {
+        console.error("Error getting location:", error.message);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0,
+      }
+    );
   }
 
   setupRoutes() {
@@ -219,6 +276,7 @@ class BusMap {
     });
 
     this.setupRoutes();
+    this.setupLocationTracking();
   }
 }
 
