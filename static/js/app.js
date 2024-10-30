@@ -249,10 +249,28 @@ class BusMap {
       this.hideLoading(null, true);
     });
 
+    // Convert Brunei's bounding box coordinates to OpenLayers projection with minimal padding
+    const extent = this.toOL([114.4, 4.4]).concat(this.toOL([115.2, 4.8]));
+
     const view = new ol.View({
+      // Center coordinates for Brunei (approximately centered on BSB)
       center: this.toOL([114.7277, 4.5353]),
-      zoom: 9,
-      minZoom: 10, // Added minZoom to prevent zooming out too far
+
+      // Initial zoom level when the map loads
+      zoom: 1,
+
+      // Minimum zoom level - set to 9.5 to maintain context while preventing too much zoom out
+      minZoom: 9.5,
+
+      // Maximum zoom level - set to 18 for detailed street-level view
+      maxZoom: 18,
+
+      // Geographical extent that limits the viewable area to Brunei's main bus route areas
+      extent: extent,
+
+      // When false, constrains both center and extent of the view to stay within bounds
+      // When true, only the center is constrained (allows edge panning)
+      constrainOnlyCenter: false,
     });
 
     this.baseLayer = MAP_STYLES.osm.create();
