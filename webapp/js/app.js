@@ -133,11 +133,11 @@ class BusMap {
       this.layersEnabled[file] = !this.layersEnabled[file];
     });
 
-    fetch("../data/routes.json")
+    fetch("/data/routes.json") // Updated path
       .then((response) => response.json())
       .then((routes) => {
         routes.forEach((file) => {
-          const prefix = "../data/kml/";
+          const prefix = "/data/kml/"; // Updated path
           const vectorSource = new ol.source.Vector({
             url: prefix + file,
             format: new ol.format.KML({
