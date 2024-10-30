@@ -1,0 +1,566 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>Mosques</name>
+	<visibility>0</visibility>
+	<Style id="icon-503-FF8277-nodesc">
+		<IconStyle>
+			<color>ff7782ff</color>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+			</Icon>
+			<hotSpot x="16" y="31" xunits="pixels" yunits="insetPixels"/>
+		</IconStyle>
+		<BalloonStyle>
+			<text><![CDATA[<h3>$[name]</h3>]]></text>
+		</BalloonStyle>
+	</Style>
+	<Style id="icon-503-FF82770">
+		<IconStyle>
+			<color>ff7782ff</color>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+			</Icon>
+			<hotSpot x="16" y="31" xunits="pixels" yunits="insetPixels"/>
+		</IconStyle>
+	</Style>
+	<Style id="icon-503-FF8277">
+		<IconStyle>
+			<color>ff7782ff</color>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+			</Icon>
+			<hotSpot x="16" y="31" xunits="pixels" yunits="insetPixels"/>
+		</IconStyle>
+	</Style>
+	<StyleMap id="icon-503-FF82772">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#icon-503-FF82770</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#icon-503-FF82771</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="icon-503-FF82771">
+		<IconStyle>
+			<color>ff7782ff</color>
+			<scale>1.1</scale>
+			<Icon>
+				<href>http://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>
+			</Icon>
+			<hotSpot x="16" y="31" xunits="pixels" yunits="insetPixels"/>
+		</IconStyle>
+	</Style>
+	<Placemark>
+		<name>Masjid Omar &apos;Ali Saifuddien</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.9394503465576,4.889671373833515,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Jame Asr Hassanil Bolkiah</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.9215561729469,4.89781820682376,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Al-Ameerah Al-Hajjah Maryam Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8425461018524,4.939194196257683,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Perpindahan Serasa</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.0524379999999,5.002994,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Sultan Sharif Ali Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.842097,4.888328,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Duli Pengiran Muda Mahkota Pengiran Muda Haji Al-Muhtadee Billah Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.93259,4.882685,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Setia Ali</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.061519,5.029113,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Lambak</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.944827,4.968728,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Tanah Jambu Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.003503,4.996794,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Ash Shaliheen Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.935966,4.918088,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Bunut</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8866050000001,4.853297,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Sultan Sharif Ali Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.842097,4.888328,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Raja Isteri Pengiran Anak Saleha Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.899585,4.933641,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Universiti Brunei Darussalam Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8958350000001,4.977401,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Limau Manis Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.824338,4.768988,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Kilanas</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8627750000001,4.870795,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Bengkurong Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.870941,4.847364,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Sungai Hanching</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.97644,4.964785,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Kupang Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.794004,4.842978,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kg Mata-Mata</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8956020000001,4.900143,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>RPN Kampong Mentiri Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.030103,4.966490000000001,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid HQ Polis Gadong</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.903552,4.907016,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Sungai Buloh</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.0227346000001,4.991588999999999,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Sungai Bunga Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.01352,4.915202,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Pudak Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.002068,4.898722,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Menunggol Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.978388,4.863776,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Pudak Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.002068,4.898722,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Putat Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.975325,4.834011,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Menunggol Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.978388,4.863776,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Perpindahan Lambak Kanan Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.9668900000001,4.970669,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Mentiri Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.020338,4.968344,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Beribi Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.900695,4.887767,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Mohamed Bolkiah Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.945198,4.944911,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Belimbing, Subok</name>
+		<visibility>0</visibility>
+		<description><![CDATA[<img src="https://lh4.googleusercontent.com/proxy/bRv_LZJGfHL53UJ88aM-EM0fGxkjb73KGFvBGT4EFpM-LsI4jUb--DVOVo1wDEZwLLE3rSX9TWAyEGYlKGdyzWAlOI05Gp8OijctiZ-nfO_BT1GFGZfRFd4jHPKa27vPFRIP4w" height="200" width="auto" /><br><br>]]></description>
+		<styleUrl>#icon-503-FF8277</styleUrl>
+		<ExtendedData>
+			<Data name="gx_media_links">
+				<value>https://lh4.googleusercontent.com/proxy/bRv_LZJGfHL53UJ88aM-EM0fGxkjb73KGFvBGT4EFpM-LsI4jUb--DVOVo1wDEZwLLE3rSX9TWAyEGYlKGdyzWAlOI05Gp8OijctiZ-nfO_BT1GFGZfRFd4jHPKa27vPFRIP4w</value>
+			</Data>
+		</ExtendedData>
+		<Point>
+			<coordinates>114.9794444444444,4.905,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Salambigar</name>
+		<visibility>0</visibility>
+		<description><![CDATA[<img src="https://lh4.googleusercontent.com/proxy/dCs1aP4cnuB1_qk9ynZTEZ1dwSBkDyAZ2Dw5Gii4lYuc8fj9BbwgZeYD_x_11hDXa_og9vLYPgVBYUgXclFh57KRWj3Ft1JeFuATx72_0y7C7o3mVCTPQCoNBtP1Pht2UHXlWQ" height="200" width="auto" /><br><br>]]></description>
+		<styleUrl>#icon-503-FF8277</styleUrl>
+		<ExtendedData>
+			<Data name="gx_media_links">
+				<value>https://lh4.googleusercontent.com/proxy/dCs1aP4cnuB1_qk9ynZTEZ1dwSBkDyAZ2Dw5Gii4lYuc8fj9BbwgZeYD_x_11hDXa_og9vLYPgVBYUgXclFh57KRWj3Ft1JeFuATx72_0y7C7o3mVCTPQCoNBtP1Pht2UHXlWQ</value>
+			</Data>
+		</ExtendedData>
+		<Point>
+			<coordinates>114.9802777777778,4.975277777777778,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Jubli Perak Sultan Haji Hassanal Bolkiah, Kampong Jangsak</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8758347911186,4.88127948579194,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Perdana Wangsa Haji Mohammad</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.9450266361237,4.873151449182492,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Serdang</name>
+		<visibility>0</visibility>
+		<description><![CDATA[<img src="https://lh5.googleusercontent.com/proxy/ElGKz-s60ZGUjoNBcuMiXDBpPLnkEUSjqogA2ps2wtWlleqpGnXolJKUPO7YIiu6Z9jlN-sJTKAx9X7jQgbziHlz3CEBMuA4YslELWzImbt1mtAhH5W1CqRiIrQoCRXHvX-y7A" height="200" width="auto" /><br><br>]]></description>
+		<styleUrl>#icon-503-FF8277</styleUrl>
+		<ExtendedData>
+			<Data name="gx_media_links">
+				<value>https://lh5.googleusercontent.com/proxy/ElGKz-s60ZGUjoNBcuMiXDBpPLnkEUSjqogA2ps2wtWlleqpGnXolJKUPO7YIiu6Z9jlN-sJTKAx9X7jQgbziHlz3CEBMuA4YslELWzImbt1mtAhH5W1CqRiIrQoCRXHvX-y7A</value>
+			</Data>
+		</ExtendedData>
+		<Point>
+			<coordinates>114.9988888888888,4.908611111111111,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Pintu Malim Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.9542799999999,4.872537,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Kampong Kapok Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.044542,5.021473,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Batu Marang</name>
+		<visibility>0</visibility>
+		<description><![CDATA[<img src="https://lh3.googleusercontent.com/proxy/XWf038bKTSQr7rE4qh4QpJBKZOAeNtFN5MHu1iaIUumNlvNV1_s8SBw2vazg0g_1V1kTbZNSxuboCsbvMouZrPsZYyTkayptRj28Sc7VG1OPZ45UgnCxeXYxqlym5RLh-HdrhA" height="200" width="auto" /><br><br>]]></description>
+		<styleUrl>#icon-503-FF8277</styleUrl>
+		<ExtendedData>
+			<Data name="gx_media_links">
+				<value>https://lh3.googleusercontent.com/proxy/XWf038bKTSQr7rE4qh4QpJBKZOAeNtFN5MHu1iaIUumNlvNV1_s8SBw2vazg0g_1V1kTbZNSxuboCsbvMouZrPsZYyTkayptRj28Sc7VG1OPZ45UgnCxeXYxqlym5RLh-HdrhA</value>
+			</Data>
+		</ExtendedData>
+		<Point>
+			<coordinates>115.0330781936646,4.981721487588021,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Lumapas</name>
+		<visibility>0</visibility>
+		<description><![CDATA[<img src="https://lh4.googleusercontent.com/proxy/n3jPAKoxF1c7lyDmInOfyAdnWrgGP-sQFpBx5Wr7i6TKV-TT2SXOgaaF4t110dnFuZgbv8t6L50Kfnu4nEKKPWvd2aN5VpWpY7nolUr4HZ92hjtvTWeg5zYZ7S83ISw1NqcZbA" height="200" width="auto" /><br><br>]]></description>
+		<styleUrl>#icon-503-FF8277</styleUrl>
+		<ExtendedData>
+			<Data name="gx_media_links">
+				<value>https://lh4.googleusercontent.com/proxy/n3jPAKoxF1c7lyDmInOfyAdnWrgGP-sQFpBx5Wr7i6TKV-TT2SXOgaaF4t110dnFuZgbv8t6L50Kfnu4nEKKPWvd2aN5VpWpY7nolUr4HZ92hjtvTWeg5zYZ7S83ISw1NqcZbA</value>
+			</Data>
+		</ExtendedData>
+		<Point>
+			<coordinates>114.9073308706284,4.823400777040667,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Pulaie</name>
+		<visibility>0</visibility>
+		<description><![CDATA[<img src="https://lh4.googleusercontent.com/proxy/bsi-wqtH_CFnZPoXT60iZ19tsTEkeaVF7Xlz04DfVuAvTaj4w7Obl537uWoIfFHNQAhcr_degLTKPYhHznCcNogZ0dAPOk2bV8trjk-MNTbT1TT8CN9gaZRc9XfZ-jINWe6HdQ" height="200" width="auto" /><br><br>]]></description>
+		<styleUrl>#icon-503-FF82772</styleUrl>
+		<ExtendedData>
+			<Data name="gx_media_links">
+				<value>https://lh4.googleusercontent.com/proxy/bsi-wqtH_CFnZPoXT60iZ19tsTEkeaVF7Xlz04DfVuAvTaj4w7Obl537uWoIfFHNQAhcr_degLTKPYhHznCcNogZ0dAPOk2bV8trjk-MNTbT1TT8CN9gaZRc9XfZ-jINWe6HdQ</value>
+			</Data>
+		</ExtendedData>
+		<Point>
+			<coordinates>114.9517208362755,4.933598431964253,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Masin</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8453584313393,4.829515910523045,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Junjungan</name>
+		<visibility>0</visibility>
+		<description><![CDATA[<img src="https://lh3.googleusercontent.com/proxy/60GXLxGG16QBzP7tcnaU0xXcfuu0kxF_83txl9M2-bl67MeDiz6y9k7Y3wG1qksMTybjNzGJLRLJQj6c0NOPVL6SoFzC5i1Ngp-b527KVm6Uqsu5WEL1oZBZAJrTtkeMgLUVZQ" height="200" width="auto" /><br><br>]]></description>
+		<styleUrl>#icon-503-FF8277</styleUrl>
+		<ExtendedData>
+			<Data name="gx_media_links">
+				<value>https://lh3.googleusercontent.com/proxy/60GXLxGG16QBzP7tcnaU0xXcfuu0kxF_83txl9M2-bl67MeDiz6y9k7Y3wG1qksMTybjNzGJLRLJQj6c0NOPVL6SoFzC5i1Ngp-b527KVm6Uqsu5WEL1oZBZAJrTtkeMgLUVZQ</value>
+			</Data>
+		</ExtendedData>
+		<Point>
+			<coordinates>114.854319691658,4.810512846056343,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Pengkalan Batu</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.827761,4.798994,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Panchor Murai</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8098567128182,4.803408610526208,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Kasat</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.9478340000001,4.823233,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Pehin Datu Imam Haji Abdul Mokti, Kampong Burong Pingai Ayer</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.9341985583305,4.877542374349584,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Pelambayan</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.9730959534645,4.88608628944556,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Kampong Sungai Besar</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>115.0191789865494,4.941593688120829,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Paduka Seri Begawan Sultan Omar Ali Saifuddien Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8141390000001,4.867845,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Yayasan Sultan Haji Hassanal Bolkiah Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.9555800000001,4.852674,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Jefri Bolkiah, Kg Batong</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8157653808594,4.820573329925537,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Rashidah Sa&apos;adatul Bolkiah</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.9670851230622,4.935308551465061,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Pengiran Muda Abdul Malik Mosque</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.889347,4.921674,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Pengiran Muda &apos;Abdul Mateen, Kg. Mulaut</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8451519012451,4.86385905588687,0</coordinates>
+		</Point>
+	</Placemark>
+	<Placemark>
+		<name>Masjid Baru Kampong Kilanas</name>
+		<visibility>0</visibility>
+		<styleUrl>#icon-503-FF8277-nodesc</styleUrl>
+		<Point>
+			<coordinates>114.8626881837845,4.861154429533107,0</coordinates>
+		</Point>
+	</Placemark>
+</Document>
+</kml>
