@@ -1,344 +1,88 @@
-const MAP_STYLES = {
-  osm: {
-    create: () =>
-      new ol.layer.Tile({
-        source: new ol.source.OSM(),
-      }),
-  },
-  satellite: {
-    create: () =>
-      new ol.layer.Tile({
-        source: new ol.source.XYZ({
-          attributions: [
-            "Powered by Esri",
-            "Source: Esri, DigitalGlobe, GeoEye, Earthstar Geographics, CNES/Airbus DS, USDA, USGS, AeroGRID, IGN, and the GIS User Community",
-          ],
-          url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-          maxZoom: 23,
-        }),
-      }),
-  },
-  terrain: {
-    create: () =>
-      new ol.layer.Tile({
-        source: new ol.source.XYZ({
-          url: "https://tile.opentopomap.org/{z}/{x}/{y}.png",
-          attributions:
-            'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
-          maxZoom: 17,
-        }),
-      }),
-  },
-  dark: {
-    create: () =>
-      new ol.layer.Tile({
-        source: new ol.source.XYZ({
-          url: "https://cartodb-basemaps-{a-d}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
-          attributions:
-            '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="http://cartodb.com/attributions">CartoDB</a>',
-        }),
-      }),
-  },
-};
+window.APP = window.APP || {};
 
-class BusMap {
+APP.BusMap = class {
   constructor() {
     this.map = null;
-    this.layers = {};
-    this.loading = {};
-    this.layersEnabled = {};
     this.baseLayer = null;
-    this.select = new ol.interaction.Select();
-    this.locationLayer = null;
-    this.locationFeature = null;
+    this.locationTracker = null;
+    this.routeManager = null;
+    this.infoManager = null;
 
     this.init();
   }
 
-  toOL(coordinate) {
-    return ol.proj.fromLonLat(coordinate);
-  }
-
-  toNormal(coordinate) {
-    return ol.proj.toLonLat(coordinate);
-  }
-
-  showInfo(feature) {
-    if (!feature) {
-      $("#info").hide();
-      return;
-    }
-    const name = feature.get("name");
-    $("#info .name").text(name);
-
-    const coord = this.toNormal(feature.getGeometry().getCoordinates());
-    if (isNaN(coord[0])) {
-      $("#info .location").hide();
-    } else {
-      $("#info .location")
-        .text(`${coord[0].toFixed(7)}, ${coord[1].toFixed(7)}`)
-        .show();
-    }
-
-    $("#info").show();
-  }
-
-  hideInfo() {
-    this.select.getFeatures().clear();
-    $("#info").hide();
-  }
-
-  showLoading(layer) {
-    if (
-      typeof this.loading[layer] === "undefined" ||
-      this.loading[layer] !== 1
-    ) {
-      this.loading[layer] = -1;
-      $("#loading").show();
-    }
-  }
-
-  hideLoading(layer, forced) {
-    if (
-      typeof this.loading[layer] !== "undefined" &&
-      this.loading[layer] != 1
-    ) {
-      this.loading[layer] = 0;
-    }
-    const stillLoading = Object.values(this.loading).some((val) => val === -1);
-    if (!stillLoading || forced) {
-      $("#loading").hide();
-    }
-  }
-
-  changeMapStyle(style) {
-    if (this.baseLayer) {
-      this.map.removeLayer(this.baseLayer);
-    }
-    this.baseLayer = MAP_STYLES[style].create();
-    this.map.getLayers().insertAt(0, this.baseLayer);
-  }
-
-  setupLocationTracking() {
-    if (!navigator.geolocation) {
-      console.log("Geolocation is not supported by your browser");
-      return;
-    }
-
-    // Create location feature and layer
-    this.locationFeature = new ol.Feature();
-    const locationStyle = new ol.style.Style({
-      image: new ol.style.Circle({
-        radius: 8,
-        fill: new ol.style.Fill({
-          color: "#3399CC",
-        }),
-        stroke: new ol.style.Stroke({
-          color: "#fff",
-          width: 2,
-        }),
-      }),
-    });
-    this.locationFeature.setStyle(locationStyle);
-
-    this.locationLayer = new ol.layer.Vector({
-      source: new ol.source.Vector({
-        features: [this.locationFeature],
-      }),
-    });
-    this.map.addLayer(this.locationLayer);
-
-    // Watch position
-    navigator.geolocation.watchPosition(
-      (position) => {
-        const coords = [position.coords.longitude, position.coords.latitude];
-        const olCoords = this.toOL(coords);
-        this.locationFeature.setGeometry(new ol.geom.Point(olCoords));
-
-        // Center map on first position
-        if (!this.locationFeature.getGeometry()) {
-          this.map.getView().animate({
-            center: olCoords,
-            zoom: 15,
-          });
-        }
-      },
-      (error) => {
-        console.error("Error getting location:", error.message);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 5000,
-        maximumAge: 0,
-      }
-    );
-  }
-
-  createVectorSource(kmlFile) {
-    const prefix = "/data/kml/";
-    return new ol.source.Vector({
-      url: prefix + kmlFile,
-      format: new ol.format.KML({
-        extractStyles: false,
-        dataProjection: "EPSG:4326",
-        featureProjection: "EPSG:3857",
-      }),
-    });
-  }
-
-  createVectorLayer(source) {
-    return new ol.layer.Vector({
-      source: source,
-      style: new ol.style.Style({
-        stroke: new ol.style.Stroke({
-          color: "#FF4136",
-          width: 3,
-        }),
-        image: new ol.style.Circle({
-          radius: 5,
-          fill: new ol.style.Fill({
-            color: "#FF4136",
-          }),
-          stroke: new ol.style.Stroke({
-            color: "#FFF",
-            width: 2,
-          }),
-        }),
-      }),
-    });
-  }
-
-  zoomToLayerExtent(layer) {
-    const extent = layer.getSource().getExtent();
-    this.map.getView().fit(extent, {
-      padding: [50, 50, 50, 50],
-      maxZoom: 16,
-      duration: 1000, // Add smooth animation
-    });
-  }
-
-  createRouteLayer(kmlFile) {
-    console.log("Creating new layer for:", kmlFile);
-    const source = this.createVectorSource(kmlFile);
-    const layer = this.createVectorLayer(source);
-
-    source.on("error", (error) => {
-      console.error("Error loading KML:", kmlFile, error);
-      this.hideLoading(kmlFile);
-    });
-
-    source.on("change", () => {
-      if (source.getState() === "ready") {
-        const features = source.getFeatures();
-        console.log(`Loaded ${features.length} features for ${kmlFile}`);
-        if (features.length > 0) {
-          this.zoomToLayerExtent(layer);
-        }
-        this.loading[kmlFile] = 1;
-        this.hideLoading(kmlFile);
-      }
-    });
-
-    return layer;
-  }
-
-  setupRoutes() {
-    const output = $("#routes");
-    output.on("click", "input", (e) => {
-      try {
-        const kmlFile = e.target.value;
-        console.log("Toggling route:", kmlFile);
-
-        if (this.layersEnabled[kmlFile]) {
-          console.log("Removing layer:", kmlFile);
-          this.hideLoading(kmlFile);
-          this.map.removeLayer(this.layers[kmlFile]);
-          delete this.layers[kmlFile]; // Remove the layer reference
-        } else {
-          console.log("Adding layer:", kmlFile);
-          this.showLoading(kmlFile);
-          const layer = this.createRouteLayer(kmlFile); // Always create a new layer
-          this.layers[kmlFile] = layer;
-          this.map.addLayer(layer);
-        }
-        this.layersEnabled[kmlFile] = !this.layersEnabled[kmlFile];
-      } catch (error) {
-        console.error("Error handling route toggle:", error);
-        this.hideLoading(null, true);
-      }
-    });
-
-    fetch("/data/routes.json")
-      .then((response) => response.json())
-      .then((routes) => {
-        routes.forEach((kmlFile) => {
-          const label = $("<label></label>")
-            .addClass("list-group-item")
-            .text(kmlFile.replace(".kml", ""));
-          const input = $('<input type="checkbox">').val(kmlFile);
-          label.prepend(input);
-          output.append(label);
-        });
-      })
-      .catch((error) => {
-        console.error("Error loading routes:", error);
-      });
-  }
-
+  /**
+   * Initialize the map and its components
+   */
   init() {
-    $("#loading").click((e) => {
-      e.preventDefault();
-      this.hideLoading(null, true);
-    });
+    this.setupMap();
+    this.setupMapStyleControls();
+    this.setupLoadingControls();
 
-    // Convert Brunei's bounding box coordinates to OpenLayers projection with padding
-    const extent = this.toOL([114.0, 4.2]).concat(this.toOL([115.4, 5.0]));
+    // Initialize components
+    this.locationTracker = new APP.LocationTracker(this.map);
+    this.routeManager = new APP.RouteManager(this.map);
+    this.infoManager = new APP.InfoManager(this.map);
+
+    this.locationTracker.init();
+    this.routeManager.init();
+    this.infoManager.init();
+  }
+
+  /**
+   * Set up the OpenLayers map
+   */
+  setupMap() {
+    const extent = APP.MapUtils.toOL(APP.MAP_CONFIG.BOUNDS.MIN).concat(
+      APP.MapUtils.toOL(APP.MAP_CONFIG.BOUNDS.MAX)
+    );
 
     const view = new ol.View({
-      // Center coordinates for Brunei (approximately centered on BSB)
-      center: this.toOL([114.7277, 4.5353]),
-
-      // Initial zoom level when the map loads
-      zoom: 11,
-
-      // Minimum zoom level - set to 9.5 to maintain context while preventing too much zoom out
-      minZoom: 9.5,
-
-      // Maximum zoom level - set to 18 for detailed street-level view
-      maxZoom: 18,
-
-      // Geographical extent that limits the viewable area to Brunei's main bus route areas
+      center: APP.MapUtils.toOL(APP.MAP_CONFIG.INITIAL_CENTER),
+      zoom: APP.MAP_CONFIG.INITIAL_ZOOM,
+      minZoom: APP.MAP_CONFIG.MIN_ZOOM,
+      maxZoom: APP.MAP_CONFIG.MAX_ZOOM,
       extent: extent,
-
-      // When true, only the center is constrained (allows edge panning)
-      // This helps prevent getting stuck when zooming to view routes
       constrainOnlyCenter: true,
     });
 
-    this.baseLayer = MAP_STYLES.osm.create();
+    this.baseLayer = APP.MAP_STYLES.osm.create();
     this.map = new ol.Map({
       target: "map",
       layers: [this.baseLayer],
       view: view,
     });
-
-    $("#mapStyle").change((e) => {
-      this.changeMapStyle(e.target.value);
-    });
-
-    $("#info .dismiss").click(() => {
-      this.hideInfo();
-    });
-
-    this.map.addInteraction(this.select);
-    this.select.on("select", (e) => {
-      const features = e.target.getFeatures().getArray();
-      this.showInfo(features[0]);
-    });
-
-    this.setupRoutes();
-    this.setupLocationTracking();
   }
-}
 
-$(document).ready(() => new BusMap());
+  /**
+   * Set up map style controls
+   */
+  setupMapStyleControls() {
+    $("#mapStyle").change((e) => this.changeMapStyle(e.target.value));
+  }
+
+  /**
+   * Change the map base layer style
+   * @param {string} style - Map style identifier
+   */
+  changeMapStyle(style) {
+    if (this.baseLayer) {
+      this.map.removeLayer(this.baseLayer);
+    }
+    this.baseLayer = APP.MAP_STYLES[style].create();
+    this.map.getLayers().insertAt(0, this.baseLayer);
+  }
+
+  /**
+   * Set up loading controls
+   */
+  setupLoadingControls() {
+    $("#loading").click((e) => {
+      e.preventDefault();
+      this.routeManager.hideLoading(null, true);
+    });
+  }
+};
+
+// Initialize the application when the document is ready
+$(document).ready(() => new APP.BusMap());
