@@ -83,3 +83,39 @@ flask run
 ## Credits
 
 Original work by [Timothy Shim](https://github.com/thewheat)
+
+## Roadmap Features
+
+Based on analysis of the current codebase, here are recommended features that would enhance the Brunei Bus Routes application, listed in order of impact and feasibility:
+
+1. Journey Planner (Highest Impact)
+   Route planning between any two points
+   Multiple route options with transfer points
+   Walking directions to/from stops
+   Journey time and fare estimates
+
+2. Enhanced Bus Stop Information
+   Comprehensive stop database
+   Arrival/departure schedules
+   Stop amenities information
+   Stop photos and accessibility details
+
+3. Real-time Features
+   Live bus tracking
+   Service disruption alerts
+   Real-time occupancy levels
+   Schedule updates
+
+4. User Experience Improvements
+   Route favorites
+   Offline map support
+   Multi-language (Malay/English)
+   Accessibility features
+
+5. Community Features
+   User reviews/ratings
+   Issue reporting
+   Service feedback
+   Crowdsourced updates
+
+The journey planner would be the most valuable addition as it would transform the app from an informational tool into a practical trip planning solution, significantly improving its utility for daily commuters and tourists alike.
