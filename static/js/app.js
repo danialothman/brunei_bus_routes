@@ -56,11 +56,11 @@ class BusMap {
   }
 
   toOL(coordinate) {
-    return ol.proj.transform(coordinate, "EPSG:4326", "EPSG:3857");
+    return ol.proj.fromLonLat(coordinate);
   }
 
   toNormal(coordinate) {
-    return ol.proj.transform(coordinate, "EPSG:3857", "EPSG:4326");
+    return ol.proj.toLonLat(coordinate);
   }
 
   showInfo(feature) {
@@ -174,72 +174,111 @@ class BusMap {
     );
   }
 
+  createVectorSource(kmlFile) {
+    const prefix = "/data/kml/";
+    return new ol.source.Vector({
+      url: prefix + kmlFile,
+      format: new ol.format.KML({
+        extractStyles: false,
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
+      }),
+    });
+  }
+
+  createVectorLayer(source) {
+    return new ol.layer.Vector({
+      source: source,
+      style: new ol.style.Style({
+        stroke: new ol.style.Stroke({
+          color: "#FF4136",
+          width: 3,
+        }),
+        image: new ol.style.Circle({
+          radius: 5,
+          fill: new ol.style.Fill({
+            color: "#FF4136",
+          }),
+          stroke: new ol.style.Stroke({
+            color: "#FFF",
+            width: 2,
+          }),
+        }),
+      }),
+    });
+  }
+
+  zoomToLayerExtent(layer) {
+    const extent = layer.getSource().getExtent();
+    this.map.getView().fit(extent, {
+      padding: [50, 50, 50, 50],
+      maxZoom: 16,
+    });
+  }
+
   setupRoutes() {
     const output = $("#routes");
     output.on("click", "input", (e) => {
-      const file = e.target.value;
-      const layer = this.layers[file];
+      try {
+        const kmlFile = e.target.value;
+        console.log("Toggling route:", kmlFile);
 
-      if (this.layersEnabled[file]) {
-        this.hideLoading(file);
-        this.map.removeLayer(layer);
-      } else {
-        this.showLoading(file);
-        this.map.addLayer(layer);
-      }
-      this.layersEnabled[file] = !this.layersEnabled[file];
-    });
+        if (!this.layers[kmlFile]) {
+          console.log("Creating new layer for:", kmlFile);
+          const source = this.createVectorSource(kmlFile);
+          const layer = this.createVectorLayer(source);
 
-    fetch("/data/routes.json") // Updated path
-      .then((response) => response.json())
-      .then((routes) => {
-        routes.forEach((file) => {
-          const prefix = "/data/kml/"; // Updated path
-          const vectorSource = new ol.source.Vector({
-            url: prefix + file,
-            format: new ol.format.KML({
-              scale: 0.5,
-              defaultStyle: [
-                new ol.style.Style({
-                  image: new ol.style.Icon({
-                    scale: 0.5,
-                    anchor: [0.5, 0.5],
-                    anchorXUnits: "fraction",
-                    anchorYUnits: "fraction",
-                  }),
-                }),
-              ],
-            }),
+          source.on("error", (error) => {
+            console.error("Error loading KML:", kmlFile, error);
+            this.hideLoading(kmlFile);
           });
 
-          const route = new ol.layer.Vector({
-            source: vectorSource,
-            style: (feature) => {
-              const kmlStyle = feature.getStyleFunction()(feature);
-              if (kmlStyle[0].getImage()) {
-                kmlStyle[0].getImage().setScale(0.5);
+          source.on("change", () => {
+            if (source.getState() === "ready") {
+              const features = source.getFeatures();
+              console.log(`Loaded ${features.length} features for ${kmlFile}`);
+              if (features.length > 0) {
+                this.zoomToLayerExtent(layer);
               }
-              return kmlStyle;
-            },
-          });
-
-          vectorSource.on("change", (e) => {
-            const source = e.target;
-            if (source.getState() == "ready") {
-              const file = source.getUrl().substring(prefix.length);
-              this.loading[file] = 1;
-              this.hideLoading(file);
+              this.loading[kmlFile] = 1;
+              this.hideLoading(kmlFile);
             }
           });
 
-          this.layers[file] = route;
+          this.layers[kmlFile] = layer;
+        }
+
+        const layer = this.layers[kmlFile];
+        if (this.layersEnabled[kmlFile]) {
+          console.log("Removing layer:", kmlFile);
+          this.hideLoading(kmlFile);
+          this.map.removeLayer(layer);
+        } else {
+          console.log("Adding layer:", kmlFile);
+          this.showLoading(kmlFile);
+          this.map.addLayer(layer);
+        }
+        this.layersEnabled[kmlFile] = !this.layersEnabled[kmlFile];
+      } catch (error) {
+        console.error("Error handling route toggle:", error);
+        this.hideLoading(null, true);
+      }
+    });
+
+    fetch("/data/routes.json")
+      .then((response) => response.json())
+      .then((routes) => {
+        routes.forEach((kmlFile) => {
           const label = $("<label></label>")
             .addClass("list-group-item")
-            .text(file.replace(".kml", ""));
-          const input = $('<input type="checkbox">').val(file);
+            .text(kmlFile.replace(".kml", ""));
+          const input = $('<input type="checkbox">').val(kmlFile);
           label.prepend(input);
           output.append(label);
         });
+      })
+      .catch((error) => {
+        console.error("Error loading routes:", error);
       });
   }
 
@@ -257,7 +296,7 @@ class BusMap {
       center: this.toOL([114.7277, 4.5353]),
 
       // Initial zoom level when the map loads
-      zoom: 1,
+      zoom: 11,
 
       // Minimum zoom level - set to 9.5 to maintain context while preventing too much zoom out
       minZoom: 9.5,
