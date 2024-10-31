@@ -213,7 +213,33 @@ class BusMap {
     this.map.getView().fit(extent, {
       padding: [50, 50, 50, 50],
       maxZoom: 16,
+      duration: 1000, // Add smooth animation
     });
+  }
+
+  createRouteLayer(kmlFile) {
+    console.log("Creating new layer for:", kmlFile);
+    const source = this.createVectorSource(kmlFile);
+    const layer = this.createVectorLayer(source);
+
+    source.on("error", (error) => {
+      console.error("Error loading KML:", kmlFile, error);
+      this.hideLoading(kmlFile);
+    });
+
+    source.on("change", () => {
+      if (source.getState() === "ready") {
+        const features = source.getFeatures();
+        console.log(`Loaded ${features.length} features for ${kmlFile}`);
+        if (features.length > 0) {
+          this.zoomToLayerExtent(layer);
+        }
+        this.loading[kmlFile] = 1;
+        this.hideLoading(kmlFile);
+      }
+    });
+
+    return layer;
   }
 
   setupRoutes() {
@@ -223,39 +249,16 @@ class BusMap {
         const kmlFile = e.target.value;
         console.log("Toggling route:", kmlFile);
 
-        if (!this.layers[kmlFile]) {
-          console.log("Creating new layer for:", kmlFile);
-          const source = this.createVectorSource(kmlFile);
-          const layer = this.createVectorLayer(source);
-
-          source.on("error", (error) => {
-            console.error("Error loading KML:", kmlFile, error);
-            this.hideLoading(kmlFile);
-          });
-
-          source.on("change", () => {
-            if (source.getState() === "ready") {
-              const features = source.getFeatures();
-              console.log(`Loaded ${features.length} features for ${kmlFile}`);
-              if (features.length > 0) {
-                this.zoomToLayerExtent(layer);
-              }
-              this.loading[kmlFile] = 1;
-              this.hideLoading(kmlFile);
-            }
-          });
-
-          this.layers[kmlFile] = layer;
-        }
-
-        const layer = this.layers[kmlFile];
         if (this.layersEnabled[kmlFile]) {
           console.log("Removing layer:", kmlFile);
           this.hideLoading(kmlFile);
-          this.map.removeLayer(layer);
+          this.map.removeLayer(this.layers[kmlFile]);
+          delete this.layers[kmlFile]; // Remove the layer reference
         } else {
           console.log("Adding layer:", kmlFile);
           this.showLoading(kmlFile);
+          const layer = this.createRouteLayer(kmlFile); // Always create a new layer
+          this.layers[kmlFile] = layer;
           this.map.addLayer(layer);
         }
         this.layersEnabled[kmlFile] = !this.layersEnabled[kmlFile];
