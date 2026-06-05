@@ -6,9 +6,9 @@ APP.RouteManager = class {
    */
   constructor(map) {
     this.map = map;
-    this.layers = new Map();
-    this.loading = new Map();
-    this.layersEnabled = new Map();
+    this.layers = new Map(); // kmlFile -> ol.layer.Vector (cached, may be hidden)
+    this.colors = new Map(); // kmlFile -> assigned color
+    this.loadingFiles = new Set(); // kmlFiles with a fetch in flight
   }
 
   /**
@@ -36,19 +36,20 @@ APP.RouteManager = class {
   }
 
   /**
-   * Create vector layer with styling
+   * Create vector layer with per-route color styling
    * @param {ol.source.Vector} source - Vector source
+   * @param {string} color - Route color
    * @returns {ol.layer.Vector} Vector layer
    */
-  createVectorLayer(source) {
+  createVectorLayer(source, color) {
     const { stroke, point } = APP.MAP_CONFIG.ROUTE_STYLE;
     return new ol.layer.Vector({
       source: source,
       style: new ol.style.Style({
-        stroke: new ol.style.Stroke(stroke),
+        stroke: new ol.style.Stroke({ color: color, width: stroke.width }),
         image: new ol.style.Circle({
           radius: point.radius,
-          fill: new ol.style.Fill({ color: point.fill }),
+          fill: new ol.style.Fill({ color: color }),
           stroke: new ol.style.Stroke(point.stroke),
         }),
       }),
@@ -56,39 +57,65 @@ APP.RouteManager = class {
   }
 
   /**
-   * Show loading indicator for layer
-   * @param {string} layer - Layer identifier
+   * Mark a route as loading and reflect it in the spinner
+   * @param {string} kmlFile - Layer identifier
    */
-  showLoading(layer) {
-    if (!this.loading.has(layer) || this.loading.get(layer) !== 1) {
-      this.loading.set(layer, -1);
-      $("#loading").show();
-    }
+  showLoading(kmlFile) {
+    this.loadingFiles.add(kmlFile);
+    this.updateSpinner();
   }
 
   /**
-   * Hide loading indicator for layer
-   * @param {string} layer - Layer identifier
-   * @param {boolean} forced - Force hide loading
+   * Clear a route's loading state (or all of them) and update the spinner
+   * @param {string} kmlFile - Layer identifier (ignored when forced)
+   * @param {boolean} forced - Force-clear all loading state
    */
-  hideLoading(layer, forced = false) {
-    if (this.loading.has(layer) && this.loading.get(layer) !== 1) {
-      this.loading.set(layer, 0);
+  hideLoading(kmlFile, forced = false) {
+    if (forced) {
+      this.loadingFiles.clear();
+    } else {
+      this.loadingFiles.delete(kmlFile);
     }
-    const stillLoading = Array.from(this.loading.values()).some(
-      (val) => val === -1
-    );
-    if (!stillLoading || forced) {
+    this.updateSpinner();
+  }
+
+  /**
+   * Show the loading banner only while something is actually loading
+   */
+  updateSpinner() {
+    if (this.loadingFiles.size > 0) {
+      $("#loading").show();
+    } else {
       $("#loading").hide();
     }
   }
 
   /**
-   * Zoom to layer extent
-   * @param {ol.layer.Vector} layer - Vector layer
+   * Whether a route's layer is currently on the map and visible
+   * @param {string} kmlFile - KML file name
+   * @returns {boolean}
    */
-  zoomToLayerExtent(layer) {
+  isVisible(kmlFile) {
+    const layer = this.layers.get(kmlFile);
+    return !!layer && layer.getVisible();
+  }
+
+  /**
+   * Zoom to a layer's extent only when it is the sole visible route, so
+   * adding a route to an existing selection doesn't yank the camera away.
+   * @param {ol.layer.Vector} layer - Vector layer just made visible
+   */
+  maybeZoomTo(layer) {
+    const otherVisible = Array.from(this.layers.values()).some(
+      (l) => l !== layer && l.getVisible()
+    );
+    if (otherVisible) {
+      return;
+    }
     const extent = layer.getSource().getExtent();
+    if (!extent || !isFinite(extent[0])) {
+      return;
+    }
     this.map.getView().fit(extent, {
       padding: [50, 50, 50, 50],
       maxZoom: 16,
@@ -102,9 +129,9 @@ APP.RouteManager = class {
    * @returns {ol.layer.Vector} Vector layer
    */
   createRouteLayer(kmlFile) {
-    console.log("Creating new layer for:", kmlFile);
+    const color = this.colors.get(kmlFile) || APP.MAP_CONFIG.ROUTE_STYLE.stroke.color;
     const source = this.createVectorSource(kmlFile);
-    const layer = this.createVectorLayer(source);
+    const layer = this.createVectorLayer(source, color);
 
     source.on("error", (error) => {
       APP.MapUtils.handleError(error, `Loading KML: ${kmlFile}`);
@@ -114,11 +141,9 @@ APP.RouteManager = class {
     source.on("change", () => {
       if (source.getState() === "ready") {
         const features = source.getFeatures();
-        console.log(`Loaded ${features.length} features for ${kmlFile}`);
-        if (features.length > 0) {
-          this.zoomToLayerExtent(layer);
+        if (features.length > 0 && layer.getVisible()) {
+          this.maybeZoomTo(layer);
         }
-        this.loading.set(kmlFile, 1);
         this.hideLoading(kmlFile);
       }
     });
@@ -127,49 +152,109 @@ APP.RouteManager = class {
   }
 
   /**
-   * Setup route controls and event handlers
+   * Show a route — reusing its cached layer if it was loaded before, so
+   * re-enabling never re-fetches the KML over the network.
+   * @param {string} kmlFile - KML file name
    */
-  setupRouteControls() {
-    const output = $("#routes");
-    output.on("click", "input", (e) => {
-      try {
-        const kmlFile = e.target.value;
-        console.log("Toggling route:", kmlFile);
+  enableRoute(kmlFile) {
+    let layer = this.layers.get(kmlFile);
+    if (layer) {
+      layer.setVisible(true);
+      this.maybeZoomTo(layer);
+      return;
+    }
+    this.showLoading(kmlFile);
+    layer = this.createRouteLayer(kmlFile);
+    this.layers.set(kmlFile, layer);
+    this.map.addLayer(layer);
+  }
 
-        if (this.layersEnabled.get(kmlFile)) {
-          console.log("Removing layer:", kmlFile);
-          this.hideLoading(kmlFile);
-          this.map.removeLayer(this.layers.get(kmlFile));
-          this.layers.delete(kmlFile);
-        } else {
-          console.log("Adding layer:", kmlFile);
-          this.showLoading(kmlFile);
-          const layer = this.createRouteLayer(kmlFile);
-          this.layers.set(kmlFile, layer);
-          this.map.addLayer(layer);
-        }
-        this.layersEnabled.set(kmlFile, !this.layersEnabled.get(kmlFile));
-      } catch (error) {
-        APP.MapUtils.handleError(error, "Route toggle");
-        this.hideLoading(null, true);
+  /**
+   * Hide a route without destroying its layer (cached for instant re-show)
+   * @param {string} kmlFile - KML file name
+   */
+  disableRoute(kmlFile) {
+    const layer = this.layers.get(kmlFile);
+    if (layer) {
+      layer.setVisible(false);
+    }
+    this.hideLoading(kmlFile);
+  }
+
+  /**
+   * Toggle a single route on/off
+   * @param {string} kmlFile - KML file name
+   */
+  toggleRoute(kmlFile) {
+    if (this.isVisible(kmlFile)) {
+      this.disableRoute(kmlFile);
+    } else {
+      this.enableRoute(kmlFile);
+    }
+  }
+
+  /**
+   * Show every route in the list
+   */
+  showAll() {
+    $("#routes input").each((_, el) => {
+      if (!el.checked) {
+        el.checked = true;
+        this.enableRoute(el.value);
       }
     });
   }
 
   /**
-   * Load route list from JSON
+   * Hide every route
+   */
+  clearAll() {
+    $("#routes input").each((_, el) => {
+      el.checked = false;
+    });
+    this.layers.forEach((layer) => layer.setVisible(false));
+    this.hideLoading(null, true);
+  }
+
+  /**
+   * Setup route controls and event handlers
+   */
+  setupRouteControls() {
+    $("#routes").on("click", "input", (e) => {
+      try {
+        this.toggleRoute(e.target.value);
+      } catch (error) {
+        APP.MapUtils.handleError(error, "Route toggle");
+        this.hideLoading(null, true);
+      }
+    });
+
+    $("#showAll").on("click", () => this.showAll());
+    $("#clearAll").on("click", () => this.clearAll());
+  }
+
+  /**
+   * Load route list from JSON and build the colored legend/toggles
    */
   loadRouteList() {
     fetch("/data/routes.json")
       .then((response) => response.json())
       .then((routes) => {
         const output = $("#routes");
-        routes.forEach((kmlFile) => {
-          const label = $("<label></label>")
-            .addClass("list-group-item")
-            .text(kmlFile.replace(".kml", ""));
+        routes.forEach((kmlFile, index) => {
+          const color = APP.ROUTE_COLORS[index % APP.ROUTE_COLORS.length];
+          this.colors.set(kmlFile, color);
+
+          const label = $("<label></label>").addClass("list-group-item route-item");
           const input = $('<input type="checkbox">').val(kmlFile);
-          label.prepend(input);
+          const swatch = $('<span class="route-swatch"></span>').css(
+            "background-color",
+            color
+          );
+          const name = $('<span class="route-name"></span>').text(
+            kmlFile.replace(".kml", "")
+          );
+          label.append(input).append(swatch).append(name);
           output.append(label);
         });
       })

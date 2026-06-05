@@ -44,6 +44,17 @@ APP.MAP_STYLES = {
   },
 };
 
+// Distinct colors assigned per route so overlapping routes are
+// visually distinguishable. Cycled by route index; the palette is
+// ordered so adjacent routes get well-separated hues.
+APP.ROUTE_COLORS = [
+  "#e6194b", "#3cb44b", "#4363d8", "#f58231", "#911eb4",
+  "#42d4f4", "#f032e6", "#469990", "#9a6324", "#800000",
+  "#808000", "#000075", "#e6194b", "#1f78b4", "#33a02c",
+  "#6a3d9a", "#b15928", "#ff8c00", "#0082c8", "#aa6e28",
+  "#d2691e", "#2e8b57", "#8b008b", "#556b2f",
+];
+
 // Map configuration constants
 APP.MAP_CONFIG = {
   INITIAL_CENTER: [114.7277, 4.5353],
