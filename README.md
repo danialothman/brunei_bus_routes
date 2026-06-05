@@ -1,10 +1,22 @@
 # Mapping Brunei Bus System
 
+> **Original README** by [Timothy Shim](https://github.com/thewheat) (2016) — preserved verbatim:
+>
+> - Current routes based on manually mapping paths based on locations indicated by signboards (the images in this repo)
+> - Likely to have lot so errors but should give a rough outline of bus routes
+
+---
+
+# Additions
+
+Everything below was added after the original above (by later maintainers / this
+fork) and is **not** part of Timothy's original README.
+
 An interactive web application for visualizing bus routes in Brunei.
 
 ## About
 
-- Current routes based on manually mapping paths based on locations indicated by signboards (in docs/images)
+- Current routes based on manually mapping paths based on locations indicated by signboards (in `docs/2016/images`)
 - Likely to have lot of errors but should give a rough outline of bus routes
 - Data sourced from Land Transport Department's EOI for Public Bus Services
 
@@ -19,77 +31,6 @@ An interactive web application for visualizing bus routes in Brunei.
   - KB Seria, Tutong, and Temburong routes
   - Feeder stops and interchanges
   - Mosque locations for reference
-
-## Project Structure
-
-```
-brunei_bus_routes/
-├── data/                    # Source data files
-│   ├── geojson/            # GeoJSON route files
-│   └── kml/                # KML route files
-│
-├── docs/                    # Documentation and reference
-│   ├── images/             # Route images and signboard photos
-│   └── reference/          # Additional documentation
-│
-├── webapp/                  # Web application
-│   ├── css/                # Stylesheets
-│   ├── js/                 # JavaScript files
-│   └── index.html          # Main application page
-│
-└── run.py                  # Local development server
-```
-
-## How to Run
-
-1. Make sure you have Python 3 installed on your system
-
-2. Clone this repository:
-
-```bash
-git clone https://github.com/yourusername/brunei_bus_routes.git
-cd brunei_bus_routes
-```
-
-3. Start the server:
-
-```bash
-python app.py
-
-or
-
-export FLASK_APP=app.py && export FLASK_ENV=development && export FLASK_DEBUG=1 && flask run --host=0.0.0.0 --port=8000
-flask run
-```
-
-4. Open http://localhost:8000 in your web browser
-
-5. To stop the server, press Ctrl+C in the terminal
-
-## Usage
-
-- Use the sidebar to toggle different bus routes on/off
-- Click on routes or markers to view information
-- Pan and zoom the map to explore different areas
-- On mobile devices, use the "Show Routes" button to access the route toggle menu
-
-## Technologies Used
-
-- OpenLayers 3 for map visualization
-- Bootstrap for responsive UI
-- jQuery for interactivity
-- Python's built-in HTTP server
-
-## Credits
-
-Original work by [Timothy Shim](https://github.com/thewheat)
-
----
-
-# Fork Additions
-
-This section documents changes made in this fork on top of the original work
-above. The original README is preserved as-is for reference.
 
 ## 3D "Ride the Route" Mode
 
@@ -118,7 +59,7 @@ originates from, so new datasets can live alongside the original 2016 set
 without mixing. The app serves a single year, selected by the `DATA_YEAR`
 constant in `app.py` (currently `"2016"`).
 
-## Project Structure (current)
+## Project Structure
 
 ```
 brunei_bus_routes/
@@ -159,7 +100,15 @@ python -m venv .venv
 .venv/bin/python app.py                      # Windows: .venv\Scripts\python app.py
 ```
 
-Then open http://localhost:8000 in your browser.
+Then open http://localhost:8000 in your browser. To stop the server, press
+Ctrl+C in the terminal.
+
+## Usage
+
+- Use the sidebar to toggle different bus routes on/off
+- Click on routes or markers to view information
+- Pan and zoom the map to explore different areas
+- On mobile devices, use the "Show Routes" button to access the route toggle menu
 
 ## Technologies Used
 
@@ -168,3 +117,7 @@ Then open http://localhost:8000 in your browser.
 - [Three.js](https://threejs.org/) and [MapLibre GL JS](https://maplibre.org/) — 3D ride modes
 - [Turf.js](https://turfjs.org/) — route geometry math
 - [OpenStreetMap](https://www.openstreetmap.org/) — map tiles (no API key required)
+
+## Credits
+
+Original work by [Timothy Shim](https://github.com/thewheat)
