@@ -21,10 +21,8 @@ $(document).ready(function () {
   function launch(engine) {
     const route = select.val();
     if (!route) return;
-    window.open(
-      `/ride/${engine}?route=${encodeURIComponent(route)}`,
-      "_blank"
-    );
+    // Navigate in the same tab; each ride page has an "✕ Exit" link back to "/".
+    window.location.href = `/ride/${engine}?route=${encodeURIComponent(route)}`;
   }
 
   $("#rideThreeBtn").click(() => launch("three"));
