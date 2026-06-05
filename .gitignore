@@ -27,5 +27,8 @@ env/
 # Logs
 *.log
 
+# Crash dumps (e.g. Cygwin/MSYS bash on Windows)
+*.stackdump
+
 # Local development settings
 instance/

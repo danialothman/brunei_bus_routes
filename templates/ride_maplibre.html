@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>3D Ride · MapLibre</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/ride.css') }}"
+    />
+    <style>
+      /* simple top-down bus marker (map rotates so travel dir is "up") */
+      .bus-marker {
+        width: 16px;
+        height: 30px;
+        border-radius: 4px;
+        border: 2px solid #fff;
+        box-shadow: 0 0 6px rgba(0, 0, 0, 0.5);
+        position: relative;
+      }
+      .bus-marker::after {
+        content: "";
+        position: absolute;
+        top: 3px;
+        left: 2px;
+        right: 2px;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.7);
+        border-radius: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <div id="ride-topbar">
+      <span class="route-title" id="route-title">Loading…</span>
+      <span class="engine-badge">MapLibre</span>
+      <span class="spacer"></span>
+      <a id="exit" href="/">✕ Exit</a>
+    </div>
+
+    <div id="stop-banner"></div>
+    <div id="minimap"></div>
+
+    <div id="ride-controls">
+      <button id="playpause" title="Play/Pause">⏸</button>
+      <button id="toggle-stops" class="toggle-btn active" title="Show/hide stops" aria-pressed="true">🚏 Stops</button>
+      <button id="toggle-minimap" class="toggle-btn active" title="Show/hide minimap" aria-pressed="true">🗺 Map</button>
+      <div class="speed">
+        <span>Speed</span>
+        <input id="speed" type="range" min="0.1" max="4" step="0.05" value="0.1" />
+        <span id="speed-val">0.1×</span>
+      </div>
+      <div id="progress-wrap"><div id="progress-bar"></div></div>
+    </div>
+
+    <div id="ride-status">
+      <div>Preparing your ride…</div>
+      <div class="sub" id="ride-status-sub">Loading route & map</div>
+    </div>
+
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
+    <script src="{{ url_for('static', filename='js/config.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/route-path.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/minimap.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/maplibre-ride.js') }}"></script>
+  </body>
+</html>
