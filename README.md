@@ -83,3 +83,88 @@ flask run
 ## Credits
 
 Original work by [Timothy Shim](https://github.com/thewheat)
+
+---
+
+# Fork Additions
+
+This section documents changes made in this fork on top of the original work
+above. The original README is preserved as-is for reference.
+
+## 3D "Ride the Route" Mode
+
+Pick a route and ride it in 3D as a bus drives the path, in either of two
+rendering engines:
+
+- **Three.js ride** (`/ride/three`) — chase cam following a bus over a ground
+  textured with stitched OpenStreetMap tiles.
+- **MapLibre ride** (`/ride/maplibre`) — a tilted real OSM map with the camera
+  chasing a bus marker.
+
+Both rides share:
+
+- Play/pause and a speed slider (down to 0.1×, defaulting to the slowest speed)
+- A scrubbable progress bar — click or drag to jump anywhere in the journey
+- Toggles to show/hide stops and the minimap
+- A live OSM minimap (bottom-right) that follows the bus, with zoom controls
+  (z7–z19, default z15) and a reset-zoom button
+
+Launch it from the main map via the "🚌 3D Ride" button.
+
+## Data Organized by Year
+
+The route data, docs, and notes are segregated by the year the dataset
+originates from, so new datasets can live alongside the original 2016 set
+without mixing. The app serves a single year, selected by the `DATA_YEAR`
+constant in `app.py` (currently `"2016"`).
+
+## Project Structure (current)
+
+```
+brunei_bus_routes/
+├── app.py                     # Flask development server
+├── requirements.txt           # Python dependencies (Flask, defusedxml)
+│
+├── data/                       # Source data files, by year
+│   └── 2016/
+│       ├── geojson/           # GeoJSON route files
+│       └── kml/               # KML route files
+│
+├── docs/                       # Documentation and reference, by year
+│   └── 2016/
+│       ├── images/            # Route images and signboard photos
+│       │   ├── stops/         # Stop signboard photos
+│       │   └── timings/       # Timing signboard photos
+│       └── reference/         # notes.txt, routes.txt
+│
+├── misc/                       # Misc reference assets, by year
+│   └── 2016/                  # ADBS reference gifs
+│
+├── static/                     # Web assets served by Flask
+│   ├── css/                   # Stylesheets
+│   ├── js/                    # JavaScript (map + ride modes)
+│   └── data/2016/             # Route data the app serves (kml + routes.json)
+│
+└── templates/                  # HTML templates (index + ride pages)
+```
+
+## How to Run
+
+```bash
+# create a virtual environment and install dependencies
+python -m venv .venv
+.venv/bin/pip install -r requirements.txt   # Windows: .venv\Scripts\pip install -r requirements.txt
+
+# run the app
+.venv/bin/python app.py                      # Windows: .venv\Scripts\python app.py
+```
+
+Then open http://localhost:8000 in your browser.
+
+## Technologies Used
+
+- [Flask](https://flask.palletsprojects.com/) — Python web server
+- [OpenLayers](https://openlayers.org/) — main map visualization
+- [Three.js](https://threejs.org/) and [MapLibre GL JS](https://maplibre.org/) — 3D ride modes
+- [Turf.js](https://turfjs.org/) — route geometry math
+- [OpenStreetMap](https://www.openstreetmap.org/) — map tiles (no API key required)
