@@ -15,18 +15,23 @@ app = Flask(
     template_folder="templates",
 )
 
+# The route data is segregated by year so new datasets can live alongside the
+# repo owner's original 2016 set (under sibling folders, e.g. data/2026).
+# Bump this to switch which dataset the app serves.
+DATA_YEAR = "2016"
+
 
 def _find_kml(filename):
-    """Locate a KML file: static/data/kml first, then top-level data/kml."""
+    """Locate a KML file: static/data/<year>/kml first, then top-level data/<year>/kml."""
     # Reject path traversal / absolute paths — only serve plain KML filenames.
     if os.path.isabs(filename) or ".." in filename.replace("\\", "/").split("/"):
         return None
 
-    static_kml = os.path.join(app.static_folder, "data", "kml", filename)
+    static_kml = os.path.join(app.static_folder, "data", DATA_YEAR, "kml", filename)
     if os.path.exists(static_kml):
         return static_kml
 
-    data_kml = os.path.join("data", "kml", filename)
+    data_kml = os.path.join("data", DATA_YEAR, "kml", filename)
     if os.path.exists(data_kml):
         return data_kml
 
@@ -122,7 +127,7 @@ def ride_maplibre():
 @app.route("/data/routes.json")
 def get_routes():
     # Read and return routes.json directly as JSON
-    routes_path = os.path.join(app.static_folder, "data", "routes.json")
+    routes_path = os.path.join(app.static_folder, "data", DATA_YEAR, "routes.json")
     with open(routes_path, "r") as f:
         return json.load(f)
 
