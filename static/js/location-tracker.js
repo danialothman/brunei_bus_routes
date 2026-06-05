@@ -8,6 +8,7 @@ APP.LocationTracker = class {
     this.map = map;
     this.locationFeature = null;
     this.locationLayer = null;
+    this.centered = false;
   }
 
   /**
@@ -73,7 +74,8 @@ APP.LocationTracker = class {
     this.locationFeature.setGeometry(new ol.geom.Point(olCoords));
 
     // Center map on first position
-    if (!this.locationFeature.getGeometry()) {
+    if (!this.centered) {
+      this.centered = true;
       this.map.getView().animate({
         center: olCoords,
         zoom: 15,
