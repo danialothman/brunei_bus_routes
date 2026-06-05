@@ -14,6 +14,10 @@ const els = {
   speed: document.getElementById("speed"),
   speedVal: document.getElementById("speed-val"),
   progress: document.getElementById("progress-bar"),
+  progressWrap: document.getElementById("progress-wrap"),
+  toggleStops: document.getElementById("toggle-stops"),
+  toggleMinimap: document.getElementById("toggle-minimap"),
+  minimap: document.getElementById("minimap"),
 };
 
 function showError(msg) {
@@ -309,8 +313,10 @@ async function main() {
   const baseSpeed = totalLength / TARGET_DURATION; // m/s
   let traveled = 0;
   let playing = true;
-  let speedMul = 1;
+  let speedMul = 0.1;
   let lastStop = null;
+  let stopsVisible = true;
+  let scrubbing = false;
 
   function placeAt(u) {
     const clamped = Math.min(Math.max(u, 0), 1);
@@ -329,6 +335,7 @@ async function main() {
   }
 
   function updateStopBanner(busPos) {
+    if (!stopsVisible) return;
     let nearest = null;
     let best = 70; // metres
     for (const s of stopPositions) {
@@ -374,6 +381,56 @@ async function main() {
     speedMul = parseFloat(els.speed.value);
     els.speedVal.textContent = `${speedMul}×`;
   });
+  els.toggleStops.addEventListener("click", () => {
+    stopsVisible = !stopsVisible;
+    stopGroup.visible = stopsVisible;
+    els.toggleStops.classList.toggle("active", stopsVisible);
+    els.toggleStops.setAttribute("aria-pressed", String(stopsVisible));
+    if (!stopsVisible) {
+      lastStop = null;
+      els.banner.classList.remove("show");
+    }
+  });
+  els.toggleMinimap.addEventListener("click", () => {
+    const visible = els.minimap.classList.toggle("hidden") === false;
+    els.toggleMinimap.classList.toggle("active", visible);
+    els.toggleMinimap.setAttribute("aria-pressed", String(visible));
+  });
+
+  // Scrub: click or drag along the progress bar to jump anywhere in the ride.
+  function scrubTo(clientX) {
+    const rect = els.progressWrap.getBoundingClientRect();
+    const f = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+    traveled = f * totalLength;
+    els.progress.style.width = `${(f * 100).toFixed(1)}%`;
+    // Leaving the end clears the "replay" state so the icon reflects play/pause.
+    if (traveled < totalLength) {
+      els.playpause.textContent = playing ? "⏸" : "▶";
+    }
+    const busPos = placeAt(f);
+    updateStopBanner(busPos);
+    minimap.update(RP.metersToLonLat({ x: busPos.x, z: busPos.z }, origin));
+  }
+  els.progressWrap.addEventListener("pointerdown", (e) => {
+    scrubbing = true;
+    els.progressWrap.setPointerCapture(e.pointerId);
+    scrubTo(e.clientX);
+  });
+  els.progressWrap.addEventListener("pointermove", (e) => {
+    if (scrubbing) scrubTo(e.clientX);
+  });
+  const endScrub = (e) => {
+    if (!scrubbing) return;
+    scrubbing = false;
+    try {
+      els.progressWrap.releasePointerCapture(e.pointerId);
+    } catch (_) {
+      /* pointer already released */
+    }
+  };
+  els.progressWrap.addEventListener("pointerup", endScrub);
+  els.progressWrap.addEventListener("pointercancel", endScrub);
+
   window.addEventListener("resize", () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
@@ -384,7 +441,7 @@ async function main() {
   function animate() {
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
-    if (playing && traveled < totalLength) {
+    if (playing && !scrubbing && traveled < totalLength) {
       traveled = Math.min(traveled + baseSpeed * speedMul * dt, totalLength);
       if (traveled >= totalLength) {
         playing = false;

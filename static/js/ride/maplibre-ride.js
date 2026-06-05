@@ -13,6 +13,10 @@
     speed: document.getElementById("speed"),
     speedVal: document.getElementById("speed-val"),
     progress: document.getElementById("progress-bar"),
+    progressWrap: document.getElementById("progress-wrap"),
+    toggleStops: document.getElementById("toggle-stops"),
+    toggleMinimap: document.getElementById("toggle-minimap"),
+    minimap: document.getElementById("minimap"),
   };
 
   function showError(msg) {
@@ -108,9 +112,21 @@
     const baseSpeed = total / TARGET_DURATION; // km/s
     let traveled = 0;
     let playing = true;
-    let speedMul = 1;
+    let speedMul = 0.1;
     let lastStop = null;
     let lastTs = null;
+    let scrubbing = false;
+    let stopsVisible = true;
+
+    // Stop markers as a GeoJSON point layer (matches the Three.js yellow pucks).
+    const stopsFC = {
+      type: "FeatureCollection",
+      features: geo.stops.map((s) => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [s.lon, s.lat] },
+        properties: { name: s.name || "" },
+      })),
+    };
 
     function sampleHeading(dist) {
       const back = turf.along(line, Math.max(dist - 0.012, 0));
@@ -119,6 +135,7 @@
     }
 
     function updateStopBanner(busCoord) {
+      if (!stopsVisible) return;
       let nearest = null;
       let best = 0.07; // km (~70 m)
       for (const s of geo.stops) {
@@ -156,6 +173,19 @@
         paint: { "line-color": color, "line-width": 5 },
         layout: { "line-cap": "round", "line-join": "round" },
       });
+      map.addSource("stops", { type: "geojson", data: stopsFC });
+      map.addLayer({
+        id: "stops",
+        type: "circle",
+        source: "stops",
+        layout: { visibility: stopsVisible ? "visible" : "none" },
+        paint: {
+          "circle-radius": 5,
+          "circle-color": "#ffd166",
+          "circle-stroke-color": "#7a5b00",
+          "circle-stroke-width": 1.5,
+        },
+      });
     }
 
     function frame(ts) {
@@ -163,7 +193,7 @@
       const dt = lastTs == null ? 0 : Math.min((ts - lastTs) / 1000, 0.1);
       lastTs = ts;
 
-      if (playing && traveled < total) {
+      if (playing && !scrubbing && traveled < total) {
         traveled = Math.min(traveled + baseSpeed * speedMul * dt, total);
         if (traveled >= total) {
           playing = false;
@@ -226,6 +256,59 @@
       speedMul = parseFloat(els.speed.value);
       els.speedVal.textContent = `${speedMul}×`;
     });
+    els.toggleStops.addEventListener("click", () => {
+      stopsVisible = !stopsVisible;
+      if (map.getLayer("stops")) {
+        map.setLayoutProperty(
+          "stops",
+          "visibility",
+          stopsVisible ? "visible" : "none"
+        );
+      }
+      els.toggleStops.classList.toggle("active", stopsVisible);
+      els.toggleStops.setAttribute("aria-pressed", String(stopsVisible));
+      if (!stopsVisible) {
+        lastStop = null;
+        els.banner.classList.remove("show");
+      }
+    });
+    els.toggleMinimap.addEventListener("click", () => {
+      const visible = els.minimap.classList.toggle("hidden") === false;
+      els.toggleMinimap.classList.toggle("active", visible);
+      els.toggleMinimap.setAttribute("aria-pressed", String(visible));
+    });
+
+    // Scrub: click or drag along the progress bar to jump anywhere in the ride.
+    // The frame loop reads `traveled` every tick, so the bus/camera/minimap
+    // follow the new position on the next frame.
+    function scrubTo(clientX) {
+      const rect = els.progressWrap.getBoundingClientRect();
+      const f = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+      traveled = f * total;
+      els.progress.style.width = `${(f * 100).toFixed(1)}%`;
+      if (traveled < total) {
+        els.playpause.textContent = playing ? "⏸" : "▶";
+      }
+    }
+    els.progressWrap.addEventListener("pointerdown", (e) => {
+      scrubbing = true;
+      els.progressWrap.setPointerCapture(e.pointerId);
+      scrubTo(e.clientX);
+    });
+    els.progressWrap.addEventListener("pointermove", (e) => {
+      if (scrubbing) scrubTo(e.clientX);
+    });
+    const endScrub = (e) => {
+      if (!scrubbing) return;
+      scrubbing = false;
+      try {
+        els.progressWrap.releasePointerCapture(e.pointerId);
+      } catch (_) {
+        /* pointer already released */
+      }
+    };
+    els.progressWrap.addEventListener("pointerup", endScrub);
+    els.progressWrap.addEventListener("pointercancel", endScrub);
   }
 
   main();

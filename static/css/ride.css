@@ -65,10 +65,10 @@ body {
   background: rgba(0, 0, 0, 0.7);
 }
 
-/* Minimap overlay (top-right) */
+/* Minimap overlay (bottom-right, above the control bar) */
 #minimap {
   position: absolute;
-  top: 56px;
+  bottom: 72px;
   right: 12px;
   width: 180px;
   height: 180px;
@@ -79,8 +79,41 @@ body {
   z-index: 10;
   overflow: hidden;
 }
+#minimap.hidden {
+  display: none;
+}
 #minimap svg {
   display: block;
+}
+
+/* Minimap zoom buttons (top-left of the minimap) */
+.minimap-zoom {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  z-index: 2;
+}
+.minimap-zoom button {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.minimap-zoom button:active {
+  transform: scale(0.94);
+}
+.minimap-zoom-reset.hidden {
+  display: none;
 }
 @media (max-width: 600px) {
   #minimap {
@@ -142,6 +175,20 @@ body {
   transform: scale(0.96);
 }
 
+/* Labeled toggles (auto width) with a dimmed "off" state */
+#ride-controls .toggle-btn {
+  width: auto;
+  padding: 0 12px;
+  font-size: 13px;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+}
+#ride-controls .toggle-btn.active {
+  background: #ffd166;
+  color: #111;
+}
+
 #ride-controls .speed {
   display: flex;
   align-items: center;
@@ -151,17 +198,35 @@ body {
 }
 
 #progress-wrap {
+  position: relative;
   width: 34vw;
   min-width: 120px;
-  height: 6px;
+  height: 8px;
   background: rgba(255, 255, 255, 0.25);
-  border-radius: 3px;
-  overflow: hidden;
+  border-radius: 4px;
+  cursor: pointer;
+  touch-action: none; /* let us handle drag without the browser scrolling */
 }
 #progress-bar {
   height: 100%;
   width: 0;
   background: #4ade80;
+  border-radius: 4px;
+  position: relative;
+  pointer-events: none; /* clicks/drag go to the wrap, not the fill */
+}
+/* Draggable thumb at the playhead */
+#progress-bar::after {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 /* Loading / error splash */
