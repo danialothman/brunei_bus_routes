@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>3D Ride · Three.js</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/ride.css') }}"
+    />
+  </head>
+  <body>
+    <canvas id="scene"></canvas>
+
+    <div id="ride-topbar">
+      <span class="route-title" id="route-title">Loading…</span>
+      <span class="engine-badge">Three.js</span>
+      <span class="spacer"></span>
+      <a id="exit" href="/">✕ Exit</a>
+    </div>
+
+    <div id="stop-banner"></div>
+    <div id="minimap"></div>
+
+    <div id="ride-controls">
+      <button id="playpause" title="Play/Pause">⏸</button>
+      <div class="speed">
+        <span>Speed</span>
+        <input id="speed" type="range" min="0.25" max="4" step="0.25" value="1" />
+        <span id="speed-val">1×</span>
+      </div>
+      <div id="progress-wrap"><div id="progress-bar"></div></div>
+    </div>
+
+    <div id="ride-status">
+      <div>Preparing your ride…</div>
+      <div class="sub" id="ride-status-sub">Loading route & map tiles</div>
+    </div>
+
+    <!-- Shared config (ROUTE_COLORS) + geometry helper, then the ES module -->
+    <script src="{{ url_for('static', filename='js/config.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/route-path.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/minimap.js') }}"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+        }
+      }
+    </script>
+    <script
+      type="module"
+      src="{{ url_for('static', filename='js/ride/three-ride.js') }}"
+    ></script>
+  </body>
+</html>
