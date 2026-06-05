@@ -1,5 +1,13 @@
-from flask import Flask, render_template, send_from_directory, json
+from flask import Flask, render_template, send_from_directory, jsonify, json
 import os
+import xml.etree.ElementTree as ET
+
+# Prefer defusedxml to guard against XXE / entity-expansion attacks; fall back
+# to the stdlib parser (our KML files are trusted, shipped-in-repo assets).
+try:
+    from defusedxml.ElementTree import parse as _xml_parse
+except ImportError:
+    _xml_parse = ET.parse
 
 app = Flask(
     __name__,
@@ -8,9 +16,107 @@ app = Flask(
 )
 
 
+def _find_kml(filename):
+    """Locate a KML file: static/data/kml first, then top-level data/kml."""
+    # Reject path traversal / absolute paths — only serve plain KML filenames.
+    if os.path.isabs(filename) or ".." in filename.replace("\\", "/").split("/"):
+        return None
+
+    static_kml = os.path.join(app.static_folder, "data", "kml", filename)
+    if os.path.exists(static_kml):
+        return static_kml
+
+    data_kml = os.path.join("data", "kml", filename)
+    if os.path.exists(data_kml):
+        return data_kml
+
+    return None
+
+
+def _localname(tag):
+    """Strip the XML namespace from a tag, e.g. '{ns}LineString' -> 'LineString'."""
+    return tag.rsplit("}", 1)[-1]
+
+
+def _parse_coords(text):
+    """Parse a KML <coordinates> blob ('lon,lat[,alt] lon,lat[,alt] ...')."""
+    points = []
+    for token in text.split():
+        parts = token.split(",")
+        if len(parts) < 2:
+            continue
+        try:
+            lon = float(parts[0])
+            lat = float(parts[1])
+        except ValueError:
+            continue
+        points.append([lon, lat])
+    return points
+
+
+def parse_route_geometry(path):
+    """Extract drive-path LineStrings and named stop Points from a KML file."""
+    root = _xml_parse(path).getroot()
+    segments = []
+    stops = []
+
+    for elem in root.iter():
+        name = _localname(elem.tag)
+
+        if name == "LineString":
+            for child in elem:
+                if _localname(child.tag) == "coordinates" and child.text:
+                    pts = _parse_coords(child.text)
+                    if len(pts) >= 2:
+                        segments.append(pts)
+
+        elif name == "Placemark":
+            stop_name = None
+            point = None
+            for child in elem.iter():
+                cname = _localname(child.tag)
+                if cname == "name" and child.text and stop_name is None:
+                    stop_name = child.text.strip()
+                elif cname == "Point":
+                    for pc in child:
+                        if _localname(pc.tag) == "coordinates" and pc.text:
+                            coords = _parse_coords(pc.text)
+                            if coords:
+                                point = coords[0]
+            if point:
+                stops.append({"name": stop_name or "", "lon": point[0], "lat": point[1]})
+
+    # Bounds across all path vertices (fall back to stops if no segments).
+    all_points = [pt for seg in segments for pt in seg]
+    if not all_points:
+        all_points = [[s["lon"], s["lat"]] for s in stops]
+    bounds = None
+    if all_points:
+        lons = [p[0] for p in all_points]
+        lats = [p[1] for p in all_points]
+        bounds = {
+            "minLon": min(lons),
+            "minLat": min(lats),
+            "maxLon": max(lons),
+            "maxLat": max(lats),
+        }
+
+    return {"segments": segments, "stops": stops, "bounds": bounds}
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/ride/three")
+def ride_three():
+    return render_template("ride_three.html")
+
+
+@app.route("/ride/maplibre")
+def ride_maplibre():
+    return render_template("ride_maplibre.html")
 
 
 @app.route("/data/routes.json")
@@ -21,18 +127,25 @@ def get_routes():
         return json.load(f)
 
 
+@app.route("/data/route-geometry/<path:filename>")
+def route_geometry(filename):
+    # Parse a route's KML into JSON (drive segments, named stops, bounds).
+    path = _find_kml(filename)
+    if not path:
+        return jsonify({"error": "Route not found"}), 404
+    try:
+        data = parse_route_geometry(path)
+    except ET.ParseError as e:
+        return jsonify({"error": f"Failed to parse KML: {e}"}), 500
+    data["name"] = os.path.splitext(os.path.basename(filename))[0]
+    return jsonify(data)
+
+
 @app.route("/data/kml/<path:filename>")
 def serve_kml(filename):
-    # First try the static folder
-    static_kml_path = os.path.join(app.static_folder, "data", "kml")
-    if os.path.exists(os.path.join(static_kml_path, filename)):
-        return send_from_directory(static_kml_path, filename)
-
-    # If not found in static, try the data folder
-    data_kml_path = os.path.join("data", "kml")
-    if os.path.exists(os.path.join(data_kml_path, filename)):
-        return send_from_directory(data_kml_path, filename)
-
+    path = _find_kml(filename)
+    if path:
+        return send_from_directory(os.path.dirname(path), os.path.basename(path))
     return "KML file not found", 404
 
 
