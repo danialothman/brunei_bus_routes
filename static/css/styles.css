@@ -134,6 +134,14 @@ footer {
   padding-bottom: 15px;
 }
 
-#mapStyle {
+#mapStyle,
+#dataYear {
   margin-top: 8px;
+}
+
+/* Year picker only holds "2016"/"2026" — keep it compact, not full-width */
+#dataYear {
+  width: auto;
+  display: inline-block;
+  margin-right: 6px;
 }
