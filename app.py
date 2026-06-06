@@ -152,6 +152,61 @@ def parse_route_geometry(path):
     return {"segments": segments, "stops": stops, "bounds": bounds}
 
 
+def parse_geojson_geometry(path):
+    """Extract LineString drive paths from a GeoJSON file (no named stops)."""
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    segments = []
+
+    def add_line(coords):
+        pts = []
+        for c in coords or []:
+            if isinstance(c, (list, tuple)) and len(c) >= 2:
+                try:
+                    pts.append([float(c[0]), float(c[1])])
+                except (TypeError, ValueError):
+                    continue
+        if len(pts) >= 2:
+            segments.append(pts)
+
+    def handle_geom(geom):
+        if not isinstance(geom, dict):
+            return
+        gtype = geom.get("type")
+        coords = geom.get("coordinates")
+        if gtype == "LineString":
+            add_line(coords)
+        elif gtype == "MultiLineString":
+            for line in coords or []:
+                add_line(line)
+        elif gtype == "GeometryCollection":
+            for g in geom.get("geometries", []):
+                handle_geom(g)
+
+    if isinstance(data, dict) and data.get("type") == "FeatureCollection":
+        for feat in data.get("features", []):
+            handle_geom((feat or {}).get("geometry"))
+    elif isinstance(data, dict) and data.get("type") == "Feature":
+        handle_geom(data.get("geometry"))
+    elif isinstance(data, dict):
+        handle_geom(data)  # bare geometry
+
+    all_points = [pt for seg in segments for pt in seg]
+    bounds = None
+    if all_points:
+        lons = [p[0] for p in all_points]
+        lats = [p[1] for p in all_points]
+        bounds = {
+            "minLon": min(lons),
+            "minLat": min(lats),
+            "maxLon": max(lons),
+            "maxLat": max(lats),
+        }
+
+    return {"segments": segments, "stops": [], "bounds": bounds}
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -186,14 +241,25 @@ def get_routes():
 
 @app.route("/data/route-geometry/<path:filename>")
 def route_geometry(filename):
-    # Parse a route's KML into JSON (drive segments, named stops, bounds).
-    path = _find_kml(filename, request.args.get("year"))
-    if not path:
-        return jsonify({"error": "Route not found"}), 404
-    try:
-        data = parse_route_geometry(path)
-    except ET.ParseError as e:
-        return jsonify({"error": f"Failed to parse KML: {e}"}), 500
+    # Parse a route into JSON (drive segments, named stops, bounds). Dispatch by
+    # extension: GeoJSON paths (no stops) or KML routes (path + named stops).
+    year = request.args.get("year")
+    if filename.lower().endswith(".geojson"):
+        path = _find_geojson(filename, year)
+        if not path:
+            return jsonify({"error": "Route not found"}), 404
+        try:
+            data = parse_geojson_geometry(path)
+        except ValueError as e:
+            return jsonify({"error": f"Failed to parse GeoJSON: {e}"}), 500
+    else:
+        path = _find_kml(filename, year)
+        if not path:
+            return jsonify({"error": "Route not found"}), 404
+        try:
+            data = parse_route_geometry(path)
+        except ET.ParseError as e:
+            return jsonify({"error": f"Failed to parse KML: {e}"}), 500
     data["name"] = os.path.splitext(os.path.basename(filename))[0]
     return jsonify(data)
 
