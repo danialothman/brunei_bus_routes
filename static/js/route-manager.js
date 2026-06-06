@@ -9,6 +9,7 @@ APP.RouteManager = class {
     this.layers = new Map(); // kmlFile -> ol.layer.Vector (cached, may be hidden)
     this.colors = new Map(); // kmlFile -> assigned color
     this.loadingFiles = new Set(); // kmlFiles with a fetch in flight
+    this.year = null; // selected dataset year (set from /data/years)
   }
 
   /**
@@ -16,7 +17,15 @@ APP.RouteManager = class {
    */
   init() {
     this.setupRouteControls();
-    this.loadRouteList();
+    this.setupYearControl(); // populates the picker, then loads the route list
+  }
+
+  /**
+   * Query-string suffix for the active dataset year (empty if none selected).
+   * @returns {string}
+   */
+  yearQuery() {
+    return this.year ? `?year=${encodeURIComponent(this.year)}` : "";
   }
 
   /**
@@ -26,7 +35,7 @@ APP.RouteManager = class {
    */
   createVectorSource(kmlFile) {
     return new ol.source.Vector({
-      url: `/data/kml/${kmlFile}`,
+      url: `/data/kml/${kmlFile}${this.yearQuery()}`,
       format: new ol.format.KML({
         extractStyles: false,
         dataProjection: "EPSG:4326",
@@ -234,10 +243,52 @@ APP.RouteManager = class {
   }
 
   /**
+   * Populate the year picker from /data/years, then load the default year's
+   * routes. Falls back to the server default if the list can't be fetched.
+   */
+  setupYearControl() {
+    const sel = $("#dataYear");
+    sel.on("change", (e) => this.setYear(e.target.value));
+    fetch("/data/years")
+      .then((r) => r.json())
+      .then(({ years, default: def }) => {
+        sel.empty();
+        years.forEach((y) =>
+          sel.append($("<option></option>").val(y).text(y))
+        );
+        this.year = def || (years && years[0]) || null;
+        sel.val(this.year);
+        this.loadRouteList();
+      })
+      .catch(() => {
+        // No picker data — just load whatever the server defaults to.
+        this.loadRouteList();
+      });
+  }
+
+  /**
+   * Switch the active dataset year: drop all cached layers and rebuild the list.
+   * @param {string} year
+   */
+  setYear(year) {
+    if (year === this.year) {
+      return;
+    }
+    this.year = year;
+    // Layers/colors are year-specific — remove and clear so nothing leaks across.
+    this.layers.forEach((layer) => this.map.removeLayer(layer));
+    this.layers.clear();
+    this.colors.clear();
+    this.hideLoading(null, true);
+    $("#routes").empty();
+    this.loadRouteList();
+  }
+
+  /**
    * Load route list from JSON and build the colored legend/toggles
    */
   loadRouteList() {
-    fetch("/data/routes.json")
+    fetch(`/data/routes.json${this.yearQuery()}`)
       .then((response) => response.json())
       .then((routes) => {
         const output = $("#routes");
