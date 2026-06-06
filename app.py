@@ -63,6 +63,24 @@ def _find_kml(filename, year=None):
     return None
 
 
+def _find_geojson(filename, year=None):
+    """Locate a GeoJSON file under the chosen year (static first, then data/)."""
+    if os.path.isabs(filename) or ".." in filename.replace("\\", "/").split("/"):
+        return None
+
+    year = _resolve_year(year)
+
+    static_gj = os.path.join(app.static_folder, "data", year, "geojson", filename)
+    if os.path.exists(static_gj):
+        return static_gj
+
+    data_gj = os.path.join("data", year, "geojson", filename)
+    if os.path.exists(data_gj):
+        return data_gj
+
+    return None
+
+
 def _localname(tag):
     """Strip the XML namespace from a tag, e.g. '{ns}LineString' -> 'LineString'."""
     return tag.rsplit("}", 1)[-1]
@@ -186,6 +204,25 @@ def serve_kml(filename):
     if path:
         return send_from_directory(os.path.dirname(path), os.path.basename(path))
     return "KML file not found", 404
+
+
+@app.route("/data/geojson-list")
+def get_geojson_list():
+    # Filenames of the chosen year's GeoJSON path files (may be empty).
+    year = _resolve_year(request.args.get("year"))
+    d = os.path.join(app.static_folder, "data", year, "geojson")
+    files = []
+    if os.path.isdir(d):
+        files = sorted(f for f in os.listdir(d) if f.lower().endswith(".geojson"))
+    return jsonify(files)
+
+
+@app.route("/data/geojson/<path:filename>")
+def serve_geojson(filename):
+    path = _find_geojson(filename, request.args.get("year"))
+    if path:
+        return send_from_directory(os.path.dirname(path), os.path.basename(path))
+    return "GeoJSON file not found", 404
 
 
 @app.route("/favicon.png")
