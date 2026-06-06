@@ -10,19 +10,34 @@ $(document).ready(function () {
   const currentYear = () => $("#dataYear").val() || "";
   const yearQuery = () => (currentYear() ? `?year=${encodeURIComponent(currentYear())}` : "");
 
+  // Point/reference layers have no single drive path to ride.
+  const NON_ROUTE = /^(Points - |Landmarks\b|Road\b|intradistrict\b|ANNEX\b)/i;
+
   function loadRideRoutes() {
-    fetch(`/data/routes.json${yearQuery()}`)
-      .then((r) => r.json())
-      .then((routes) => {
+    const yq = yearQuery();
+    Promise.all([
+      fetch(`/data/routes.json${yq}`).then((r) => r.json()).catch(() => []),
+      fetch(`/data/geojson-list${yq}`).then((r) => r.json()).catch(() => []),
+    ])
+      .then(([routes, geojson]) => {
         select.empty();
-        routes
-          // Skip point/reference layers — they have no single drive path to ride.
-          .filter((f) => !/^(Points - |Landmarks\b|Road\b|intradistrict\b|ANNEX\b)/i.test(f))
-          .forEach((f) => {
-            select.append(
-              $("<option></option>").val(f).text(f.replace(".kml", ""))
-            );
-          });
+        const kml = (routes || []).filter((f) => !NON_ROUTE.test(f));
+        if (kml.length) {
+          const grp = $('<optgroup label="Routes (KML)"></optgroup>');
+          kml.forEach((f) =>
+            grp.append($("<option></option>").val(f).text(f.replace(".kml", "")))
+          );
+          select.append(grp);
+        }
+        if (geojson && geojson.length) {
+          const grp = $('<optgroup label="GeoJSON paths"></optgroup>');
+          geojson.forEach((f) =>
+            grp.append(
+              $("<option></option>").val(f).text(f.replace(".geojson", ""))
+            )
+          );
+          select.append(grp);
+        }
       })
       .catch((error) => APP.MapUtils.handleError(error, "Loading ride routes"));
   }
