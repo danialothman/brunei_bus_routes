@@ -1,5 +1,6 @@
-from flask import Flask, render_template, send_from_directory, jsonify, json
+from flask import Flask, render_template, send_from_directory, jsonify, json, request
 import os
+import re
 import xml.etree.ElementTree as ET
 
 # Prefer defusedxml to guard against XXE / entity-expansion attacks; fall back
@@ -15,23 +16,47 @@ app = Flask(
     template_folder="templates",
 )
 
-# The route data is segregated by year so new datasets can live alongside the
-# repo owner's original 2016 set (under sibling folders, e.g. data/2026).
-# Bump this to switch which dataset the app serves.
+# The route data is segregated by year so new datasets live alongside the repo
+# owner's original 2016 set (under sibling folders, e.g. data/2026). DATA_YEAR is
+# the default; clients may request a specific year via the ?year= query param.
 DATA_YEAR = "2016"
 
 
-def _find_kml(filename):
+def _available_years():
+    """Year folders under static/data that hold a routes.json (sorted)."""
+    base = os.path.join(app.static_folder, "data")
+    years = []
+    if os.path.isdir(base):
+        for name in os.listdir(base):
+            if re.fullmatch(r"\d{4}", name) and os.path.exists(
+                os.path.join(base, name, "routes.json")
+            ):
+                years.append(name)
+    return sorted(years)
+
+
+def _resolve_year(year):
+    """Validate a requested year (4 digits + existing folder), else DATA_YEAR."""
+    if year and re.fullmatch(r"\d{4}", year) and os.path.isdir(
+        os.path.join(app.static_folder, "data", year)
+    ):
+        return year
+    return DATA_YEAR
+
+
+def _find_kml(filename, year=None):
     """Locate a KML file: static/data/<year>/kml first, then top-level data/<year>/kml."""
     # Reject path traversal / absolute paths — only serve plain KML filenames.
     if os.path.isabs(filename) or ".." in filename.replace("\\", "/").split("/"):
         return None
 
-    static_kml = os.path.join(app.static_folder, "data", DATA_YEAR, "kml", filename)
+    year = _resolve_year(year)
+
+    static_kml = os.path.join(app.static_folder, "data", year, "kml", filename)
     if os.path.exists(static_kml):
         return static_kml
 
-    data_kml = os.path.join("data", DATA_YEAR, "kml", filename)
+    data_kml = os.path.join("data", year, "kml", filename)
     if os.path.exists(data_kml):
         return data_kml
 
@@ -124,10 +149,19 @@ def ride_maplibre():
     return render_template("ride_maplibre.html")
 
 
+@app.route("/data/years")
+def get_years():
+    # Available dataset years + the default, for the client's year picker.
+    years = _available_years() or [DATA_YEAR]
+    default = DATA_YEAR if DATA_YEAR in years else years[0]
+    return jsonify({"years": years, "default": default})
+
+
 @app.route("/data/routes.json")
 def get_routes():
-    # Read and return routes.json directly as JSON
-    routes_path = os.path.join(app.static_folder, "data", DATA_YEAR, "routes.json")
+    # Read and return the chosen year's routes.json directly as JSON.
+    year = _resolve_year(request.args.get("year"))
+    routes_path = os.path.join(app.static_folder, "data", year, "routes.json")
     with open(routes_path, "r") as f:
         return json.load(f)
 
@@ -135,7 +169,7 @@ def get_routes():
 @app.route("/data/route-geometry/<path:filename>")
 def route_geometry(filename):
     # Parse a route's KML into JSON (drive segments, named stops, bounds).
-    path = _find_kml(filename)
+    path = _find_kml(filename, request.args.get("year"))
     if not path:
         return jsonify({"error": "Route not found"}), 404
     try:
@@ -148,7 +182,7 @@ def route_geometry(filename):
 
 @app.route("/data/kml/<path:filename>")
 def serve_kml(filename):
-    path = _find_kml(filename)
+    path = _find_kml(filename, request.args.get("year"))
     if path:
         return send_from_directory(os.path.dirname(path), os.path.basename(path))
     return "KML file not found", 404
