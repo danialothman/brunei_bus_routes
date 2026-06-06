@@ -10,6 +10,8 @@ APP.RouteManager = class {
     this.colors = new Map(); // kmlFile -> assigned color
     this.loadingFiles = new Set(); // kmlFiles with a fetch in flight
     this.year = null; // selected dataset year (set from /data/years)
+    this.geojsonLayers = new Map(); // geojsonFile -> ol.layer.Vector
+    this.geojsonColors = new Map(); // geojsonFile -> assigned color
   }
 
   /**
@@ -218,10 +220,11 @@ APP.RouteManager = class {
    * Hide every route
    */
   clearAll() {
-    $("#routes input").each((_, el) => {
+    $("#routes input, #geojsonRoutes input").each((_, el) => {
       el.checked = false;
     });
     this.layers.forEach((layer) => layer.setVisible(false));
+    this.geojsonLayers.forEach((layer) => layer.setVisible(false));
     this.hideLoading(null, true);
   }
 
@@ -234,6 +237,15 @@ APP.RouteManager = class {
         this.toggleRoute(e.target.value);
       } catch (error) {
         APP.MapUtils.handleError(error, "Route toggle");
+        this.hideLoading(null, true);
+      }
+    });
+
+    $("#geojsonRoutes").on("click", "input", (e) => {
+      try {
+        this.toggleGeojson(e.target.value);
+      } catch (error) {
+        APP.MapUtils.handleError(error, "GeoJSON toggle");
         this.hideLoading(null, true);
       }
     });
@@ -259,10 +271,12 @@ APP.RouteManager = class {
         this.year = def || (years && years[0]) || null;
         sel.val(this.year);
         this.loadRouteList();
+        this.loadGeojsonList();
       })
       .catch(() => {
         // No picker data — just load whatever the server defaults to.
         this.loadRouteList();
+        this.loadGeojsonList();
       });
   }
 
@@ -279,9 +293,14 @@ APP.RouteManager = class {
     this.layers.forEach((layer) => this.map.removeLayer(layer));
     this.layers.clear();
     this.colors.clear();
+    this.geojsonLayers.forEach((layer) => this.map.removeLayer(layer));
+    this.geojsonLayers.clear();
+    this.geojsonColors.clear();
     this.hideLoading(null, true);
     $("#routes").empty();
+    $("#geojsonRoutes").empty();
     this.loadRouteList();
+    this.loadGeojsonList();
   }
 
   /**
@@ -310,5 +329,96 @@ APP.RouteManager = class {
         });
       })
       .catch((error) => APP.MapUtils.handleError(error, "Loading routes"));
+  }
+
+  /**
+   * Load the GeoJSON path overlay list for the active year (hidden if none).
+   */
+  loadGeojsonList() {
+    const section = $("#geojsonSection");
+    fetch(`/data/geojson-list${this.yearQuery()}`)
+      .then((response) => response.json())
+      .then((files) => {
+        const output = $("#geojsonRoutes").empty();
+        if (!files || !files.length) {
+          section.hide();
+          return;
+        }
+        files.forEach((file, index) => {
+          const color = APP.ROUTE_COLORS[index % APP.ROUTE_COLORS.length];
+          this.geojsonColors.set(file, color);
+
+          const label = $("<label></label>").addClass("list-group-item route-item");
+          const input = $('<input type="checkbox">').val(file);
+          const swatch = $('<span class="route-swatch"></span>').css(
+            "background-color",
+            color
+          );
+          const name = $('<span class="route-name"></span>').text(
+            file.replace(".geojson", "")
+          );
+          label.append(input).append(swatch).append(name);
+          output.append(label);
+        });
+        section.show();
+      })
+      .catch(() => section.hide());
+  }
+
+  /**
+   * Build a dashed GeoJSON path layer (distinct from the solid KML routes).
+   * @param {string} file - GeoJSON file name
+   * @returns {ol.layer.Vector}
+   */
+  createGeojsonLayer(file) {
+    const color = this.geojsonColors.get(file) || "#111";
+    const source = new ol.source.Vector({
+      url: `/data/geojson/${file}${this.yearQuery()}`,
+      format: new ol.format.GeoJSON({
+        dataProjection: "EPSG:4326",
+        featureProjection: "EPSG:3857",
+      }),
+    });
+    const layer = new ol.layer.Vector({
+      source: source,
+      style: new ol.style.Style({
+        stroke: new ol.style.Stroke({ color: color, width: 3, lineDash: [6, 6] }),
+      }),
+    });
+    source.on("error", (error) => {
+      APP.MapUtils.handleError(error, `Loading GeoJSON: ${file}`);
+      this.hideLoading(file);
+    });
+    source.on("change", () => {
+      if (source.getState() === "ready") {
+        if (source.getFeatures().length > 0 && layer.getVisible()) {
+          this.maybeZoomTo(layer);
+        }
+        this.hideLoading(file);
+      }
+    });
+    return layer;
+  }
+
+  /**
+   * Toggle a GeoJSON path overlay on/off (caches the layer for instant re-show).
+   * @param {string} file - GeoJSON file name
+   */
+  toggleGeojson(file) {
+    let layer = this.geojsonLayers.get(file);
+    if (layer) {
+      const visible = !layer.getVisible();
+      layer.setVisible(visible);
+      if (visible) {
+        this.maybeZoomTo(layer);
+      } else {
+        this.hideLoading(file);
+      }
+      return;
+    }
+    this.showLoading(file);
+    layer = this.createGeojsonLayer(file);
+    this.geojsonLayers.set(file, layer);
+    this.map.addLayer(layer);
   }
 };
