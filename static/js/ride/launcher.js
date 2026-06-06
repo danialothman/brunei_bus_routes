@@ -16,7 +16,8 @@ $(document).ready(function () {
       .then((routes) => {
         select.empty();
         routes
-          .filter((f) => /^\d/.test(f)) // numbered routes have clean single paths
+          // Skip point/reference layers — they have no single drive path to ride.
+          .filter((f) => !/^(Points - |Landmarks\b|Road\b|intradistrict\b|ANNEX\b)/i.test(f))
           .forEach((f) => {
             select.append(
               $("<option></option>").val(f).text(f.replace(".kml", ""))
