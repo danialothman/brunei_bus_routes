@@ -218,7 +218,7 @@ APP.RouteManager = class {
     if (!NON_ROUTE.test(meta.file)) {
       label.append($('<a class="route-ride-btn" title="3D ride">🚌</a>').attr(attrs));
     }
-    label.append($('<a class="route-edit-btn" title="Edit">✏</a>').attr(attrs));
+    label.append($('<a class="route-edit-btn" title="Edit">✎</a>').attr(attrs));
     if (isUser) {
       label.append($('<a class="route-del-btn" title="Delete route">🗑</a>').attr(attrs));
     }
