@@ -27,6 +27,10 @@ app = Flask(
 # the default; clients may request a specific year via the ?year= query param.
 DATA_YEAR = "2016"
 
+# Users may create brand-new routes only for this dataset year. New routes have
+# no shipped file — they live entirely in the edits DB.
+USER_ROUTE_YEAR = "2026"
+
 # Route edits live in a SQLite DB under Flask's instance folder (gitignored), so
 # the shipped route files are never modified. Init at import time so it runs
 # under both `flask run` and `python app.py`.
@@ -373,8 +377,7 @@ def route_geometry(filename):
     year = _resolve_year(request.args.get("year"))
     is_geojson = filename.lower().endswith(".geojson")
     finder = _find_geojson if is_geojson else _find_kml
-    if not finder(filename, year):
-        return jsonify({"error": "Route not found"}), 404
+    path = finder(filename, year)
 
     version = request.args.get("version")
     geom = None
@@ -391,6 +394,10 @@ def route_geometry(filename):
         geom = db.latest_geometry(year, filename)
         if geom is not None:
             ver = db.latest_version(year, filename)
+
+    # User-created routes have no shipped file — they exist only in the DB.
+    if geom is None and not path:
+        return jsonify({"error": "Route not found"}), 404
 
     if geom is not None:
         data = {
@@ -417,16 +424,16 @@ def route_geometry(filename):
 def serve_kml(filename):
     year = _resolve_year(request.args.get("year"))
     path = _find_kml(filename, year)
-    if not path:
-        return "KML file not found", 404
     if not request.args.get("original"):
         geom = db.latest_geometry(year, filename)
-        if geom is not None:
+        if geom is not None:  # includes user-created (file-less) routes
             name = os.path.splitext(os.path.basename(filename))[0]
             return Response(
                 geometry_to_kml(geom, name),
                 mimetype="application/vnd.google-earth.kml+xml",
             )
+    if not path:
+        return "KML file not found", 404
     return send_from_directory(os.path.dirname(path), os.path.basename(path))
 
 
@@ -460,7 +467,8 @@ def save_edit(filename):
     year = _resolve_year(request.args.get("year"))
     is_geojson = filename.lower().endswith(".geojson")
     finder = _find_geojson if is_geojson else _find_kml
-    if not finder(filename, year):
+    # Allow editing a shipped route OR an existing user-created (DB-only) route.
+    if not finder(filename, year) and db.latest_version(year, filename) is None:
         return jsonify({"error": "Route not found"}), 404
     payload = request.get_json(silent=True)
     geom, err = _validate_geometry(payload)
@@ -484,6 +492,42 @@ def edit_names():
     # Custom route names for the year (filename -> name) for the sidebar legend.
     year = _resolve_year(request.args.get("year"))
     return jsonify(db.latest_names(year))
+
+
+@app.route("/data/user-routes")
+def user_routes():
+    # Filenames of user-created routes (DB-only, no shipped file) for the year.
+    year = _resolve_year(request.args.get("year"))
+    out = [
+        f
+        for f in db.distinct_files(year)
+        if not _find_kml(f, year) and not _find_geojson(f, year)
+    ]
+    return jsonify(sorted(out))
+
+
+@app.route("/data/create", methods=["POST"])
+def create_route():
+    # Create a brand-new (file-less) route — allowed only for USER_ROUTE_YEAR.
+    year = _resolve_year(request.args.get("year"))
+    if year != USER_ROUTE_YEAR:
+        return jsonify(
+            {"error": f"new routes can only be created for {USER_ROUTE_YEAR}"}
+        ), 403
+    payload = request.get_json(silent=True)
+    geom, err = _validate_geometry(payload)
+    if err:
+        return jsonify({"error": err}), 400
+    # Allocate the next free user-<N>.kml filename.
+    nxt = 0
+    for f in db.distinct_files(year):
+        m = re.match(r"^user-(\d+)\.kml$", f)
+        if m:
+            nxt = max(nxt, int(m.group(1)))
+    filename = f"user-{nxt + 1}.kml"
+    label = payload.get("label") if isinstance(payload, dict) else None
+    version = db.add_version(year, filename, geom, label)
+    return jsonify({"filename": filename, "version": version}), 201
 
 
 @app.route("/data/edit/<path:filename>", methods=["DELETE"])

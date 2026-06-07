@@ -175,6 +175,10 @@ footer {
 #sidebar #routes {
   max-height: none;
 }
+/* User-created routes read in italics to set them apart from shipped ones. */
+#sidebar .user-route .route-name {
+  font-style: italic;
+}
 
 /* --- Route editor --- */
 #routes .route-item,

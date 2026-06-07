@@ -25,9 +25,12 @@ APP.EditorManager = class {
     this.layer = null;
     this.modify = null;
     this.draw = null;
+    this.drawLine = null;
     this.snap = null;
     this._onClick = null;
     this.tool = "move";
+    this.creating = false;
+    this.isUserRoute = false;
 
     this.undoStack = [];
     this.redoStack = [];
@@ -45,6 +48,8 @@ APP.EditorManager = class {
 
     // Toolbar buttons.
     const t = (sel, fn) => $(sel).on("click", (e) => { e.preventDefault(); fn(); });
+    t("#newRouteBtn", () => this.createNew());
+    t("#edTool-drawline", () => this.setTool("drawline"));
     t("#edTool-move", () => this.setTool("move"));
     t("#edTool-addstop", () => this.setTool("addstop"));
     t("#edTool-delete", () => this.setTool("delete"));
@@ -74,6 +79,8 @@ APP.EditorManager = class {
     this.file = file;
     this.kind = kind || "kml";
     this.year = this.routeManager.year;
+    this.creating = false;
+    this.isUserRoute = /^user-\d+\.kml$/.test(file);
 
     this.infoManager.setEnabled(false);
     this.routeManager.hideRouteForEdit(file, this.kind);
@@ -92,6 +99,47 @@ APP.EditorManager = class {
     this.setTool("move");
   }
 
+  /** Start a brand-new (file-less) route — only for the 2026 dataset. */
+  createNew() {
+    if (this.routeManager.year !== "2026") {
+      alert("New routes can only be created for the 2026 dataset.");
+      return;
+    }
+    if (this.active) {
+      if (!confirm("Finish the current edit first? Unsaved changes will be lost.")) {
+        return;
+      }
+      this.exit();
+    }
+    const name = window.prompt("New route name:", "");
+    if (name == null) return;
+
+    this.active = true;
+    this.file = null;
+    this.kind = "kml";
+    this.year = this.routeManager.year;
+    this.creating = true;
+    this.isUserRoute = true;
+    this.routeName = name.trim() || "New route";
+
+    this.infoManager.setEnabled(false);
+    this.source = new ol.source.Vector();
+    this.layer = new ol.layer.Vector({
+      source: this.source,
+      zIndex: 9999,
+      style: (feat) => this._styleFor(feat),
+    });
+    this.map.addLayer(this.layer);
+    this._addInteractions();
+    this._showToolbar(true);
+    $("#edRouteName").text(this.routeName);
+    this.undoStack = [this._serialize()];
+    this.redoStack = [];
+    this._updateButtons();
+    this.setTool("drawline");
+    this._flash("Draw the route line, then Save");
+  }
+
   exit() {
     if (!this.active) return;
     this._removeInteractions();
@@ -105,6 +153,8 @@ APP.EditorManager = class {
     this.file = null;
     this.source = null;
     this.layer = null;
+    this.creating = false;
+    this.isUserRoute = false;
     this.undoStack = [];
     this.redoStack = [];
   }
@@ -185,8 +235,16 @@ APP.EditorManager = class {
       setTimeout(() => this._snapshot(), 0);
     });
 
+    this.drawLine = new ol.interaction.Draw({ source: this.source, type: "LineString" });
+    this.drawLine.on("drawend", (e) => {
+      e.feature.set("kind", "line");
+      setTimeout(() => this._snapshot(), 0);
+    });
+
     this.snap = new ol.interaction.Snap({ source: this.source }); // add last
-    [this.modify, this.draw, this.snap].forEach((i) => this.map.addInteraction(i));
+    [this.modify, this.draw, this.drawLine, this.snap].forEach((i) =>
+      this.map.addInteraction(i)
+    );
 
     // Rename/Delete act directly on the stop clicked — more reliable than a
     // Select interaction's select event, and a single click does the action.
@@ -195,12 +253,12 @@ APP.EditorManager = class {
   }
 
   _removeInteractions() {
-    [this.modify, this.draw, this.snap].forEach((i) => {
+    [this.modify, this.draw, this.drawLine, this.snap].forEach((i) => {
       if (i) this.map.removeInteraction(i);
     });
     if (this._onClick) this.map.un("singleclick", this._onClick);
     this._onClick = null;
-    this.modify = this.draw = this.snap = null;
+    this.modify = this.draw = this.drawLine = this.snap = null;
   }
 
   setTool(tool) {
@@ -209,6 +267,7 @@ APP.EditorManager = class {
     this.tool = tool;
     if (this.modify) this.modify.setActive(tool === "move");
     if (this.draw) this.draw.setActive(tool === "addstop");
+    if (this.drawLine) this.drawLine.setActive(tool === "drawline");
     $(".ed-tool").removeClass("active");
     $(`#edTool-${tool}`).addClass("active");
   }
@@ -291,10 +350,14 @@ APP.EditorManager = class {
   save() {
     const body = this._serialize();
     if (!body.segments.length) {
-      alert("Cannot save an empty route (needs at least one line).");
+      alert("Cannot save a route with no line — use the Line tool to draw it.");
       return;
     }
-    fetch(`/data/edit/${encodeURIComponent(this.file)}${this._yq()}`, {
+    const creating = this.creating;
+    const url = creating
+      ? `/data/create${this._yq()}`
+      : `/data/edit/${encodeURIComponent(this.file)}${this._yq()}`;
+    fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
@@ -302,7 +365,15 @@ APP.EditorManager = class {
       .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
       .then(({ ok, j }) => {
         if (!ok) throw new Error(j.error || "save failed");
+        if (creating) {
+          this.file = j.filename;
+          this.creating = false;
+          this.isUserRoute = true;
+          this.routeManager.addUserRouteRow(this.file, this.routeName);
+        }
         this.routeManager.reloadRoute(this.file, this.kind);
+        // Keep editing without the saved read-only layer duplicating the editable one.
+        this.routeManager.hideRouteForEdit(this.file, this.kind);
         this.routeManager.setRouteDisplayName(this.file, this.routeName, this.kind);
         this._flash(`Saved v${j.version}`);
       })
@@ -364,17 +435,28 @@ APP.EditorManager = class {
   }
 
   revert() {
-    if (!confirm("Revert to the original route? This deletes all saved edits for it.")) {
+    // A new route that was never saved: just discard it.
+    if (this.creating && !this.file) {
+      if (confirm("Discard this new route?")) this.exit();
       return;
     }
-    fetch(`/data/edit/${encodeURIComponent(this.file)}${this._yq()}`, { method: "DELETE" })
+    const wasUser = this.isUserRoute;
+    const msg = wasUser
+      ? "Delete this route? This removes it and all its versions."
+      : "Revert to the original route? This deletes all saved edits for it.";
+    if (!confirm(msg)) return;
+    const file = this.file;
+    const kind = this.kind;
+    fetch(`/data/edit/${encodeURIComponent(file)}${this._yq()}`, { method: "DELETE" })
       .then((r) => r.json())
       .then(() => {
-        const file = this.file;
-        const kind = this.kind;
         this.exit();
-        this.routeManager.reloadRoute(file, kind);
-        this.routeManager.setRouteDisplayName(file, null, kind); // back to filename
+        if (wasUser) {
+          this.routeManager.removeRouteRow(file, kind); // route is gone entirely
+        } else {
+          this.routeManager.reloadRoute(file, kind);
+          this.routeManager.setRouteDisplayName(file, null, kind); // back to filename
+        }
       })
       .catch((err) => APP.MapUtils.handleError(err, "Reverting"));
   }

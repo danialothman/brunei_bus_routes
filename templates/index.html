@@ -82,6 +82,8 @@
             <button type="button" class="btn btn-default btn-sm" id="edRenameRoute"
               title="Rename this route">Rename route</button>
             <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-default ed-tool" id="edTool-drawline"
+                title="Draw the route line (click to add points, double-click to finish)">Line</button>
               <button type="button" class="btn btn-default ed-tool" id="edTool-move"
                 title="Move/insert vertices &amp; stops (Alt+click a vertex to delete)">Move/Edit</button>
               <button type="button" class="btn btn-default ed-tool" id="edTool-addstop"
@@ -107,6 +109,14 @@
       </div>
       <div id="sidebar">
         <div class="sidebar-title">Show Routes</div>
+        <button
+          id="newRouteBtn"
+          type="button"
+          class="btn btn-success btn-sm btn-block"
+          style="display: none; margin-bottom: 6px"
+        >
+          + New route
+        </button>
         <div class="btn-group btn-group-justified" id="routeBulkControls">
           <a class="btn btn-default btn-sm" id="showAll">Show all</a>
           <a class="btn btn-default btn-sm" id="clearAll">Clear all</a>
