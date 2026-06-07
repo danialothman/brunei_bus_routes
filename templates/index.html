@@ -76,6 +76,30 @@
             <h3 class="name"></h3>
             <h5 class="location"></h5>
           </div>
+          <div id="editorToolbar" style="display: none">
+            <span class="ed-title">✏ <span id="edRouteName"></span></span>
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-default ed-tool" id="edTool-move"
+                title="Move/insert vertices &amp; stops (Alt+click a vertex to delete)">Move/Edit</button>
+              <button type="button" class="btn btn-default ed-tool" id="edTool-addstop"
+                title="Add a stop">+ Stop</button>
+              <button type="button" class="btn btn-default ed-tool" id="edTool-delete"
+                title="Delete selected stop (or press Delete)">Delete</button>
+              <button type="button" class="btn btn-default ed-tool" id="edTool-rename"
+                title="Rename selected stop">Rename</button>
+            </div>
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-default" id="edUndo" title="Undo">↶</button>
+              <button type="button" class="btn btn-default" id="edRedo" title="Redo">↷</button>
+            </div>
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-primary" id="edSave">Save</button>
+              <button type="button" class="btn btn-default" id="edHistory">History</button>
+              <button type="button" class="btn btn-warning" id="edRevert">Revert</button>
+              <button type="button" class="btn btn-default" id="edExit">Exit</button>
+            </div>
+            <span id="edStatus" class="ed-status"></span>
+          </div>
         </div>
         <div class="col-xs-6 col-sm-3 sidebar-offcanvas" style="height: 90%">
           <h3 class="hidden-xs" style="margin: 0px">
@@ -145,6 +169,23 @@
       </div>
     </div>
 
+    <!-- Route edit version history -->
+    <div class="modal fade" id="editHistoryModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h4 class="modal-title">
+              Version history — <span id="editHistoryFile"></span>
+            </h4>
+          </div>
+          <div class="modal-body">
+            <div id="editHistoryList"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/offcanvas.js') }}"></script>
     <script src="{{ url_for('static', filename='js/config.js') }}"></script>
@@ -152,6 +193,7 @@
     <script src="{{ url_for('static', filename='js/location-tracker.js') }}"></script>
     <script src="{{ url_for('static', filename='js/route-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/info-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/editor-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ride/launcher.js') }}"></script>
   </body>

@@ -145,3 +145,68 @@ footer {
   display: inline-block;
   margin-right: 6px;
 }
+
+/* --- Route editor --- */
+#routes .route-item,
+#geojsonRoutes .route-item {
+  display: flex;
+  align-items: center;
+}
+
+.route-edit-btn {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  text-decoration: none;
+  opacity: 0.55;
+  cursor: pointer;
+  font-size: 14px;
+}
+.route-edit-btn:hover {
+  opacity: 1;
+}
+
+#editorToolbar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+#editorToolbar .ed-title {
+  font-weight: 600;
+  margin-right: 4px;
+}
+#editorToolbar .ed-tool.active {
+  background-color: #ffd166;
+  border-color: #e0a800;
+  font-weight: 600;
+}
+#editorToolbar .ed-status {
+  color: #2e7d32;
+  font-size: 12px;
+}
+
+.ed-hist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+.ed-hist-btns {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.ed-hist-btns .btn {
+  margin-left: 4px;
+}

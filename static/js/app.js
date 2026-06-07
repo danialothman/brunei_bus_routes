@@ -23,10 +23,16 @@ APP.BusMap = class {
     this.locationTracker = new APP.LocationTracker(this.map);
     this.routeManager = new APP.RouteManager(this.map);
     this.infoManager = new APP.InfoManager(this.map);
+    this.editorManager = new APP.EditorManager(
+      this.map,
+      this.routeManager,
+      this.infoManager
+    );
 
     this.locationTracker.init();
     this.routeManager.init();
     this.infoManager.init();
+    this.editorManager.init();
   }
 
   /**
