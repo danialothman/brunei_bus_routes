@@ -1,5 +1,6 @@
 from flask import (
-    Flask, render_template, send_from_directory, jsonify, json, request, Response
+    Flask, render_template, send_from_directory, jsonify, json, request, Response,
+    url_for,
 )
 import os
 import re
@@ -588,6 +589,35 @@ def restore_edit(filename):
         return jsonify({"error": "version not found"}), 404
     new_version = db.add_version(year, filename, geom, f"Restored from v{int(version)}")
     return jsonify({"version": new_version}), 201
+
+
+@app.route("/data/ride-music")
+def ride_music():
+    # Background tracks for the ride-along: any audio dropped into static/audio.
+    # An optional credits.json (filename -> {title, artist, source, license})
+    # supplies the attribution line shown while a track plays (required for the
+    # CC-BY tracks we use).
+    d = os.path.join(app.static_folder, "audio")
+    exts = (".mp3", ".ogg", ".m4a", ".wav")
+    files = (
+        sorted(f for f in os.listdir(d) if f.lower().endswith(exts))
+        if os.path.isdir(d)
+        else []
+    )
+    credits = {}
+    cpath = os.path.join(d, "credits.json")
+    if os.path.exists(cpath):
+        try:
+            with open(cpath, "r", encoding="utf-8") as fh:
+                credits = json.load(fh)
+        except (ValueError, OSError):
+            credits = {}
+    return jsonify(
+        [
+            {"src": url_for("static", filename=f"audio/{f}"), "credit": credits.get(f)}
+            for f in files
+        ]
+    )
 
 
 @app.route("/favicon.png")

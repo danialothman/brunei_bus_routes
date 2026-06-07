@@ -143,6 +143,73 @@ body {
   opacity: 1;
 }
 
+/* Persistent previous/next stop panel (top-left, under the topbar) */
+#stop-progress {
+  position: absolute;
+  top: 52px;
+  left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  background: rgba(20, 20, 24, 0.72);
+  border-radius: 10px;
+  color: #fff;
+  z-index: 10;
+  pointer-events: none;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.3);
+  max-width: 46vw;
+}
+#stop-progress.hidden {
+  display: none;
+}
+#stop-progress .sp-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.2;
+}
+#stop-progress .sp-label {
+  flex: 0 0 auto;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  opacity: 0.65;
+  width: 30px;
+}
+#stop-progress .sp-name {
+  flex: 1 1 auto;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#stop-progress .sp-next .sp-name {
+  color: #ffd166;
+}
+
+/* Now-playing music attribution (bottom-left; required for CC-BY tracks) */
+#music-credit {
+  position: absolute;
+  left: 12px;
+  bottom: 84px; /* clear the bottom control bar */
+  max-width: 40vw;
+  padding: 4px 10px;
+  background: rgba(20, 20, 24, 0.6);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  line-height: 1.3;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+#music-credit.show {
+  opacity: 1;
+}
+
 /* Bottom control bar */
 #ride-controls {
   position: absolute;
@@ -195,6 +262,58 @@ body {
   gap: 6px;
   font-size: 12px;
   white-space: nowrap;
+}
+
+/* Music: a single 🎵 button that pops up a compact control panel */
+#ride-controls .music-controls {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+#ride-controls .music-controls.open .toggle-btn {
+  outline: 2px solid rgba(255, 209, 102, 0.7);
+}
+#music-panel {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(20, 20, 24, 0.95);
+  border-radius: 10px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  z-index: 11;
+}
+#music-panel.hidden {
+  display: none;
+}
+/* Little pointer connecting the panel to the 🎵 button */
+#music-panel::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(20, 20, 24, 0.95);
+}
+#music-panel .mini-btn {
+  width: 32px;
+  font-size: 13px;
+}
+#music-panel input[type="range"] {
+  width: 78px;
+}
+#music-panel .vol-icon {
+  width: auto;
+  padding: 0 2px;
+  background: transparent;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
 }
 
 #progress-wrap {

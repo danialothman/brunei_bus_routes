@@ -95,6 +95,74 @@ APP.RidePath = {
   },
 
   /**
+   * Project each named stop onto the drive path and return its position as a
+   * fraction (0..1) of the route's length, sorted along the route. Used to tell
+   * which stop is behind vs. ahead of the bus regardless of engine/units.
+   * Planar approximation (lon scaled by cos(lat)) — fine at city scale; we only
+   * need relative ordering, not true geodesic distance.
+   * @param {number[][]} drivePath - array of [lon, lat]
+   * @param {object[]} stops - [{name, lon, lat}]
+   * @returns {{name:string, t:number}[]}
+   */
+  stopProgressList(drivePath, stops) {
+    if (!drivePath || drivePath.length < 2) return [];
+    const kx = Math.cos((drivePath[0][1] * Math.PI) / 180); // lon→x scale
+    const P = drivePath.map(([lon, lat]) => [lon * kx, lat]);
+    const cum = [0];
+    for (let i = 1; i < P.length; i++) {
+      cum[i] = cum[i - 1] + Math.hypot(P[i][0] - P[i - 1][0], P[i][1] - P[i - 1][1]);
+    }
+    const total = cum[cum.length - 1] || 1;
+    const out = [];
+    (stops || []).forEach((s) => {
+      if (!s.name) return;
+      const sx = s.lon * kx;
+      const sy = s.lat;
+      let bestD = Infinity;
+      let bestArc = 0;
+      for (let i = 0; i < P.length - 1; i++) {
+        const ax = P[i][0];
+        const ay = P[i][1];
+        const dx = P[i + 1][0] - ax;
+        const dy = P[i + 1][1] - ay;
+        const segLen2 = dx * dx + dy * dy;
+        let t = segLen2 ? ((sx - ax) * dx + (sy - ay) * dy) / segLen2 : 0;
+        t = Math.max(0, Math.min(1, t));
+        const px = ax + t * dx;
+        const py = ay + t * dy;
+        const d = (sx - px) ** 2 + (sy - py) ** 2;
+        if (d < bestD) {
+          bestD = d;
+          bestArc = cum[i] + Math.sqrt(segLen2) * t;
+        }
+      }
+      out.push({ name: s.name, t: bestArc / total });
+    });
+    out.sort((a, b) => a.t - b.t);
+    return out;
+  },
+
+  /**
+   * Given stops sorted by along-route fraction and the bus's current fraction,
+   * return the last stop passed and the next stop ahead (either may be null).
+   * @param {{name:string, t:number}[]} stopList
+   * @param {number} u - current progress fraction (0..1)
+   * @returns {{prev:object|null, next:object|null}}
+   */
+  prevNextStop(stopList, u) {
+    let prev = null;
+    let next = null;
+    for (const s of stopList) {
+      if (s.t <= u) prev = s;
+      else {
+        next = s;
+        break;
+      }
+    }
+    return { prev, next };
+  },
+
+  /**
    * Pick a stable color for a route from the shared palette, keyed by its
    * leading number so it matches the 2D map's coloring.
    * @param {string} routeFile
