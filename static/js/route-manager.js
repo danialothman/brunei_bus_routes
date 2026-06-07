@@ -220,7 +220,7 @@ APP.RouteManager = class {
     }
     label.append($('<a class="route-edit-btn" title="Edit">✎</a>').attr(attrs));
     if (isUser) {
-      label.append($('<a class="route-del-btn" title="Delete route">🗑</a>').attr(attrs));
+      label.append($('<a class="route-del-btn" title="Delete route">✕</a>').attr(attrs));
     }
     return label;
   }
