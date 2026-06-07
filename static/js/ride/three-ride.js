@@ -10,6 +10,9 @@ const els = {
   status: document.getElementById("ride-status"),
   statusSub: document.getElementById("ride-status-sub"),
   banner: document.getElementById("stop-banner"),
+  progressPanel: document.getElementById("stop-progress"),
+  spPrev: document.getElementById("sp-prev"),
+  spNext: document.getElementById("sp-next"),
   playpause: document.getElementById("playpause"),
   speed: document.getElementById("speed"),
   speedVal: document.getElementById("speed-val"),
@@ -256,6 +259,8 @@ async function main() {
   const color = RP.colorFor(routeFile);
   const origin = RP.originFromBounds(geo.bounds);
   const pts = RP.pathToMeters(drivePath, origin);
+  // Stops projected onto the route (fraction 0..1) for the prev/next HUD.
+  const stopList = RP.stopProgressList(drivePath, geo.stops);
 
   // Minimap overlay (shared widget) — built early so it shows while tiles load.
   const minimap = new APP.Minimap(
@@ -358,6 +363,18 @@ async function main() {
     }
   }
 
+  // Persistent previous/next stop HUD, driven by progress fraction u.
+  function updateStopProgress(u) {
+    if (!stopList.length || !stopsVisible) {
+      els.progressPanel.classList.add("hidden");
+      return;
+    }
+    els.progressPanel.classList.remove("hidden");
+    const { prev, next } = RP.prevNextStop(stopList, u);
+    els.spPrev.textContent = prev ? prev.name : "—";
+    els.spNext.textContent = next ? next.name : "—";
+  }
+
   // Position camera instantly before first frame so we don't fly in from origin
   camera.position.set(pts[0].x, 9, pts[0].z + 20);
   placeAt(0);
@@ -391,6 +408,7 @@ async function main() {
     if (!stopsVisible) {
       lastStop = null;
       els.banner.classList.remove("show");
+      els.progressPanel.classList.add("hidden");
     }
   });
   els.toggleMinimap.addEventListener("click", () => {
@@ -411,6 +429,7 @@ async function main() {
     }
     const busPos = placeAt(f);
     updateStopBanner(busPos);
+    updateStopProgress(f);
     minimap.update(RP.metersToLonLat({ x: busPos.x, z: busPos.z }, origin));
   }
   els.progressWrap.addEventListener("pointerdown", (e) => {
@@ -453,6 +472,7 @@ async function main() {
     const u = totalLength > 0 ? traveled / totalLength : 0;
     const busPos = placeAt(u);
     updateStopBanner(busPos);
+    updateStopProgress(u);
     minimap.update(RP.metersToLonLat({ x: busPos.x, z: busPos.z }, origin));
     els.progress.style.width = `${(u * 100).toFixed(1)}%`;
     renderer.render(scene, camera);

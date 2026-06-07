@@ -21,12 +21,35 @@
     </div>
 
     <div id="stop-banner"></div>
+
+    <div id="stop-progress">
+      <div class="sp-row sp-prev">
+        <span class="sp-label">Prev</span>
+        <span class="sp-name" id="sp-prev">—</span>
+      </div>
+      <div class="sp-row sp-next">
+        <span class="sp-label">Next</span>
+        <span class="sp-name" id="sp-next">—</span>
+      </div>
+    </div>
+
     <div id="minimap"></div>
+    <div id="music-credit"></div>
 
     <div id="ride-controls">
       <button id="playpause" title="Play/Pause">⏸</button>
       <button id="toggle-stops" class="toggle-btn active" title="Show/hide stops" aria-pressed="true">🚏 Stops</button>
       <button id="toggle-minimap" class="toggle-btn active" title="Show/hide minimap" aria-pressed="true">🗺 Map</button>
+      <span id="music-controls" class="music-controls">
+        <button id="toggle-music" class="toggle-btn" title="Music" aria-pressed="false" aria-expanded="false">🎵 Music</button>
+        <div id="music-panel" class="music-panel hidden" role="group" aria-label="Music controls">
+          <button id="music-playpause" class="mini-btn" title="Play/Pause">▶</button>
+          <button id="music-prev" class="mini-btn" title="Previous track">⏮</button>
+          <button id="music-next" class="mini-btn" title="Next track">⏭</button>
+          <button id="music-mute" class="vol-icon" title="Mute">🔊</button>
+          <input id="music-volume" type="range" min="0" max="100" step="5" value="50" aria-label="Volume" />
+        </div>
+      </span>
       <div class="speed">
         <span>Speed</span>
         <input id="speed" type="range" min="10" max="120" step="5" value="40" />
@@ -44,6 +67,7 @@
     <script src="{{ url_for('static', filename='js/config.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ride/route-path.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ride/minimap.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/ride-music.js') }}"></script>
     <script type="importmap">
       {
         "imports": {
