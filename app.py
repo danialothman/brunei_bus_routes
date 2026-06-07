@@ -504,8 +504,13 @@ def save_edit(filename):
     year = _resolve_year(request.args.get("year"))
     is_geojson = filename.lower().endswith(".geojson")
     finder = _find_geojson if is_geojson else _find_kml
-    # Allow editing a shipped route OR an existing user-created (DB-only) route.
-    if not finder(filename, year) and db.latest_version(year, filename) is None:
+    # Shipped routes are read-only — they can only be copied into a user route.
+    # Editing is allowed only for user-created (DB-only, no shipped file) routes.
+    if finder(filename, year):
+        return jsonify(
+            {"error": "shipped routes are read-only; copy it to your routes to edit"}
+        ), 403
+    if db.latest_version(year, filename) is None:
         return jsonify({"error": "Route not found"}), 404
     payload = request.get_json(silent=True)
     geom, err = _validate_geometry(payload)

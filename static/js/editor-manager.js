@@ -50,6 +50,18 @@ APP.EditorManager = class {
       );
     });
 
+    // Copy a read-only shipped route into a new editable user route.
+    $("#routes").on("click", ".route-copy-btn", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = $(e.currentTarget);
+      this.copyToUserRoute(
+        el.attr("data-file"),
+        el.attr("data-kind") || "kml",
+        el.attr("data-year")
+      );
+    });
+
     // Toolbar buttons.
     const t = (sel, fn) => $(sel).on("click", (e) => { e.preventDefault(); fn(); });
     t("#newRouteBtn", () => this.createNew());
@@ -118,7 +130,8 @@ APP.EditorManager = class {
     this.active = true;
     this.file = null;
     this.kind = "kml";
-    this.year = "2026"; // new routes are created only for 2026 (enforced server-side)
+    // New routes are created only for the user-route year (enforced server-side).
+    this.year = APP.USER_ROUTE_YEAR;
     this.creating = true;
     this.isUserRoute = true;
     this.routeName = name.trim() || "New route";
@@ -139,6 +152,52 @@ APP.EditorManager = class {
     this._updateButtons();
     this.setTool("drawline");
     this._flash("Draw the route line, then Save");
+  }
+
+  /**
+   * Duplicate a read-only shipped route into a new editable user route (in the
+   * user-route year), then open the copy for editing. The geometry copied is
+   * whatever is currently served for the route (any DB overlay, else on-disk).
+   */
+  copyToUserRoute(file, kind, year) {
+    if (!file) return;
+    if (this.active) {
+      if (!confirm("Finish the current edit first? Unsaved changes will be lost.")) {
+        return;
+      }
+      this.exit();
+    }
+    const q = `?year=${encodeURIComponent(year)}`;
+    fetch(`/data/route-geometry/${encodeURIComponent(file)}${q}`)
+      .then((r) => r.json())
+      .then((geo) => {
+        const segments = geo.segments || [];
+        if (!segments.length) {
+          alert("This layer has no route line to copy.");
+          return;
+        }
+        const baseName = geo.name || file.replace(/\.(kml|geojson)$/, "");
+        const body = { segments, stops: geo.stops || [], name: `${baseName} (copy)` };
+        const yr = APP.USER_ROUTE_YEAR;
+        return fetch(`/data/create?year=${encodeURIComponent(yr)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        })
+          .then((r) => r.json().then((j) => ({ ok: r.ok, j })))
+          .then(({ ok, j }) => {
+            if (!ok) throw new Error(j.error || "copy failed");
+            this.routeManager.addUserRouteRow(yr, j.filename, body.name);
+            this.routeManager.reloadRoute(yr, j.filename, "kml");
+            // Open the editable copy straight away — that's the point of copying.
+            this.enter(j.filename, "kml", yr);
+            this._flash("Copied to your routes");
+          });
+      })
+      .catch((err) => {
+        APP.MapUtils.handleError(err, "Copying route");
+        alert("Copy failed: " + err.message);
+      });
   }
 
   exit() {
