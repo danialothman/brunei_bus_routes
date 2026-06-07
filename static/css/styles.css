@@ -206,7 +206,8 @@ body.editing #sidebar {
 }
 
 .route-edit-btn,
-.route-ride-btn {
+.route-ride-btn,
+.route-del-btn {
   flex: 0 0 auto;
   margin-left: 6px;
   text-decoration: none;
@@ -215,7 +216,8 @@ body.editing #sidebar {
   font-size: 14px;
 }
 .route-edit-btn:hover,
-.route-ride-btn:hover {
+.route-ride-btn:hover,
+.route-del-btn:hover {
   opacity: 1;
 }
 
