@@ -34,22 +34,20 @@
     </div>
 
     <div id="minimap"></div>
-    <div id="music-credit"></div>
+
+    <!-- Minimal music controls live inside the now-playing credit pill. -->
+    <div id="music-credit">
+      <button id="music-mute" class="mc-btn" title="Mute">🔊</button>
+      <input id="music-volume" type="range" min="0" max="100" step="5" value="50" class="mc-vol" aria-label="Volume" />
+      <button id="music-next" class="mc-btn" title="Next track">⏭</button>
+      <span id="music-credit-text" class="mc-text"></span>
+      <button id="music-toggle" class="mc-btn mc-toggle" title="Collapse" aria-label="Collapse music player">‹</button>
+    </div>
 
     <div id="ride-controls">
       <button id="playpause" title="Play/Pause">⏸</button>
       <button id="toggle-stops" class="toggle-btn active" title="Show/hide stops" aria-pressed="true">🚏 Stops</button>
       <button id="toggle-minimap" class="toggle-btn active" title="Show/hide minimap" aria-pressed="true">🗺 Map</button>
-      <span id="music-controls" class="music-controls">
-        <button id="toggle-music" class="toggle-btn" title="Music" aria-pressed="false" aria-expanded="false">🎵 Music</button>
-        <div id="music-panel" class="music-panel hidden" role="group" aria-label="Music controls">
-          <button id="music-playpause" class="mini-btn" title="Play/Pause">▶</button>
-          <button id="music-prev" class="mini-btn" title="Previous track">⏮</button>
-          <button id="music-next" class="mini-btn" title="Next track">⏭</button>
-          <button id="music-mute" class="vol-icon" title="Mute">🔊</button>
-          <input id="music-volume" type="range" min="0" max="100" step="5" value="50" aria-label="Volume" />
-        </div>
-      </span>
       <div class="speed">
         <span>Speed</span>
         <input id="speed" type="range" min="10" max="120" step="5" value="40" />
