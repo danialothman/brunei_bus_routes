@@ -1,7 +1,13 @@
-from flask import Flask, render_template, send_from_directory, jsonify, json, request
+from flask import (
+    Flask, render_template, send_from_directory, jsonify, json, request, Response
+)
 import os
 import re
+import math
 import xml.etree.ElementTree as ET
+from xml.sax.saxutils import escape as _xml_escape
+
+import db
 
 # Prefer defusedxml to guard against XXE / entity-expansion attacks; fall back
 # to the stdlib parser (our KML files are trusted, shipped-in-repo assets).
@@ -20,6 +26,12 @@ app = Flask(
 # owner's original 2016 set (under sibling folders, e.g. data/2026). DATA_YEAR is
 # the default; clients may request a specific year via the ?year= query param.
 DATA_YEAR = "2016"
+
+# Route edits live in a SQLite DB under Flask's instance folder (gitignored), so
+# the shipped route files are never modified. Init at import time so it runs
+# under both `flask run` and `python app.py`.
+os.makedirs(app.instance_path, exist_ok=True)
+db.init_db(os.path.join(app.instance_path, "edits.db"))
 
 
 def _available_years():
@@ -207,6 +219,111 @@ def parse_geojson_geometry(path):
     return {"segments": segments, "stops": [], "bounds": bounds}
 
 
+# --- Editing: canonical geometry helpers -------------------------------------
+def _bounds(segments, stops):
+    """Bounding box over all path vertices (falling back to stop points)."""
+    pts = [p for seg in segments for p in seg]
+    if not pts:
+        pts = [[s["lon"], s["lat"]] for s in stops]
+    if not pts:
+        return None
+    lons = [p[0] for p in pts]
+    lats = [p[1] for p in pts]
+    return {"minLon": min(lons), "minLat": min(lats),
+            "maxLon": max(lons), "maxLat": max(lats)}
+
+
+def _validate_geometry(payload):
+    """Validate an edit payload. Returns (geometry_dict, error_str)."""
+    if not isinstance(payload, dict):
+        return None, "body must be a JSON object"
+    segments_in = payload.get("segments", [])
+    stops_in = payload.get("stops", [])
+    if not isinstance(segments_in, list) or not isinstance(stops_in, list):
+        return None, "segments and stops must be arrays"
+
+    def num(v):
+        return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+
+    segments = []
+    total = 0
+    for seg in segments_in:
+        if not isinstance(seg, list) or len(seg) < 2:
+            return None, "each segment needs at least 2 points"
+        pts = []
+        for c in seg:
+            if (not isinstance(c, (list, tuple)) or len(c) < 2
+                    or not num(c[0]) or not num(c[1])):
+                return None, "coordinates must be [lon, lat] numbers"
+            lon, lat = float(c[0]), float(c[1])
+            if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+                return None, "coordinates out of range"
+            pts.append([round(lon, 7), round(lat, 7)])
+        total += len(pts)
+        segments.append(pts)
+
+    if not segments:
+        return None, "a route needs at least one segment"
+    if total > 100000:
+        return None, "too many vertices"
+
+    stops = []
+    for s in stops_in:
+        if not isinstance(s, dict) or not num(s.get("lon")) or not num(s.get("lat")):
+            return None, "each stop needs numeric lon/lat"
+        lon, lat = float(s["lon"]), float(s["lat"])
+        if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+            return None, "stop coordinates out of range"
+        name = s.get("name", "")
+        if not isinstance(name, str):
+            return None, "stop name must be a string"
+        stops.append({"name": name[:200], "lon": round(lon, 7), "lat": round(lat, 7)})
+
+    label = payload.get("label")
+    if label is not None and not isinstance(label, str):
+        return None, "label must be a string"
+    return {"segments": segments, "stops": stops}, None
+
+
+def geometry_to_kml(geom, name):
+    """Synthesize minimal KML from canonical geometry (re-readable by our parser)."""
+    parts = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>',
+        f"<name>{_xml_escape(name or '')}</name>",
+    ]
+    for seg in geom.get("segments", []):
+        coords = " ".join(f"{lon},{lat},0" for lon, lat in seg)
+        parts.append(
+            f"<Placemark><LineString><coordinates>{coords}</coordinates>"
+            "</LineString></Placemark>"
+        )
+    for s in geom.get("stops", []):
+        parts.append(
+            f"<Placemark><name>{_xml_escape(s.get('name') or '')}</name>"
+            f"<Point><coordinates>{s['lon']},{s['lat']},0</coordinates>"
+            "</Point></Placemark>"
+        )
+    parts.append("</Document></kml>")
+    return "".join(parts)
+
+
+def geometry_to_geojson(geom):
+    """Synthesize a path-only GeoJSON FeatureCollection (one LineString per segment)."""
+    features = [
+        {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [[lon, lat] for lon, lat in seg],
+            },
+        }
+        for seg in geom.get("segments", [])
+    ]
+    return {"type": "FeatureCollection", "features": features}
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -241,35 +358,66 @@ def get_routes():
 
 @app.route("/data/route-geometry/<path:filename>")
 def route_geometry(filename):
-    # Parse a route into JSON (drive segments, named stops, bounds). Dispatch by
-    # extension: GeoJSON paths (no stops) or KML routes (path + named stops).
-    year = request.args.get("year")
-    if filename.lower().endswith(".geojson"):
-        path = _find_geojson(filename, year)
-        if not path:
-            return jsonify({"error": "Route not found"}), 404
+    # Drive segments, named stops, bounds. Serves an edited version from the DB
+    # when one exists (unless ?original=1); ?version=N fetches a saved version.
+    # Falls back to the on-disk file, dispatched by extension.
+    year = _resolve_year(request.args.get("year"))
+    is_geojson = filename.lower().endswith(".geojson")
+    finder = _find_geojson if is_geojson else _find_kml
+    if not finder(filename, year):
+        return jsonify({"error": "Route not found"}), 404
+
+    version = request.args.get("version")
+    geom = None
+    ver = None
+    if version is not None:
         try:
-            data = parse_geojson_geometry(path)
-        except ValueError as e:
-            return jsonify({"error": f"Failed to parse GeoJSON: {e}"}), 500
+            geom = db.get_version(year, filename, int(version))
+        except ValueError:
+            return jsonify({"error": "bad version"}), 400
+        if geom is None:
+            return jsonify({"error": "version not found"}), 404
+        ver = int(version)
+    elif not request.args.get("original"):
+        geom = db.latest_geometry(year, filename)
+        if geom is not None:
+            ver = db.latest_version(year, filename)
+
+    if geom is not None:
+        data = {
+            "segments": geom["segments"],
+            "stops": geom.get("stops", []),
+            "bounds": _bounds(geom["segments"], geom.get("stops", [])),
+            "edited": True,
+            "version": ver,
+        }
     else:
-        path = _find_kml(filename, year)
-        if not path:
-            return jsonify({"error": "Route not found"}), 404
+        path = finder(filename, year)
         try:
-            data = parse_route_geometry(path)
-        except ET.ParseError as e:
-            return jsonify({"error": f"Failed to parse KML: {e}"}), 500
+            data = parse_geojson_geometry(path) if is_geojson else parse_route_geometry(path)
+        except (ValueError, ET.ParseError) as e:
+            return jsonify({"error": f"Failed to parse: {e}"}), 500
+        data["edited"] = False
+        data["version"] = None
     data["name"] = os.path.splitext(os.path.basename(filename))[0]
     return jsonify(data)
 
 
 @app.route("/data/kml/<path:filename>")
 def serve_kml(filename):
-    path = _find_kml(filename, request.args.get("year"))
-    if path:
-        return send_from_directory(os.path.dirname(path), os.path.basename(path))
-    return "KML file not found", 404
+    year = _resolve_year(request.args.get("year"))
+    path = _find_kml(filename, year)
+    if not path:
+        return "KML file not found", 404
+    if not request.args.get("original"):
+        geom = db.latest_geometry(year, filename)
+        if geom is not None:
+            name = os.path.splitext(os.path.basename(filename))[0]
+            return Response(
+                geometry_to_kml(geom, name),
+                mimetype="application/vnd.google-earth.kml+xml",
+            )
+    return send_from_directory(os.path.dirname(path), os.path.basename(path))
 
 
 @app.route("/data/geojson-list")
@@ -285,10 +433,63 @@ def get_geojson_list():
 
 @app.route("/data/geojson/<path:filename>")
 def serve_geojson(filename):
-    path = _find_geojson(filename, request.args.get("year"))
-    if path:
-        return send_from_directory(os.path.dirname(path), os.path.basename(path))
-    return "GeoJSON file not found", 404
+    year = _resolve_year(request.args.get("year"))
+    path = _find_geojson(filename, year)
+    if not path:
+        return "GeoJSON file not found", 404
+    if not request.args.get("original"):
+        geom = db.latest_geometry(year, filename)
+        if geom is not None:
+            return jsonify(geometry_to_geojson(geom))
+    return send_from_directory(os.path.dirname(path), os.path.basename(path))
+
+
+@app.route("/data/edit/<path:filename>", methods=["POST"])
+def save_edit(filename):
+    # Save a new edited version of a route's geometry into the SQLite store.
+    year = _resolve_year(request.args.get("year"))
+    is_geojson = filename.lower().endswith(".geojson")
+    finder = _find_geojson if is_geojson else _find_kml
+    if not finder(filename, year):
+        return jsonify({"error": "Route not found"}), 404
+    payload = request.get_json(silent=True)
+    geom, err = _validate_geometry(payload)
+    if err:
+        return jsonify({"error": err}), 400
+    if is_geojson:
+        geom["stops"] = []  # geojson routes are path-only
+    label = payload.get("label") if isinstance(payload, dict) else None
+    version = db.add_version(year, filename, geom, label)
+    return jsonify({"version": version}), 201
+
+
+@app.route("/data/edit-history/<path:filename>")
+def edit_history(filename):
+    year = _resolve_year(request.args.get("year"))
+    return jsonify(db.list_versions(year, filename))
+
+
+@app.route("/data/edit/<path:filename>", methods=["DELETE"])
+def delete_edit(filename):
+    # Revert to original: drop all saved versions so serving falls back to disk.
+    year = _resolve_year(request.args.get("year"))
+    deleted = db.delete_all(year, filename)
+    return jsonify({"reverted": True, "deleted": deleted})
+
+
+@app.route("/data/edit/<path:filename>/restore", methods=["POST"])
+def restore_edit(filename):
+    # Append a copy of version N as a new latest version (history stays forward).
+    year = _resolve_year(request.args.get("year"))
+    version = request.args.get("version")
+    try:
+        geom = db.get_version(year, filename, int(version))
+    except (TypeError, ValueError):
+        return jsonify({"error": "bad version"}), 400
+    if geom is None:
+        return jsonify({"error": "version not found"}), 404
+    new_version = db.add_version(year, filename, geom, f"Restored from v{int(version)}")
+    return jsonify({"version": new_version}), 201
 
 
 @app.route("/favicon.png")

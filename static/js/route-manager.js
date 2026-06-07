@@ -324,7 +324,9 @@ APP.RouteManager = class {
           const name = $('<span class="route-name"></span>').text(
             kmlFile.replace(".kml", "")
           );
-          label.append(input).append(swatch).append(name);
+          const edit = $('<a class="route-edit-btn" title="Edit route">✏</a>')
+            .attr({ "data-file": kmlFile, "data-kind": "kml" });
+          label.append(input).append(swatch).append(name).append(edit);
           output.append(label);
         });
       })
@@ -357,7 +359,9 @@ APP.RouteManager = class {
           const name = $('<span class="route-name"></span>').text(
             file.replace(".geojson", "")
           );
-          label.append(input).append(swatch).append(name);
+          const edit = $('<a class="route-edit-btn" title="Edit path">✏</a>')
+            .attr({ "data-file": file, "data-kind": "geojson" });
+          label.append(input).append(swatch).append(name).append(edit);
           output.append(label);
         });
         section.show();
@@ -420,5 +424,62 @@ APP.RouteManager = class {
     layer = this.createGeojsonLayer(file);
     this.geojsonLayers.set(file, layer);
     this.map.addLayer(layer);
+  }
+
+  // --- Editor coordination ---------------------------------------------------
+
+  /**
+   * Layer cache + checkbox for a file (kind = "kml" | "geojson").
+   */
+  _layerFor(file, kind) {
+    return kind === "geojson" ? this.geojsonLayers : this.layers;
+  }
+
+  /**
+   * Drop a route's cached layer and re-show it if its checkbox is on, forcing a
+   * fresh fetch (so saved edits / reverts appear on the map). Cache-busted.
+   * @param {string} file
+   * @param {string} kind - "kml" | "geojson"
+   */
+  reloadRoute(file, kind = "kml") {
+    const cache = this._layerFor(file, kind);
+    const layer = cache.get(file);
+    if (layer) {
+      this.map.removeLayer(layer);
+      cache.delete(file);
+    }
+    const checked = $(`#${kind === "geojson" ? "geojsonRoutes" : "routes"} input`)
+      .filter((_, el) => el.value === file)
+      .prop("checked");
+    if (checked) {
+      if (kind === "geojson") {
+        this.toggleGeojson(file);
+      } else {
+        this.enableRoute(file);
+      }
+    }
+  }
+
+  /**
+   * Hide a route's read-only layer while it is being edited (avoids duplicates).
+   */
+  hideRouteForEdit(file, kind = "kml") {
+    const layer = this._layerFor(file, kind).get(file);
+    if (layer) {
+      layer.setVisible(false);
+    }
+  }
+
+  /**
+   * Restore a route's read-only layer after editing, if its checkbox is on.
+   */
+  showRouteAfterEdit(file, kind = "kml") {
+    const layer = this._layerFor(file, kind).get(file);
+    const checked = $(`#${kind === "geojson" ? "geojsonRoutes" : "routes"} input`)
+      .filter((_, el) => el.value === file)
+      .prop("checked");
+    if (layer && checked) {
+      layer.setVisible(true);
+    }
   }
 };
