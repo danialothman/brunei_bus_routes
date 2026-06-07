@@ -220,7 +220,7 @@ APP.RouteManager = class {
         (cat.years || []).forEach((year) => {
           const d = cat[year] || {};
           if (d.user && d.user.length) {
-            header(`${year} · My routes`);
+            header("My routes");
             d.user.forEach((f) => addRow(year, f, "kml", true, d.names || {}));
           }
         });
@@ -291,8 +291,8 @@ APP.RouteManager = class {
     this.meta.set(id, { year, file, kind: "kml" });
     const row = this._row(id, color, displayName, { year, file, kind: "kml" }, true);
     row.find("input").prop("checked", true);
-    // Place under the year's "My routes" header (creating it at the top if needed).
-    const headerText = `${year} · My routes`;
+    // Place under the "My routes" header (creating it at the top if needed).
+    const headerText = "My routes";
     let headerEl = $("#routes .route-group").filter(
       (_, el) => $(el).text() === headerText
     );
