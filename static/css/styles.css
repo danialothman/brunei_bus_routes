@@ -6,7 +6,7 @@ body {
 #sidebarToggle {
   position: fixed;
   top: 58px;
-  left: 10px;
+  right: 10px;
   z-index: 1001;
 }
 
