@@ -108,11 +108,11 @@
     const busMarker = new maplibregl.Marker({ element: busEl }).setLngLat(start);
 
     // Ride state
-    const TARGET_DURATION = 80; // seconds at 1x
-    const baseSpeed = total / TARGET_DURATION; // km/s
+    // Real km/h simulation speed; 'total' is in km, so km/h / 3600 = km/s.
+    let speedKmh = parseFloat(els.speed.value) || 40;
+    els.speedVal.textContent = `${speedKmh} km/h`;
     let traveled = 0;
     let playing = true;
-    let speedMul = 0.1;
     let lastStop = null;
     let lastTs = null;
     let scrubbing = false;
@@ -194,7 +194,7 @@
       lastTs = ts;
 
       if (playing && !scrubbing && traveled < total) {
-        traveled = Math.min(traveled + baseSpeed * speedMul * dt, total);
+        traveled = Math.min(traveled + (speedKmh / 3600) * dt, total);
         if (traveled >= total) {
           playing = false;
           els.playpause.textContent = "↻";
@@ -253,8 +253,8 @@
       els.playpause.textContent = playing ? "⏸" : "▶";
     });
     els.speed.addEventListener("input", () => {
-      speedMul = parseFloat(els.speed.value);
-      els.speedVal.textContent = `${speedMul}×`;
+      speedKmh = parseFloat(els.speed.value);
+      els.speedVal.textContent = `${speedKmh} km/h`;
     });
     els.toggleStops.addEventListener("click", () => {
       stopsVisible = !stopsVisible;

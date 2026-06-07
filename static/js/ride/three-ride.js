@@ -308,12 +308,13 @@ async function main() {
   curve.arcLengthDivisions = Math.max(400, pts.length * 2);
   const totalLength = curve.getLength();
 
-  // Ride state
-  const TARGET_DURATION = 80; // seconds at 1x for a full route
-  const baseSpeed = totalLength / TARGET_DURATION; // m/s
+  // Ride state. Speed is a real km/h value (from the slider) so every route
+  // moves at the same actual speed regardless of length — a true simulation.
+  const kmhToMs = (k) => (k * 1000) / 3600;
+  let speedKmh = parseFloat(els.speed.value) || 40;
+  els.speedVal.textContent = `${speedKmh} km/h`;
   let traveled = 0;
   let playing = true;
-  let speedMul = 0.1;
   let lastStop = null;
   let stopsVisible = true;
   let scrubbing = false;
@@ -378,8 +379,8 @@ async function main() {
     els.playpause.textContent = playing ? "⏸" : "▶";
   });
   els.speed.addEventListener("input", () => {
-    speedMul = parseFloat(els.speed.value);
-    els.speedVal.textContent = `${speedMul}×`;
+    speedKmh = parseFloat(els.speed.value);
+    els.speedVal.textContent = `${speedKmh} km/h`;
   });
   els.toggleStops.addEventListener("click", () => {
     stopsVisible = !stopsVisible;
@@ -442,7 +443,7 @@ async function main() {
     requestAnimationFrame(animate);
     const dt = Math.min(clock.getDelta(), 0.1);
     if (playing && !scrubbing && traveled < totalLength) {
-      traveled = Math.min(traveled + baseSpeed * speedMul * dt, totalLength);
+      traveled = Math.min(traveled + kmhToMs(speedKmh) * dt, totalLength);
       if (traveled >= totalLength) {
         playing = false;
         els.playpause.textContent = "↻";
