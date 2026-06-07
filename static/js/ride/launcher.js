@@ -18,26 +18,22 @@ $(document).ready(function () {
     Promise.all([
       fetch(`/data/routes.json${yq}`).then((r) => r.json()).catch(() => []),
       fetch(`/data/geojson-list${yq}`).then((r) => r.json()).catch(() => []),
+      fetch(`/data/user-routes${yq}`).then((r) => r.json()).catch(() => []),
+      fetch(`/data/edit-names${yq}`).then((r) => r.json()).catch(() => ({})),
     ])
-      .then(([routes, geojson]) => {
+      .then(([routes, geojson, userRoutes, names]) => {
         select.empty();
-        const kml = (routes || []).filter((f) => !NON_ROUTE.test(f));
-        if (kml.length) {
-          const grp = $('<optgroup label="Routes (KML)"></optgroup>');
-          kml.forEach((f) =>
-            grp.append($("<option></option>").val(f).text(f.replace(".kml", "")))
-          );
+        const opt = (f, ext) =>
+          $("<option></option>").val(f).text(names[f] || f.replace(ext, ""));
+        const addGroup = (label, files, ext) => {
+          if (!files || !files.length) return;
+          const grp = $(`<optgroup label="${label}"></optgroup>`);
+          files.forEach((f) => grp.append(opt(f, ext)));
           select.append(grp);
-        }
-        if (geojson && geojson.length) {
-          const grp = $('<optgroup label="GeoJSON paths"></optgroup>');
-          geojson.forEach((f) =>
-            grp.append(
-              $("<option></option>").val(f).text(f.replace(".geojson", ""))
-            )
-          );
-          select.append(grp);
-        }
+        };
+        addGroup("Routes (KML)", (routes || []).filter((f) => !NON_ROUTE.test(f)), ".kml");
+        addGroup("My routes", userRoutes, ".kml");
+        addGroup("GeoJSON paths", geojson, ".geojson");
       })
       .catch((error) => APP.MapUtils.handleError(error, "Loading ride routes"));
   }
