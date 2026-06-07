@@ -205,7 +205,8 @@ body.editing #sidebar {
   align-items: center;
 }
 
-.route-edit-btn {
+.route-edit-btn,
+.route-ride-btn {
   flex: 0 0 auto;
   margin-left: 6px;
   text-decoration: none;
@@ -213,7 +214,8 @@ body.editing #sidebar {
   cursor: pointer;
   font-size: 14px;
 }
-.route-edit-btn:hover {
+.route-edit-btn:hover,
+.route-ride-btn:hover {
   opacity: 1;
 }
 

@@ -187,12 +187,14 @@ APP.RouteManager = class {
       color
     );
     const name = $('<span class="route-name"></span>').text(displayName);
-    const edit = $('<a class="route-edit-btn" title="Edit">✏</a>').attr({
+    const attrs = {
       "data-file": meta.file,
       "data-kind": meta.kind,
       "data-year": meta.year,
-    });
-    return label.append(input).append(swatch).append(name).append(edit);
+    };
+    const ride = $('<a class="route-ride-btn" title="3D ride">🚌</a>').attr(attrs);
+    const edit = $('<a class="route-edit-btn" title="Edit">✏</a>').attr(attrs);
+    return label.append(input).append(swatch).append(name).append(ride).append(edit);
   }
 
   loadCatalog() {
