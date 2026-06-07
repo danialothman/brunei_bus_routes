@@ -73,6 +73,31 @@ def latest_geometry(year, filename):
     return json.loads(row["geometry"]) if row else None
 
 
+def latest_names(year):
+    """Map filename -> custom route name, for routes whose latest edit sets one."""
+    out = {}
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT rv.filename AS filename, rv.geometry AS geometry
+            FROM route_versions rv
+            WHERE rv.year = ? AND rv.version = (
+                SELECT MAX(version) FROM route_versions
+                WHERE year = rv.year AND filename = rv.filename
+            )
+            """,
+            (year,),
+        ).fetchall()
+    for r in rows:
+        try:
+            name = json.loads(r["geometry"]).get("name")
+        except (ValueError, TypeError):
+            name = None
+        if name:
+            out[r["filename"]] = name
+    return out
+
+
 def list_versions(year, filename):
     """Version metadata (no geometry blob), newest first."""
     with _connect() as conn:
