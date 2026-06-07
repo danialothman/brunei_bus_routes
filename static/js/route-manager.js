@@ -176,8 +176,27 @@ APP.RouteManager = class {
         this.hideLoading(null, true);
       }
     });
+    $("#routes").on("click", ".route-del-btn", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const el = $(e.currentTarget);
+      this.deleteUserRoute(el.attr("data-year"), el.attr("data-file"));
+    });
     $("#showAll").on("click", () => this.showAll());
     $("#clearAll").on("click", () => this.clearAll());
+  }
+
+  /** Delete a user-created route (DB-only) after confirmation. */
+  deleteUserRoute(year, file) {
+    if (!confirm("Delete this route? This removes it and all its versions.")) {
+      return;
+    }
+    fetch(`/data/edit/${encodeURIComponent(file)}?year=${encodeURIComponent(year)}`, {
+      method: "DELETE",
+    })
+      .then((r) => r.json())
+      .then(() => this.removeRouteRow(year, file, "kml"))
+      .catch((e) => APP.MapUtils.handleError(e, "Deleting route"));
   }
 
   // --- sidebar rendering -----------------------------------------------------
@@ -195,12 +214,15 @@ APP.RouteManager = class {
       "data-kind": meta.kind,
       "data-year": meta.year,
     };
-    const edit = $('<a class="route-edit-btn" title="Edit">✏</a>').attr(attrs);
     label.append(input).append(swatch).append(name);
     if (!NON_ROUTE.test(meta.file)) {
       label.append($('<a class="route-ride-btn" title="3D ride">🚌</a>').attr(attrs));
     }
-    return label.append(edit);
+    label.append($('<a class="route-edit-btn" title="Edit">✏</a>').attr(attrs));
+    if (isUser) {
+      label.append($('<a class="route-del-btn" title="Delete route">🗑</a>').attr(attrs));
+    }
+    return label;
   }
 
   loadCatalog() {
