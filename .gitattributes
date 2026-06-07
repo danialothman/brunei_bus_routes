@@ -1,0 +1,15 @@
+# Normalize line endings: store text as LF in the repo and check it out as LF
+# everywhere (keeps Windows clients from rewriting our source to CRLF).
+* text=auto eol=lf
+
+# Binary assets — never run EOL normalization on these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.mp3 binary
+*.ogg binary
+*.m4a binary
+*.wav binary
+*.db binary
