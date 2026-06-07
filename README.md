@@ -59,6 +59,23 @@ originates from, so new datasets can live alongside the original 2016 set
 without mixing. The app serves a single year, selected by the `DATA_YEAR`
 constant in `app.py` (currently `"2016"`).
 
+## KML vs GeoJSON
+
+The 2016 data carries two **independent** geometry sets — they are not
+conversions of each other:
+
+- **KML** (`kml/`) — the detailed route geometry, including **named stops**,
+  with descriptive filenames. This is what the map renders by default and what
+  the 3D ride uses for stops.
+- **GeoJSON** (`geojson/`) — **path-only** route lines (no stops), named by the
+  actual route number. Shown as a separate dashed overlay in the sidebar and
+  also 3D-ridable.
+
+A geometry comparison confirms the two were drawn independently: matching the
+same route across the sets, the paths differ by hundreds of metres to several
+kilometres (none align closely). They cover the same network but are alternate
+tracings, so treat them as independent sources rather than duplicates.
+
 ## Project Structure
 
 ```
