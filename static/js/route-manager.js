@@ -216,16 +216,21 @@ APP.RouteManager = class {
             this._row(id, color, names[file] || file.replace(ext, ""), { year, file, kind }, isUser)
           );
         };
+        // User-created routes first (top of the list).
+        (cat.years || []).forEach((year) => {
+          const d = cat[year] || {};
+          if (d.user && d.user.length) {
+            header(`${year} · My routes`);
+            d.user.forEach((f) => addRow(year, f, "kml", true, d.names || {}));
+          }
+        });
+        // Then shipped routes + geojson paths, per year.
         (cat.years || []).forEach((year) => {
           const d = cat[year] || {};
           const names = d.names || {};
           if (d.routes && d.routes.length) {
             header(`${year} · Routes`);
             d.routes.forEach((f) => addRow(year, f, "kml", false, names));
-          }
-          if (d.user && d.user.length) {
-            header(`${year} · My routes`);
-            d.user.forEach((f) => addRow(year, f, "kml", true, names));
           }
           if (d.geojson && d.geojson.length) {
             header(`${year} · GeoJSON paths`);
@@ -286,7 +291,16 @@ APP.RouteManager = class {
     this.meta.set(id, { year, file, kind: "kml" });
     const row = this._row(id, color, displayName, { year, file, kind: "kml" }, true);
     row.find("input").prop("checked", true);
-    $("#routes").append(row);
+    // Place under the year's "My routes" header (creating it at the top if needed).
+    const headerText = `${year} · My routes`;
+    let headerEl = $("#routes .route-group").filter(
+      (_, el) => $(el).text() === headerText
+    );
+    if (!headerEl.length) {
+      headerEl = $('<div class="route-group"></div>').text(headerText);
+      $("#routes").prepend(headerEl);
+    }
+    headerEl.after(row);
   }
 
   removeRouteRow(year, file, kind = "kml") {
