@@ -104,7 +104,7 @@
       pitch: 68,
       bearing: 0,
       interactive: false, // on-rails: the user doesn't control the view
-      attributionControl: { compact: true },
+      attributionControl: { compact: true }, // bottom-right
     });
 
     // Bus marker (top-down; map rotates so travel direction points up)
