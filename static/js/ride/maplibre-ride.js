@@ -87,7 +87,8 @@
       document.getElementById("minimap"),
       drivePath,
       bounds,
-      color
+      color,
+      geo.stops
     );
 
     const map = new maplibregl.Map({

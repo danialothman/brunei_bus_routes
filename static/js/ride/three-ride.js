@@ -262,7 +262,8 @@ async function main() {
     document.getElementById("minimap"),
     drivePath,
     geo.bounds,
-    color
+    color,
+    geo.stops
   );
 
   // Scene
