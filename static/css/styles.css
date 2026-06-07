@@ -3,12 +3,6 @@ body {
   height: 99%;
 }
 
-#offcanvas {
-  margin-right: 1em;
-  border-top-right-radius: 0;
-  border-top-left-radius: 0;
-}
-
 #loading {
   padding: 5px;
   background-color: rgba(255, 255, 255, 0.8);
@@ -144,4 +138,134 @@ footer {
   width: auto;
   display: inline-block;
   margin-right: 6px;
+}
+
+/* --- Floating routes sidebar --- */
+#sidebar {
+  position: fixed;
+  top: 58px;
+  right: 10px;
+  bottom: 10px;
+  width: 300px;
+  max-width: calc(100% - 20px);
+  z-index: 1000;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.97);
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+  overflow-y: auto;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+#sidebar.collapsed {
+  transform: translateX(120%);
+  opacity: 0;
+  pointer-events: none;
+}
+/* While editing, drop the sidebar below the editor toolbar to avoid overlap. */
+body.editing #sidebar {
+  top: 108px;
+}
+.sidebar-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.sidebar-subtitle {
+  font-weight: 600;
+  font-size: 13px;
+  margin: 10px 0 6px;
+}
+/* The whole panel scrolls, so don't nest a second scroll area in the lists. */
+#sidebar #routes {
+  max-height: none;
+}
+/* User-created routes read in italics to set them apart from shipped ones. */
+#sidebar .user-route .route-name {
+  font-style: italic;
+}
+/* Year/type group headers in the combined routes list. */
+.route-group {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+  margin: 12px 0 4px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #ddd;
+}
+.route-group:first-child {
+  margin-top: 0;
+}
+
+/* --- Route editor --- */
+#routes .route-item,
+#geojsonRoutes .route-item {
+  display: flex;
+  align-items: center;
+}
+
+.route-edit-btn,
+.route-ride-btn,
+.route-del-btn {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  text-decoration: none;
+  opacity: 0.55;
+  cursor: pointer;
+  font-size: 14px;
+}
+.route-edit-btn:hover,
+.route-ride-btn:hover,
+.route-del-btn:hover {
+  opacity: 1;
+}
+.route-del-btn {
+  color: #c0392b;
+}
+
+#editorToolbar {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  right: 8px;
+  z-index: 1000;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+#editorToolbar .ed-title {
+  font-weight: 600;
+  margin-right: 4px;
+}
+#editorToolbar .ed-tool.active {
+  background-color: #ffd166;
+  border-color: #e0a800;
+  font-weight: 600;
+}
+#editorToolbar .ed-status {
+  color: #2e7d32;
+  font-size: 12px;
+}
+
+.ed-hist-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #eee;
+}
+.ed-hist-btns {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.ed-hist-btns .btn {
+  margin-left: 4px;
 }
