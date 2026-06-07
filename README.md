@@ -56,8 +56,9 @@ Launch it from the main map via the "🚌 3D Ride" button.
 
 The route data, docs, and notes are segregated by the year the dataset
 originates from, so new datasets can live alongside the original 2016 set
-without mixing. The app serves a single year, selected by the `DATA_YEAR`
-constant in `app.py` (currently `"2016"`).
+without mixing. The app exposes a **year picker** in the navbar so users choose
+which year to view; the `DATA_YEAR` constant in `app.py` (currently `"2016"`)
+sets the default, and requests may override it via a `?year=` query param.
 
 ## KML vs GeoJSON
 
