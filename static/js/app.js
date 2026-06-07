@@ -39,17 +39,13 @@ APP.BusMap = class {
    * Set up the OpenLayers map
    */
   setupMap() {
-    const extent = APP.MapUtils.toOL(APP.MAP_CONFIG.BOUNDS.MIN).concat(
-      APP.MapUtils.toOL(APP.MAP_CONFIG.BOUNDS.MAX)
-    );
-
+    // No view extent: allow free panning at any zoom (the previous Brunei-bbox
+    // extent walled off dragging, most noticeably when zoomed in).
     const view = new ol.View({
       center: APP.MapUtils.toOL(APP.MAP_CONFIG.INITIAL_CENTER),
       zoom: APP.MAP_CONFIG.INITIAL_ZOOM,
       minZoom: APP.MAP_CONFIG.MIN_ZOOM,
       maxZoom: APP.MAP_CONFIG.MAX_ZOOM,
-      extent: extent,
-      constrainOnlyCenter: true,
     });
 
     this.baseLayer = APP.MAP_STYLES.osm.create();
