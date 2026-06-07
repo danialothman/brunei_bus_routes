@@ -73,6 +73,16 @@ def latest_geometry(year, filename):
     return json.loads(row["geometry"]) if row else None
 
 
+def distinct_files(year):
+    """All distinct route filenames that have at least one saved version."""
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT filename FROM route_versions WHERE year=?",
+            (year,),
+        ).fetchall()
+    return [r["filename"] for r in rows]
+
+
 def latest_names(year):
     """Map filename -> custom route name, for routes whose latest edit sets one."""
     out = {}

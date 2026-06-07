@@ -306,33 +306,75 @@ APP.RouteManager = class {
   /**
    * Load route list from JSON and build the colored legend/toggles
    */
-  loadRouteList() {
-    Promise.all([
-      fetch(`/data/routes.json${this.yearQuery()}`).then((r) => r.json()),
-      fetch(`/data/edit-names${this.yearQuery()}`).then((r) => r.json()).catch(() => ({})),
-    ])
-      .then(([routes, names]) => {
-        const output = $("#routes");
-        routes.forEach((kmlFile, index) => {
-          const color = APP.ROUTE_COLORS[index % APP.ROUTE_COLORS.length];
-          this.colors.set(kmlFile, color);
+  /** Build a KML route row (checkbox + swatch + name + edit pencil). */
+  _buildKmlRow(file, color, displayName, isUser) {
+    const label = $("<label></label>").addClass("list-group-item route-item");
+    if (isUser) label.addClass("user-route");
+    const input = $('<input type="checkbox">').val(file);
+    const swatch = $('<span class="route-swatch"></span>').css(
+      "background-color",
+      color
+    );
+    const name = $('<span class="route-name"></span>').text(displayName);
+    const edit = $('<a class="route-edit-btn" title="Edit route">✏</a>')
+      .attr({ "data-file": file, "data-kind": "kml" });
+    return label.append(input).append(swatch).append(name).append(edit);
+  }
 
-          const label = $("<label></label>").addClass("list-group-item route-item");
-          const input = $('<input type="checkbox">').val(kmlFile);
-          const swatch = $('<span class="route-swatch"></span>').css(
-            "background-color",
-            color
+  loadRouteList() {
+    const yq = this.yearQuery();
+    Promise.all([
+      fetch(`/data/routes.json${yq}`).then((r) => r.json()),
+      fetch(`/data/user-routes${yq}`).then((r) => r.json()).catch(() => []),
+      fetch(`/data/edit-names${yq}`).then((r) => r.json()).catch(() => ({})),
+    ])
+      .then(([routes, userRoutes, names]) => {
+        const output = $("#routes").empty();
+        const palette = APP.ROUTE_COLORS;
+        let i = 0;
+        const add = (file, isUser) => {
+          const color = palette[i++ % palette.length];
+          this.colors.set(file, color);
+          output.append(
+            this._buildKmlRow(file, color, names[file] || file.replace(".kml", ""), isUser)
           );
-          const name = $('<span class="route-name"></span>').text(
-            names[kmlFile] || kmlFile.replace(".kml", "")
-          );
-          const edit = $('<a class="route-edit-btn" title="Edit route">✏</a>')
-            .attr({ "data-file": kmlFile, "data-kind": "kml" });
-          label.append(input).append(swatch).append(name).append(edit);
-          output.append(label);
-        });
+        };
+        (routes || []).forEach((f) => add(f, false));
+        (userRoutes || []).forEach((f) => add(f, true));
+        // New-route creation is only offered for the user-route year.
+        $("#newRouteBtn").toggle(this.year === "2026");
       })
       .catch((error) => APP.MapUtils.handleError(error, "Loading routes"));
+  }
+
+  /** Append a row for a newly created user route and check it on. */
+  addUserRouteRow(file, displayName) {
+    if ($("#routes input").filter((_, el) => el.value === file).length) {
+      this.setRouteDisplayName(file, displayName, "kml");
+      return;
+    }
+    const palette = APP.ROUTE_COLORS;
+    const color = palette[this.colors.size % palette.length];
+    this.colors.set(file, color);
+    const row = this._buildKmlRow(file, color, displayName, true);
+    row.find("input").prop("checked", true);
+    $("#routes").append(row);
+  }
+
+  /** Remove a user route's row, layer, and color after it is deleted. */
+  removeRouteRow(file, kind = "kml") {
+    const cache = this._layerFor(file, kind);
+    const layer = cache.get(file);
+    if (layer) {
+      this.map.removeLayer(layer);
+      cache.delete(file);
+    }
+    this.colors.delete(file);
+    const listSel = kind === "geojson" ? "#geojsonRoutes" : "#routes";
+    $(`${listSel} input`)
+      .filter((_, el) => el.value === file)
+      .closest("label")
+      .remove();
   }
 
   /**
