@@ -466,7 +466,12 @@ def serve_kml(filename):
             )
     if not path:
         return "KML file not found", 404
-    return send_from_directory(os.path.dirname(path), os.path.basename(path))
+    # Strip <Icon> refs (e.g. Google gstatic stock markers): we never render KML
+    # icons (styles are off client-side), and those external URLs lack CORS
+    # headers, producing console errors. The file on disk is untouched.
+    with open(path, "r", encoding="utf-8", errors="replace") as f:
+        text = re.sub(r"<Icon>.*?</Icon>", "", f.read(), flags=re.DOTALL)
+    return Response(text, mimetype="application/vnd.google-earth.kml+xml")
 
 
 @app.route("/data/geojson-list")
