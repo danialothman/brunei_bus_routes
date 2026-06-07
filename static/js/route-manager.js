@@ -1,5 +1,8 @@
 window.APP = window.APP || {};
 
+// Point/reference layers (no single drive path) — not offered for 3D ride.
+const NON_ROUTE = /^(Points - |Landmarks\b|Road\b|intradistrict\b|ANNEX\b)/i;
+
 APP.RouteManager = class {
   /**
    * Manages every route layer across all years. Each route is identified by a
@@ -192,9 +195,12 @@ APP.RouteManager = class {
       "data-kind": meta.kind,
       "data-year": meta.year,
     };
-    const ride = $('<a class="route-ride-btn" title="3D ride">🚌</a>').attr(attrs);
     const edit = $('<a class="route-edit-btn" title="Edit">✏</a>').attr(attrs);
-    return label.append(input).append(swatch).append(name).append(ride).append(edit);
+    label.append(input).append(swatch).append(name);
+    if (!NON_ROUTE.test(meta.file)) {
+      label.append($('<a class="route-ride-btn" title="3D ride">🚌</a>').attr(attrs));
+    }
+    return label.append(edit);
   }
 
   loadCatalog() {
