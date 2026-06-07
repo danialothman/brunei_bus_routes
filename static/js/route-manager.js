@@ -307,9 +307,11 @@ APP.RouteManager = class {
    * Load route list from JSON and build the colored legend/toggles
    */
   loadRouteList() {
-    fetch(`/data/routes.json${this.yearQuery()}`)
-      .then((response) => response.json())
-      .then((routes) => {
+    Promise.all([
+      fetch(`/data/routes.json${this.yearQuery()}`).then((r) => r.json()),
+      fetch(`/data/edit-names${this.yearQuery()}`).then((r) => r.json()).catch(() => ({})),
+    ])
+      .then(([routes, names]) => {
         const output = $("#routes");
         routes.forEach((kmlFile, index) => {
           const color = APP.ROUTE_COLORS[index % APP.ROUTE_COLORS.length];
@@ -322,7 +324,7 @@ APP.RouteManager = class {
             color
           );
           const name = $('<span class="route-name"></span>').text(
-            kmlFile.replace(".kml", "")
+            names[kmlFile] || kmlFile.replace(".kml", "")
           );
           const edit = $('<a class="route-edit-btn" title="Edit route">✏</a>')
             .attr({ "data-file": kmlFile, "data-kind": "kml" });
@@ -338,9 +340,11 @@ APP.RouteManager = class {
    */
   loadGeojsonList() {
     const section = $("#geojsonSection");
-    fetch(`/data/geojson-list${this.yearQuery()}`)
-      .then((response) => response.json())
-      .then((files) => {
+    Promise.all([
+      fetch(`/data/geojson-list${this.yearQuery()}`).then((r) => r.json()),
+      fetch(`/data/edit-names${this.yearQuery()}`).then((r) => r.json()).catch(() => ({})),
+    ])
+      .then(([files, names]) => {
         const output = $("#geojsonRoutes").empty();
         if (!files || !files.length) {
           section.hide();
@@ -357,7 +361,7 @@ APP.RouteManager = class {
             color
           );
           const name = $('<span class="route-name"></span>').text(
-            file.replace(".geojson", "")
+            names[file] || file.replace(".geojson", "")
           );
           const edit = $('<a class="route-edit-btn" title="Edit path">✏</a>')
             .attr({ "data-file": file, "data-kind": "geojson" });
@@ -458,6 +462,18 @@ APP.RouteManager = class {
         this.enableRoute(file);
       }
     }
+  }
+
+  /**
+   * Update a route row's displayed name in the sidebar (after a rename).
+   */
+  setRouteDisplayName(file, name, kind = "kml") {
+    const listSel = kind === "geojson" ? "#geojsonRoutes" : "#routes";
+    const fallback = file.replace(/\.(kml|geojson)$/, "");
+    $(`${listSel} input`)
+      .filter((_, el) => el.value === file)
+      .siblings(".route-name")
+      .text(name || fallback);
   }
 
   /**

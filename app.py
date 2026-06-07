@@ -282,15 +282,24 @@ def _validate_geometry(payload):
     label = payload.get("label")
     if label is not None and not isinstance(label, str):
         return None, "label must be a string"
-    return {"segments": segments, "stops": stops}, None
+
+    name = payload.get("name")
+    if name is not None and not isinstance(name, str):
+        return None, "name must be a string"
+
+    geom = {"segments": segments, "stops": stops}
+    if name and name.strip():
+        geom["name"] = name.strip()[:200]
+    return geom, None
 
 
 def geometry_to_kml(geom, name):
     """Synthesize minimal KML from canonical geometry (re-readable by our parser)."""
+    title = geom.get("name") or name or ""
     parts = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<kml xmlns="http://www.opengis.net/kml/2.2"><Document>',
-        f"<name>{_xml_escape(name or '')}</name>",
+        f"<name>{_xml_escape(title)}</name>",
     ]
     for seg in geom.get("segments", []):
         coords = " ".join(f"{lon},{lat},0" for lon, lat in seg)
@@ -399,7 +408,8 @@ def route_geometry(filename):
             return jsonify({"error": f"Failed to parse: {e}"}), 500
         data["edited"] = False
         data["version"] = None
-    data["name"] = os.path.splitext(os.path.basename(filename))[0]
+    default_name = os.path.splitext(os.path.basename(filename))[0]
+    data["name"] = (geom.get("name") if geom else None) or default_name
     return jsonify(data)
 
 
@@ -467,6 +477,13 @@ def save_edit(filename):
 def edit_history(filename):
     year = _resolve_year(request.args.get("year"))
     return jsonify(db.list_versions(year, filename))
+
+
+@app.route("/data/edit-names")
+def edit_names():
+    # Custom route names for the year (filename -> name) for the sidebar legend.
+    year = _resolve_year(request.args.get("year"))
+    return jsonify(db.latest_names(year))
 
 
 @app.route("/data/edit/<path:filename>", methods=["DELETE"])

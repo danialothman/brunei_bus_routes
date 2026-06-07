@@ -19,6 +19,7 @@ APP.EditorManager = class {
     this.file = null;
     this.kind = "kml"; // "kml" | "geojson"
     this.year = null;
+    this.routeName = "";
 
     this.source = null;
     this.layer = null;
@@ -48,6 +49,7 @@ APP.EditorManager = class {
     t("#edTool-addstop", () => this.setTool("addstop"));
     t("#edTool-delete", () => this.setTool("delete"));
     t("#edTool-rename", () => this.setTool("rename"));
+    t("#edRenameRoute", () => this.renameRoute());
     t("#edUndo", () => this.undo());
     t("#edRedo", () => this.redo());
     t("#edSave", () => this.save());
@@ -115,6 +117,9 @@ APP.EditorManager = class {
       .then((r) => r.json())
       .then((geo) => {
         this._buildFeatures({ segments: geo.segments || [], stops: geo.stops || [] });
+        this.routeName = geo.name || this.file.replace(/\.(kml|geojson)$/, "");
+        $("#edRouteName").text(this.routeName);
+        this.routeManager.setRouteDisplayName(this.file, this.routeName, this.kind);
         const ext = this.source.getExtent();
         if (ext && isFinite(ext[0])) {
           this.map.getView().fit(ext, { padding: [60, 60, 60, 60], maxZoom: 17, duration: 400 });
@@ -161,7 +166,7 @@ APP.EditorManager = class {
         stops.push({ name: f.get("name") || "", lon: round7(ll[0]), lat: round7(ll[1]) });
       }
     });
-    return { segments, stops };
+    return { segments, stops, name: this.routeName };
   }
 
   // --- Tools / interactions --------------------------------------------------
@@ -250,8 +255,22 @@ APP.EditorManager = class {
   _restore(geom) {
     this._suppressSnapshot = true;
     this._buildFeatures(geom);
+    if (geom.name != null) {
+      this.routeName = geom.name;
+      $("#edRouteName").text(this.routeName || this.file.replace(/\.(kml|geojson)$/, ""));
+    }
     this._suppressSnapshot = false;
     this._updateButtons();
+  }
+
+  /** Rename the whole route (a custom display name, persisted on Save). */
+  renameRoute() {
+    if (!this.active) return;
+    const name = window.prompt("Route name:", this.routeName || "");
+    if (name == null) return;
+    this.routeName = name.trim();
+    $("#edRouteName").text(this.routeName || this.file.replace(/\.(kml|geojson)$/, ""));
+    this._snapshot();
   }
 
   undo() {
@@ -284,6 +303,7 @@ APP.EditorManager = class {
       .then(({ ok, j }) => {
         if (!ok) throw new Error(j.error || "save failed");
         this.routeManager.reloadRoute(this.file, this.kind);
+        this.routeManager.setRouteDisplayName(this.file, this.routeName, this.kind);
         this._flash(`Saved v${j.version}`);
       })
       .catch((err) => {
@@ -354,6 +374,7 @@ APP.EditorManager = class {
         const kind = this.kind;
         this.exit();
         this.routeManager.reloadRoute(file, kind);
+        this.routeManager.setRouteDisplayName(file, null, kind); // back to filename
       })
       .catch((err) => APP.MapUtils.handleError(err, "Reverting"));
   }
