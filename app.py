@@ -360,6 +360,38 @@ def get_years():
     return jsonify({"years": years, "default": default})
 
 
+@app.route("/data/catalog")
+def catalog():
+    # Everything the sidebar/ride need, for ALL years at once: shipped routes,
+    # geojson paths, user-created routes, and custom names — grouped by year.
+    years = _available_years() or [DATA_YEAR]
+    out = {"years": years}
+    for y in years:
+        rp = os.path.join(app.static_folder, "data", y, "routes.json")
+        kml = []
+        if os.path.exists(rp):
+            with open(rp, "r") as f:
+                kml = json.load(f)
+        gd = os.path.join(app.static_folder, "data", y, "geojson")
+        geojson = (
+            sorted(f for f in os.listdir(gd) if f.lower().endswith(".geojson"))
+            if os.path.isdir(gd)
+            else []
+        )
+        user = sorted(
+            f
+            for f in db.distinct_files(y)
+            if not _find_kml(f, y) and not _find_geojson(f, y)
+        )
+        out[y] = {
+            "routes": kml,
+            "geojson": geojson,
+            "user": user,
+            "names": db.latest_names(y),
+        }
+    return jsonify(out)
+
+
 @app.route("/data/routes.json")
 def get_routes():
     # Read and return the chosen year's routes.json directly as JSON.

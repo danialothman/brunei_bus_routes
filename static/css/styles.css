@@ -183,6 +183,20 @@ body.editing #sidebar {
 #sidebar .user-route .route-name {
   font-style: italic;
 }
+/* Year/type group headers in the combined routes list. */
+.route-group {
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #555;
+  margin: 12px 0 4px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid #ddd;
+}
+.route-group:first-child {
+  margin-top: 0;
+}
 
 /* --- Route editor --- */
 #routes .route-item,
