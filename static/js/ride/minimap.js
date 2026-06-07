@@ -12,11 +12,13 @@ APP.Minimap = class {
    * @param {number[][]} drivePath - [[lon,lat], ...]
    * @param {object} bounds - {minLon, minLat, maxLon, maxLat}
    * @param {string} color - route color
+   * @param {Array} [stops] - stop positions ([{lon,lat}] or [[lon,lat]])
    */
-  constructor(container, drivePath, bounds, color) {
+  constructor(container, drivePath, bounds, color, stops) {
     this.container = container;
     this.drivePath = drivePath;
     this.color = color;
+    this.stops = (stops || []).map((s) => (Array.isArray(s) ? s : [s.lon, s.lat]));
     this.W = 180;
     this.H = 180;
     this.heading = 0;
@@ -101,6 +103,20 @@ APP.Minimap = class {
       "stroke-linecap": "round",
     });
     svg.appendChild(this.route);
+
+    // Stop dots (over the route line, under the start dot + bus arrow).
+    this.stopsGroup = mk("g", {});
+    this.stopEls = this.stops.map(() => {
+      const c = mk("circle", {
+        r: "2.4",
+        fill: color,
+        stroke: "#fff",
+        "stroke-width": "1",
+      });
+      this.stopsGroup.appendChild(c);
+      return c;
+    });
+    svg.appendChild(this.stopsGroup);
 
     this.startDot = mk("circle", {
       r: "3",
@@ -282,6 +298,12 @@ APP.Minimap = class {
     const s = this.drivePath[0];
     this.startDot.setAttribute("cx", (this._worldX(s[0], Z) - oX).toFixed(1));
     this.startDot.setAttribute("cy", (this._worldY(s[1], Z) - oY).toFixed(1));
+
+    for (let i = 0; i < this.stops.length; i++) {
+      const [lon, lat] = this.stops[i];
+      this.stopEls[i].setAttribute("cx", (this._worldX(lon, Z) - oX).toFixed(1));
+      this.stopEls[i].setAttribute("cy", (this._worldY(lat, Z) - oY).toFixed(1));
+    }
   }
 
   _drawBus() {

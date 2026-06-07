@@ -51,6 +51,18 @@ APP.InfoManager = class {
   }
 
   /**
+   * Enable/disable click-to-inspect (so the editor's interactions don't fight
+   * this Select for pointer events). Disabling also clears any open info panel.
+   * @param {boolean} enabled
+   */
+  setEnabled(enabled) {
+    this.select.setActive(enabled);
+    if (!enabled) {
+      this.hideInfo();
+    }
+  }
+
+  /**
    * Setup event handlers
    */
   setupEventHandlers() {

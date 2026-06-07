@@ -38,20 +38,8 @@
       <div class="container">
         <div class="navbar-header">
           <a class="navbar-brand" href="#">Brunei Bus Routes</a>
-          <button
-            id="offcanvas"
-            type="button"
-            class="visible-xs pull-right btn btn-primary btn-sm"
-            data-toggle="offcanvas"
-          >
-            Show Routes
-          </button>
         </div>
         <ul class="nav navbar-nav">
-          <li>
-            <select id="dataYear" class="form-control" title="Route data year">
-            </select>
-          </li>
           <li>
             <select id="mapStyle" class="form-control">
               <option value="osm">OpenStreetMap</option>
@@ -60,50 +48,75 @@
               <option value="dark">Dark</option>
             </select>
           </li>
-          <li>
-            <a href="#" data-toggle="modal" data-target="#rideModal">🚌 3D Ride</a>
-          </li>
         </ul>
+        <button
+          id="sidebarToggle"
+          type="button"
+          class="btn btn-primary btn-sm navbar-btn navbar-right"
+          data-toggle="offcanvas"
+          title="Show / hide routes"
+        >
+          ☰ Routes
+        </button>
       </div>
     </nav>
 
     <div class="container-fluid" style="height: 100%">
-      <div class="row row-offcanvas row-offcanvas-right" style="height: 100%">
-        <div class="col-xs-12 col-sm-9" style="height: 100%">
+      <div class="row" style="height: 100%">
+        <div class="col-xs-12" style="height: 100%">
           <div id="map"></div>
           <div id="info">
             <a class="btn btn-danger dismiss">X</a>
             <h3 class="name"></h3>
             <h5 class="location"></h5>
           </div>
-        </div>
-        <div class="col-xs-6 col-sm-3 sidebar-offcanvas" style="height: 90%">
-          <h3 class="hidden-xs" style="margin: 0px">
-            <div
-              style="display: block; border-radius: 0"
-              class="label label-default"
-              disabled
-            >
-              Show Routes
+          <div id="editorToolbar" style="display: none">
+            <span class="ed-title">✎ <span id="edRouteName"></span></span>
+            <button type="button" class="btn btn-default btn-sm" id="edRenameRoute"
+              title="Rename this route">Rename route</button>
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-default ed-tool" id="edTool-drawline"
+                title="Draw the route line (click to add points, double-click to finish)">Line</button>
+              <button type="button" class="btn btn-default ed-tool" id="edTool-move"
+                title="Move/insert vertices &amp; stops (Alt+click a vertex to delete)">Move/Edit</button>
+              <button type="button" class="btn btn-default ed-tool" id="edTool-addstop"
+                title="Add a stop">+ Stop</button>
+              <button type="button" class="btn btn-default ed-tool" id="edTool-delete"
+                title="Delete: click a stop or line to remove it">Delete</button>
+              <button type="button" class="btn btn-default ed-tool" id="edTool-rename"
+                title="Rename: click a stop to rename it">Rename</button>
             </div>
-          </h3>
-          <div class="btn-group btn-group-justified" id="routeBulkControls">
-            <a class="btn btn-default btn-sm" id="showAll">Show all</a>
-            <a class="btn btn-default btn-sm" id="clearAll">Clear all</a>
-          </div>
-          <div class="list-group" id="routes"></div>
-          <div id="geojsonSection" style="display: none">
-            <h4 class="hidden-xs" style="margin: 10px 0 0">
-              <div
-                style="display: block; border-radius: 0"
-                class="label label-default"
-              >
-                GeoJSON paths (dashed)
-              </div>
-            </h4>
-            <div class="list-group" id="geojsonRoutes"></div>
+            <button type="button" class="btn btn-default btn-sm" id="edReverse"
+              title="Reverse route direction (flips the 3D ride travel direction)">⇄ Reverse</button>
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-default" id="edUndo" title="Undo">↶</button>
+              <button type="button" class="btn btn-default" id="edRedo" title="Redo">↷</button>
+            </div>
+            <div class="btn-group btn-group-sm" role="group">
+              <button type="button" class="btn btn-primary" id="edSave">Save</button>
+              <button type="button" class="btn btn-default" id="edHistory">History</button>
+              <button type="button" class="btn btn-warning" id="edRevert">Revert</button>
+              <button type="button" class="btn btn-default" id="edExit">Exit</button>
+            </div>
+            <span id="edStatus" class="ed-status"></span>
           </div>
         </div>
+      </div>
+      <div id="sidebar">
+        <div class="sidebar-title">Show Routes</div>
+        <button
+          id="newRouteBtn"
+          type="button"
+          class="btn btn-success btn-sm btn-block"
+          style="display: none; margin-bottom: 6px"
+        >
+          + New route
+        </button>
+        <div class="btn-group btn-group-justified" id="routeBulkControls">
+          <a class="btn btn-default btn-sm" id="showAll">Show all</a>
+          <a class="btn btn-default btn-sm" id="clearAll">Clear all</a>
+        </div>
+        <div class="list-group" id="routes"></div>
       </div>
       <div id="loading">Loading... <a class="btn btn-danger">X</a></div>
       <footer>
@@ -112,34 +125,43 @@
       </footer>
     </div>
 
-    <!-- 3D Ride-Along route chooser -->
-    <div class="modal fade" id="rideModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog" role="document">
+    <!-- Per-route ride engine chooser -->
+    <div class="modal fade" id="engineModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-sm" role="document">
         <div class="modal-content">
           <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal">
               &times;
             </button>
-            <h4 class="modal-title">🚌 3D Ride-Along</h4>
+            <h4 class="modal-title">🚌 Ride <span id="engineRouteName"></span></h4>
           </div>
           <div class="modal-body">
-            <p>
-              Pick a route and ride it in 3D — sit back as the bus drives the
-              real route. Two engines to compare:
-            </p>
-            <select id="rideRouteSelect" class="form-control"></select>
-            <p style="margin-top: 10px; color: #888; font-size: 12px">
-              Three.js = game-style 3D bus &amp; chase cam · MapLibre = real map
-              tilted on the ground. Numbered routes only for now.
-            </p>
+            <p>Choose a 3D engine:</p>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-primary" id="rideThreeBtn">
-              Ride · Three.js
+            <button type="button" class="btn btn-primary" id="engineThree" data-dismiss="modal">
+              Three.js
             </button>
-            <button type="button" class="btn btn-info" id="rideMaplibreBtn">
-              Ride · MapLibre
+            <button type="button" class="btn btn-info" id="engineMaplibre" data-dismiss="modal">
+              MapLibre
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Route edit version history -->
+    <div class="modal fade" id="editHistoryModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h4 class="modal-title">
+              Version history — <span id="editHistoryFile"></span>
+            </h4>
+          </div>
+          <div class="modal-body">
+            <div id="editHistoryList"></div>
           </div>
         </div>
       </div>
@@ -152,6 +174,7 @@
     <script src="{{ url_for('static', filename='js/location-tracker.js') }}"></script>
     <script src="{{ url_for('static', filename='js/route-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/info-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/editor-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ride/launcher.js') }}"></script>
   </body>
