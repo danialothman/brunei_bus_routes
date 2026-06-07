@@ -467,6 +467,7 @@ APP.EditorManager = class {
 
   _showToolbar(show) {
     const bar = $("#editorToolbar");
+    $("body").toggleClass("editing", show);
     if (show) {
       // A new route has no file yet — show its name instead.
       const display = this.file
