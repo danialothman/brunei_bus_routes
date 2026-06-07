@@ -277,29 +277,32 @@ APP.EditorManager = class {
   _handleClick(e) {
     if (!this.active) return;
     if (this.tool !== "rename" && this.tool !== "delete") return;
-    let target = null;
+    let stop = null;
+    let line = null;
     this.map.forEachFeatureAtPixel(
       e.pixel,
       (f) => {
-        if (f.get("kind") === "stop") {
-          target = f;
-          return true; // stop at the first stop hit
-        }
+        const k = f.get("kind");
+        if (k === "stop" && !stop) stop = f;
+        else if (k === "line" && !line) line = f;
       },
       { hitTolerance: 6, layerFilter: (l) => l === this.layer }
     );
-    if (!target) return;
     if (this.tool === "rename") {
-      const name = window.prompt("Rename stop:", target.get("name") || "");
+      if (!stop) return;
+      const name = window.prompt("Rename stop:", stop.get("name") || "");
       if (name != null) {
-        target.set("name", name);
+        stop.set("name", name);
         this.layer.changed();
         this._snapshot();
       }
-    } else {
-      this.source.removeFeature(target);
-      this._snapshot();
+      return;
     }
+    // Delete tool: remove the clicked stop, or the line if no stop is hit.
+    const target = stop || line;
+    if (!target) return;
+    this.source.removeFeature(target);
+    this._snapshot();
   }
 
   // --- Undo / redo (in-session snapshots) -----------------------------------
@@ -488,8 +491,8 @@ APP.EditorManager = class {
         ? this.file.replace(/\.(kml|geojson)$/, "")
         : this.routeName || "New route";
       $("#edRouteName").text(display);
-      // hide stop tools for geojson (line-only)
-      $("#edTool-addstop, #edTool-delete, #edTool-rename").toggle(this.kind !== "geojson");
+      // Stops don't exist on geojson routes; keep Delete (it removes lines too).
+      $("#edTool-addstop, #edTool-rename").toggle(this.kind !== "geojson");
       bar.show();
     } else {
       bar.hide();
