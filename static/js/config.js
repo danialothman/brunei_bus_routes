@@ -44,6 +44,11 @@ APP.MAP_STYLES = {
   },
 };
 
+// Dataset year that owns user-created/editable routes. Shipped routes from
+// other years are read-only and can only be copied into this year for editing.
+// Must match USER_ROUTE_YEAR in app.py.
+APP.USER_ROUTE_YEAR = "2026";
+
 // Distinct colors assigned per route so overlapping routes are
 // visually distinguishable. Cycled by route index; the palette is
 // ordered so adjacent routes get well-separated hues.

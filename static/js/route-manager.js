@@ -215,12 +215,19 @@ APP.RouteManager = class {
       "data-year": meta.year,
     };
     label.append(input).append(swatch).append(name);
-    if (!NON_ROUTE.test(meta.file)) {
+    const isRouteLike = !NON_ROUTE.test(meta.file);
+    if (isRouteLike) {
       label.append($('<a class="route-ride-btn" title="3D ride">🚌</a>').attr(attrs));
     }
-    label.append($('<a class="route-edit-btn" title="Edit">✎</a>').attr(attrs));
     if (isUser) {
+      // Only the user's own routes are editable.
+      label.append($('<a class="route-edit-btn" title="Edit">✎</a>').attr(attrs));
       label.append($('<a class="route-del-btn" title="Delete route">✕</a>').attr(attrs));
+    } else if (isRouteLike && this.canCreateUserRoutes) {
+      // Shipped routes are read-only — offer to copy into an editable route.
+      label.append(
+        $('<a class="route-copy-btn" title="Copy to my routes">📋</a>').attr(attrs)
+      );
     }
     return label;
   }
@@ -232,6 +239,9 @@ APP.RouteManager = class {
         const out = $("#routes").empty();
         this.colors.clear();
         this.meta.clear();
+        // Copy/create is only possible when the user-route dataset exists.
+        this.canCreateUserRoutes =
+          (cat.years || []).indexOf(APP.USER_ROUTE_YEAR) >= 0;
         const palette = APP.ROUTE_COLORS;
         let i = 0;
         const header = (text) =>
@@ -259,7 +269,7 @@ APP.RouteManager = class {
           const d = cat[year] || {};
           const names = d.names || {};
           if (d.routes && d.routes.length) {
-            header(`${year} · Routes`);
+            header(`${year} · Routes (kml)`);
             d.routes.forEach((f) => addRow(year, f, "kml", false, names));
           }
           if (d.geojson && d.geojson.length) {
@@ -267,8 +277,8 @@ APP.RouteManager = class {
             d.geojson.forEach((f) => addRow(year, f, "geojson", false, names));
           }
         });
-        // New-route creation is only offered when the 2026 dataset exists.
-        $("#newRouteBtn").toggle((cat.years || []).indexOf("2026") >= 0);
+        // New-route creation is only offered when the user-route dataset exists.
+        $("#newRouteBtn").toggle(this.canCreateUserRoutes);
       })
       .catch((e) => APP.MapUtils.handleError(e, "Loading catalog"));
   }
