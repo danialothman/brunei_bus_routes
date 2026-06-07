@@ -39,11 +39,15 @@ APP.EditorManager = class {
 
   init() {
     // Enter editing via the per-row pencil (delegated; don't toggle the checkbox).
-    $("#routes, #geojsonRoutes").on("click", ".route-edit-btn", (e) => {
+    $("#routes").on("click", ".route-edit-btn", (e) => {
       e.preventDefault();
       e.stopPropagation();
       const el = $(e.currentTarget);
-      this.enter(el.attr("data-file"), el.attr("data-kind") || "kml");
+      this.enter(
+        el.attr("data-file"),
+        el.attr("data-kind") || "kml",
+        el.attr("data-year")
+      );
     });
 
     // Toolbar buttons.
@@ -67,7 +71,7 @@ APP.EditorManager = class {
 
   // --- Enter / exit ----------------------------------------------------------
 
-  enter(file, kind) {
+  enter(file, kind, year) {
     if (!file) return;
     if (this.active) {
       if (this.file === file && this.kind === kind) return;
@@ -79,12 +83,12 @@ APP.EditorManager = class {
     this.active = true;
     this.file = file;
     this.kind = kind || "kml";
-    this.year = this.routeManager.year;
+    this.year = year;
     this.creating = false;
     this.isUserRoute = /^user-\d+\.kml$/.test(file);
 
     this.infoManager.setEnabled(false);
-    this.routeManager.hideRouteForEdit(file, this.kind);
+    this.routeManager.hideRouteForEdit(this.year, file, this.kind);
 
     this.source = new ol.source.Vector();
     this.layer = new ol.layer.Vector({
@@ -102,10 +106,6 @@ APP.EditorManager = class {
 
   /** Start a brand-new (file-less) route — only for the 2026 dataset. */
   createNew() {
-    if (this.routeManager.year !== "2026") {
-      alert("New routes can only be created for the 2026 dataset.");
-      return;
-    }
     if (this.active) {
       if (!confirm("Finish the current edit first? Unsaved changes will be lost.")) {
         return;
@@ -118,7 +118,7 @@ APP.EditorManager = class {
     this.active = true;
     this.file = null;
     this.kind = "kml";
-    this.year = this.routeManager.year;
+    this.year = "2026"; // new routes are created only for 2026 (enforced server-side)
     this.creating = true;
     this.isUserRoute = true;
     this.routeName = name.trim() || "New route";
@@ -147,7 +147,7 @@ APP.EditorManager = class {
     if (this.layer) {
       this.map.removeLayer(this.layer);
     }
-    this.routeManager.showRouteAfterEdit(this.file, this.kind);
+    this.routeManager.showRouteAfterEdit(this.year, this.file, this.kind);
     this.infoManager.setEnabled(true);
     this._showToolbar(false);
     this.active = false;
@@ -170,7 +170,7 @@ APP.EditorManager = class {
         this._buildFeatures({ segments: geo.segments || [], stops: geo.stops || [] });
         this.routeName = geo.name || this.file.replace(/\.(kml|geojson)$/, "");
         $("#edRouteName").text(this.routeName);
-        this.routeManager.setRouteDisplayName(this.file, this.routeName, this.kind);
+        this.routeManager.setRouteDisplayName(this.year, this.file, this.routeName, this.kind);
         const ext = this.source.getExtent();
         if (ext && isFinite(ext[0])) {
           this.map.getView().fit(ext, { padding: [60, 60, 60, 60], maxZoom: 17, duration: 400 });
@@ -384,12 +384,12 @@ APP.EditorManager = class {
           this.file = j.filename;
           this.creating = false;
           this.isUserRoute = true;
-          this.routeManager.addUserRouteRow(this.file, this.routeName);
+          this.routeManager.addUserRouteRow(this.year, this.file, this.routeName);
         }
-        this.routeManager.reloadRoute(this.file, this.kind);
+        this.routeManager.reloadRoute(this.year, this.file, this.kind);
         // Keep editing without the saved read-only layer duplicating the editable one.
-        this.routeManager.hideRouteForEdit(this.file, this.kind);
-        this.routeManager.setRouteDisplayName(this.file, this.routeName, this.kind);
+        this.routeManager.hideRouteForEdit(this.year, this.file, this.kind);
+        this.routeManager.setRouteDisplayName(this.year, this.file, this.routeName, this.kind);
         this._flash(`Saved v${j.version}`);
       })
       .catch((err) => {
@@ -443,7 +443,7 @@ APP.EditorManager = class {
       .then((j) => {
         $("#editHistoryModal").modal("hide");
         this._loadGeometry(); // load new latest
-        this.routeManager.reloadRoute(this.file, this.kind);
+        this.routeManager.reloadRoute(this.year, this.file, this.kind);
         this._flash(`Restored as v${j.version}`);
       })
       .catch((err) => APP.MapUtils.handleError(err, "Restoring version"));
@@ -462,15 +462,16 @@ APP.EditorManager = class {
     if (!confirm(msg)) return;
     const file = this.file;
     const kind = this.kind;
+    const year = this.year;
     fetch(`/data/edit/${encodeURIComponent(file)}${this._yq()}`, { method: "DELETE" })
       .then((r) => r.json())
       .then(() => {
         this.exit();
         if (wasUser) {
-          this.routeManager.removeRouteRow(file, kind); // route is gone entirely
+          this.routeManager.removeRouteRow(year, file, kind); // route is gone entirely
         } else {
-          this.routeManager.reloadRoute(file, kind);
-          this.routeManager.setRouteDisplayName(file, null, kind); // back to filename
+          this.routeManager.reloadRoute(year, file, kind);
+          this.routeManager.setRouteDisplayName(year, file, null, kind); // back to filename
         }
       })
       .catch((err) => APP.MapUtils.handleError(err, "Reverting"));
