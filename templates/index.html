@@ -48,9 +48,6 @@
               <option value="dark">Dark</option>
             </select>
           </li>
-          <li>
-            <a href="#" data-toggle="modal" data-target="#rideModal">🚌 3D Ride</a>
-          </li>
         </ul>
         <button
           id="sidebarToggle"
@@ -128,33 +125,25 @@
       </footer>
     </div>
 
-    <!-- 3D Ride-Along route chooser -->
-    <div class="modal fade" id="rideModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog" role="document">
+    <!-- Per-route ride engine chooser -->
+    <div class="modal fade" id="engineModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-sm" role="document">
         <div class="modal-content">
           <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal">
               &times;
             </button>
-            <h4 class="modal-title">🚌 3D Ride-Along</h4>
+            <h4 class="modal-title">🚌 Ride <span id="engineRouteName"></span></h4>
           </div>
           <div class="modal-body">
-            <p>
-              Pick a route and ride it in 3D — sit back as the bus drives the
-              real route. Two engines to compare:
-            </p>
-            <select id="rideRouteSelect" class="form-control"></select>
-            <p style="margin-top: 10px; color: #888; font-size: 12px">
-              Three.js = game-style 3D bus &amp; chase cam · MapLibre = real map
-              tilted on the ground. Numbered routes only for now.
-            </p>
+            <p>Choose a 3D engine:</p>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-primary" id="rideThreeBtn">
-              Ride · Three.js
+            <button type="button" class="btn btn-primary" id="engineThree" data-dismiss="modal">
+              Three.js
             </button>
-            <button type="button" class="btn btn-info" id="rideMaplibreBtn">
-              Ride · MapLibre
+            <button type="button" class="btn btn-info" id="engineMaplibre" data-dismiss="modal">
+              MapLibre
             </button>
           </div>
         </div>
