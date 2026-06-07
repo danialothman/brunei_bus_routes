@@ -316,7 +316,8 @@ APP.EditorManager = class {
     this._buildFeatures(geom);
     if (geom.name != null) {
       this.routeName = geom.name;
-      $("#edRouteName").text(this.routeName || this.file.replace(/\.(kml|geojson)$/, ""));
+      $("#edRouteName").text(this.routeName ||
+        (this.file ? this.file.replace(/\.(kml|geojson)$/, "") : "New route"));
     }
     this._suppressSnapshot = false;
     this._updateButtons();
@@ -328,7 +329,8 @@ APP.EditorManager = class {
     const name = window.prompt("Route name:", this.routeName || "");
     if (name == null) return;
     this.routeName = name.trim();
-    $("#edRouteName").text(this.routeName || this.file.replace(/\.(kml|geojson)$/, ""));
+    $("#edRouteName").text(this.routeName ||
+        (this.file ? this.file.replace(/\.(kml|geojson)$/, "") : "New route"));
     this._snapshot();
   }
 
@@ -466,7 +468,11 @@ APP.EditorManager = class {
   _showToolbar(show) {
     const bar = $("#editorToolbar");
     if (show) {
-      $("#edRouteName").text(this.file.replace(/\.(kml|geojson)$/, ""));
+      // A new route has no file yet — show its name instead.
+      const display = this.file
+        ? this.file.replace(/\.(kml|geojson)$/, "")
+        : this.routeName || "New route";
+      $("#edRouteName").text(display);
       // hide stop tools for geojson (line-only)
       $("#edTool-addstop, #edTool-delete, #edTool-rename").toggle(this.kind !== "geojson");
       bar.show();
