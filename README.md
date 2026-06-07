@@ -136,6 +136,28 @@ Ctrl+C in the terminal.
 - [Turf.js](https://turfjs.org/) — route geometry math
 - [OpenStreetMap](https://www.openstreetmap.org/) — map tiles (no API key required)
 
+## Roadmap
+
+Recommended features that would enhance the app, in rough order of impact and
+feasibility:
+
+1. **Journey Planner** (highest impact) — route planning between any two points,
+   multiple route options with transfer points, walking directions to/from
+   stops, and journey time and fare estimates.
+2. **Enhanced Bus Stop Information** — comprehensive stop database,
+   arrival/departure schedules, stop amenities, and photos and accessibility
+   details.
+3. **Real-time Features** — live bus tracking, service disruption alerts,
+   real-time occupancy levels, and schedule updates.
+4. **User Experience Improvements** — route favorites, offline map support,
+   multi-language (Malay/English), and accessibility features.
+5. **Community Features** — user reviews/ratings, issue reporting, service
+   feedback, and crowdsourced updates.
+
+The journey planner would be the most valuable addition: it would transform the
+app from an informational tool into a practical trip-planning solution,
+significantly improving its utility for daily commuters and tourists alike.
+
 ## Credits
 
 Original work by [Timothy Shim](https://github.com/thewheat)
