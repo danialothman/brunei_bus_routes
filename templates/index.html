@@ -49,6 +49,10 @@
         </div>
         <ul class="nav navbar-nav">
           <li>
+            <select id="dataYear" class="form-control" title="Route data year">
+            </select>
+          </li>
+          <li>
             <select id="mapStyle" class="form-control">
               <option value="osm">OpenStreetMap</option>
               <option value="satellite">Satellite</option>
@@ -88,6 +92,17 @@
             <a class="btn btn-default btn-sm" id="clearAll">Clear all</a>
           </div>
           <div class="list-group" id="routes"></div>
+          <div id="geojsonSection" style="display: none">
+            <h4 class="hidden-xs" style="margin: 10px 0 0">
+              <div
+                style="display: block; border-radius: 0"
+                class="label label-default"
+              >
+                GeoJSON paths (dashed)
+              </div>
+            </h4>
+            <div class="list-group" id="geojsonRoutes"></div>
+          </div>
         </div>
       </div>
       <div id="loading">Loading... <a class="btn btn-danger">X</a></div>
