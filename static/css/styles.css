@@ -3,10 +3,11 @@ body {
   height: 99%;
 }
 
-#offcanvas {
-  margin-right: 1em;
-  border-top-right-radius: 0;
-  border-top-left-radius: 0;
+#sidebarToggle {
+  position: fixed;
+  top: 58px;
+  left: 10px;
+  z-index: 1001;
 }
 
 #loading {
