@@ -21,8 +21,10 @@ APP.RidePath = {
    * @returns {Promise<{segments:number[][][], stops:object[], bounds:object, name:string}>}
    */
   async fetchGeometry(routeFile) {
+    const year = new URLSearchParams(window.location.search).get("year");
+    const yq = year ? `?year=${encodeURIComponent(year)}` : "";
     const res = await fetch(
-      `/data/route-geometry/${encodeURIComponent(routeFile)}`
+      `/data/route-geometry/${encodeURIComponent(routeFile)}${yq}`
     );
     if (!res.ok) {
       throw new Error(`Geometry fetch failed (${res.status})`);

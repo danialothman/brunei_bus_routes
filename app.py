@@ -1,5 +1,6 @@
-from flask import Flask, render_template, send_from_directory, jsonify, json
+from flask import Flask, render_template, send_from_directory, jsonify, json, request
 import os
+import re
 import xml.etree.ElementTree as ET
 
 # Prefer defusedxml to guard against XXE / entity-expansion attacks; fall back
@@ -15,25 +16,67 @@ app = Flask(
     template_folder="templates",
 )
 
-# The route data is segregated by year so new datasets can live alongside the
-# repo owner's original 2016 set (under sibling folders, e.g. data/2026).
-# Bump this to switch which dataset the app serves.
+# The route data is segregated by year so new datasets live alongside the repo
+# owner's original 2016 set (under sibling folders, e.g. data/2026). DATA_YEAR is
+# the default; clients may request a specific year via the ?year= query param.
 DATA_YEAR = "2016"
 
 
-def _find_kml(filename):
+def _available_years():
+    """Year folders under static/data that hold a routes.json (sorted)."""
+    base = os.path.join(app.static_folder, "data")
+    years = []
+    if os.path.isdir(base):
+        for name in os.listdir(base):
+            if re.fullmatch(r"\d{4}", name) and os.path.exists(
+                os.path.join(base, name, "routes.json")
+            ):
+                years.append(name)
+    return sorted(years)
+
+
+def _resolve_year(year):
+    """Validate a requested year (4 digits + existing folder), else DATA_YEAR."""
+    if year and re.fullmatch(r"\d{4}", year) and os.path.isdir(
+        os.path.join(app.static_folder, "data", year)
+    ):
+        return year
+    return DATA_YEAR
+
+
+def _find_kml(filename, year=None):
     """Locate a KML file: static/data/<year>/kml first, then top-level data/<year>/kml."""
     # Reject path traversal / absolute paths — only serve plain KML filenames.
     if os.path.isabs(filename) or ".." in filename.replace("\\", "/").split("/"):
         return None
 
-    static_kml = os.path.join(app.static_folder, "data", DATA_YEAR, "kml", filename)
+    year = _resolve_year(year)
+
+    static_kml = os.path.join(app.static_folder, "data", year, "kml", filename)
     if os.path.exists(static_kml):
         return static_kml
 
-    data_kml = os.path.join("data", DATA_YEAR, "kml", filename)
+    data_kml = os.path.join("data", year, "kml", filename)
     if os.path.exists(data_kml):
         return data_kml
+
+    return None
+
+
+def _find_geojson(filename, year=None):
+    """Locate a GeoJSON file under the chosen year (static first, then data/)."""
+    if os.path.isabs(filename) or ".." in filename.replace("\\", "/").split("/"):
+        return None
+
+    year = _resolve_year(year)
+
+    static_gj = os.path.join(app.static_folder, "data", year, "geojson", filename)
+    if os.path.exists(static_gj):
+        return static_gj
+
+    data_gj = os.path.join("data", year, "geojson", filename)
+    if os.path.exists(data_gj):
+        return data_gj
 
     return None
 
@@ -109,6 +152,61 @@ def parse_route_geometry(path):
     return {"segments": segments, "stops": stops, "bounds": bounds}
 
 
+def parse_geojson_geometry(path):
+    """Extract LineString drive paths from a GeoJSON file (no named stops)."""
+    with open(path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    segments = []
+
+    def add_line(coords):
+        pts = []
+        for c in coords or []:
+            if isinstance(c, (list, tuple)) and len(c) >= 2:
+                try:
+                    pts.append([float(c[0]), float(c[1])])
+                except (TypeError, ValueError):
+                    continue
+        if len(pts) >= 2:
+            segments.append(pts)
+
+    def handle_geom(geom):
+        if not isinstance(geom, dict):
+            return
+        gtype = geom.get("type")
+        coords = geom.get("coordinates")
+        if gtype == "LineString":
+            add_line(coords)
+        elif gtype == "MultiLineString":
+            for line in coords or []:
+                add_line(line)
+        elif gtype == "GeometryCollection":
+            for g in geom.get("geometries", []):
+                handle_geom(g)
+
+    if isinstance(data, dict) and data.get("type") == "FeatureCollection":
+        for feat in data.get("features", []):
+            handle_geom((feat or {}).get("geometry"))
+    elif isinstance(data, dict) and data.get("type") == "Feature":
+        handle_geom(data.get("geometry"))
+    elif isinstance(data, dict):
+        handle_geom(data)  # bare geometry
+
+    all_points = [pt for seg in segments for pt in seg]
+    bounds = None
+    if all_points:
+        lons = [p[0] for p in all_points]
+        lats = [p[1] for p in all_points]
+        bounds = {
+            "minLon": min(lons),
+            "minLat": min(lats),
+            "maxLon": max(lons),
+            "maxLat": max(lats),
+        }
+
+    return {"segments": segments, "stops": [], "bounds": bounds}
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -124,34 +222,73 @@ def ride_maplibre():
     return render_template("ride_maplibre.html")
 
 
+@app.route("/data/years")
+def get_years():
+    # Available dataset years + the default, for the client's year picker.
+    years = _available_years() or [DATA_YEAR]
+    default = DATA_YEAR if DATA_YEAR in years else years[0]
+    return jsonify({"years": years, "default": default})
+
+
 @app.route("/data/routes.json")
 def get_routes():
-    # Read and return routes.json directly as JSON
-    routes_path = os.path.join(app.static_folder, "data", DATA_YEAR, "routes.json")
+    # Read and return the chosen year's routes.json directly as JSON.
+    year = _resolve_year(request.args.get("year"))
+    routes_path = os.path.join(app.static_folder, "data", year, "routes.json")
     with open(routes_path, "r") as f:
         return json.load(f)
 
 
 @app.route("/data/route-geometry/<path:filename>")
 def route_geometry(filename):
-    # Parse a route's KML into JSON (drive segments, named stops, bounds).
-    path = _find_kml(filename)
-    if not path:
-        return jsonify({"error": "Route not found"}), 404
-    try:
-        data = parse_route_geometry(path)
-    except ET.ParseError as e:
-        return jsonify({"error": f"Failed to parse KML: {e}"}), 500
+    # Parse a route into JSON (drive segments, named stops, bounds). Dispatch by
+    # extension: GeoJSON paths (no stops) or KML routes (path + named stops).
+    year = request.args.get("year")
+    if filename.lower().endswith(".geojson"):
+        path = _find_geojson(filename, year)
+        if not path:
+            return jsonify({"error": "Route not found"}), 404
+        try:
+            data = parse_geojson_geometry(path)
+        except ValueError as e:
+            return jsonify({"error": f"Failed to parse GeoJSON: {e}"}), 500
+    else:
+        path = _find_kml(filename, year)
+        if not path:
+            return jsonify({"error": "Route not found"}), 404
+        try:
+            data = parse_route_geometry(path)
+        except ET.ParseError as e:
+            return jsonify({"error": f"Failed to parse KML: {e}"}), 500
     data["name"] = os.path.splitext(os.path.basename(filename))[0]
     return jsonify(data)
 
 
 @app.route("/data/kml/<path:filename>")
 def serve_kml(filename):
-    path = _find_kml(filename)
+    path = _find_kml(filename, request.args.get("year"))
     if path:
         return send_from_directory(os.path.dirname(path), os.path.basename(path))
     return "KML file not found", 404
+
+
+@app.route("/data/geojson-list")
+def get_geojson_list():
+    # Filenames of the chosen year's GeoJSON path files (may be empty).
+    year = _resolve_year(request.args.get("year"))
+    d = os.path.join(app.static_folder, "data", year, "geojson")
+    files = []
+    if os.path.isdir(d):
+        files = sorted(f for f in os.listdir(d) if f.lower().endswith(".geojson"))
+    return jsonify(files)
+
+
+@app.route("/data/geojson/<path:filename>")
+def serve_geojson(filename):
+    path = _find_geojson(filename, request.args.get("year"))
+    if path:
+        return send_from_directory(os.path.dirname(path), os.path.basename(path))
+    return "GeoJSON file not found", 404
 
 
 @app.route("/favicon.png")
