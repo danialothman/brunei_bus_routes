@@ -55,6 +55,7 @@ APP.EditorManager = class {
     t("#edTool-delete", () => this.setTool("delete"));
     t("#edTool-rename", () => this.setTool("rename"));
     t("#edRenameRoute", () => this.renameRoute());
+    t("#edReverse", () => this.reverse());
     t("#edUndo", () => this.undo());
     t("#edRedo", () => this.redo());
     t("#edSave", () => this.save());
@@ -348,6 +349,18 @@ APP.EditorManager = class {
   }
 
   // --- Save / history / restore / revert ------------------------------------
+
+  /** Reverse travel direction: flip segment order + each segment's points. */
+  reverse() {
+    if (!this.active) return;
+    const geom = this._serialize();
+    if (!geom.segments.length) return;
+    geom.segments = geom.segments.map((s) => s.slice().reverse()).reverse();
+    geom.stops = geom.stops.slice().reverse();
+    this._buildFeatures(geom);
+    this._snapshot();
+    this._flash("Direction reversed");
+  }
 
   save() {
     const body = this._serialize();
