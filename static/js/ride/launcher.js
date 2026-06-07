@@ -40,6 +40,17 @@ $(document).ready(function () {
 
   loadRideRoutes();
 
+  // Per-row 🚌 button: ride that route directly (Three.js), without the modal.
+  $("#routes").on("click", ".route-ride-btn", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const el = $(e.currentTarget);
+    const file = el.attr("data-file");
+    const year = el.attr("data-year");
+    const yq = year ? `&year=${encodeURIComponent(year)}` : "";
+    window.location.href = `/ride/three?route=${encodeURIComponent(file)}${yq}`;
+  });
+
   function launch(engine) {
     const sel = select.find("option:selected");
     const route = sel.val();
