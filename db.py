@@ -37,6 +37,19 @@ def init_db(db_path):
             ON route_versions (year, filename, version DESC)
             """
         )
+        # Free-text triage notes, one per route (year, route key). Independent of
+        # the version history above — notes are about a route, not a geometry edit.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS route_notes (
+                year       TEXT NOT NULL,
+                route      TEXT NOT NULL,
+                note       TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                PRIMARY KEY (year, route)
+            )
+            """
+        )
 
 
 def _connect():
@@ -155,6 +168,32 @@ def add_version(year, filename, geometry, label=None):
             except sqlite3.IntegrityError:
                 continue
     raise sqlite3.IntegrityError("could not allocate a version number")
+
+
+def get_note(year, route):
+    """Free-text note for a route, or '' if none."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT note FROM route_notes WHERE year=? AND route=?",
+            (year, route),
+        ).fetchone()
+    return row["note"] if row else ""
+
+
+def set_note(year, route, note):
+    """Upsert a route's note. Returns the saved text."""
+    with _connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO route_notes (year, route, note, updated_at)
+            VALUES (?, ?, ?, datetime('now'))
+            ON CONFLICT(year, route) DO UPDATE SET
+                note = excluded.note, updated_at = excluded.updated_at
+            """,
+            (year, route, note),
+        )
+        conn.commit()
+    return note
 
 
 def delete_all(year, filename):

@@ -116,15 +116,17 @@ APP.EditorManager = class {
     this.setTool("move");
   }
 
-  /** Start a brand-new (file-less) route — only for the 2026 dataset. */
-  createNew() {
+  /** Start a brand-new (file-less) route — only for the 2026 dataset.
+   * @param {string} [defaultName] pre-fills the name prompt (e.g. a route number
+   *   when launched from the official-stops reference panel). */
+  createNew(defaultName) {
     if (this.active) {
       if (!confirm("Finish the current edit first? Unsaved changes will be lost.")) {
         return;
       }
       this.exit();
     }
-    const name = window.prompt("New route name:", "");
+    const name = window.prompt("New route name:", defaultName || "");
     if (name == null) return;
 
     this.active = true;

@@ -98,6 +98,33 @@ def _find_geojson(filename, year=None):
     return None
 
 
+# Official JPD stop-list signboards live under docs/<year>/images/stops/ (outside
+# static/, so they need their own serving route). Resolved from this file's dir so
+# the working directory doesn't matter.
+DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs")
+
+
+def _stop_images_dir(year):
+    return os.path.join(DOCS_DIR, year, "images", "stops")
+
+
+def _route_from_image(filename):
+    """Derive a route label from a signboard filename:
+    '20 [20150131].jpg' -> '20', '01A.jpg' -> '01A'."""
+    stem = os.path.splitext(filename)[0]
+    return re.split(r"\s*\[", stem)[0].strip()
+
+
+def _find_stop_image(year, filename):
+    """Locate a signboard image, rejecting path traversal / bad years."""
+    if not re.fullmatch(r"\d{4}", year or ""):
+        return None
+    if os.path.isabs(filename) or ".." in filename.replace("\\", "/").split("/"):
+        return None
+    path = os.path.join(_stop_images_dir(year), filename)
+    return path if os.path.isfile(path) else None
+
+
 def _localname(tag):
     """Strip the XML namespace from a tag, e.g. '{ns}LineString' -> 'LineString'."""
     return tag.rsplit("}", 1)[-1]
@@ -497,6 +524,61 @@ def serve_geojson(filename):
         if geom is not None:
             return jsonify(geometry_to_geojson(geom))
     return send_from_directory(os.path.dirname(path), os.path.basename(path))
+
+
+@app.route("/data/stop-images")
+def stop_images():
+    """Official JPD stop-list signboard images, grouped by year (newest first).
+    Used by the in-app reference panel while drawing/placing stops."""
+    out = {}
+    years = []
+    if os.path.isdir(DOCS_DIR):
+        year_dirs = (n for n in os.listdir(DOCS_DIR) if re.fullmatch(r"\d{4}", n))
+        for y in sorted(year_dirs, reverse=True):
+            d = _stop_images_dir(y)
+            if not os.path.isdir(d):
+                continue
+            imgs = sorted(
+                f for f in os.listdir(d)
+                if f.lower().endswith((".jpg", ".jpeg", ".png"))
+            )
+            if not imgs:
+                continue
+            years.append(y)
+            out[y] = [{"file": f, "route": _route_from_image(f)} for f in imgs]
+    return jsonify({"years": years, "images": out})
+
+
+@app.route("/data/stop-image/<year>/<path:filename>")
+def stop_image(year, filename):
+    path = _find_stop_image(year, filename)
+    if not path:
+        return "Stop image not found", 404
+    return send_from_directory(os.path.dirname(path), os.path.basename(path))
+
+
+@app.route("/data/route-note")
+def get_route_note():
+    """Free-text triage note for a route, keyed by (year, route)."""
+    year = _resolve_year(request.args.get("year"))
+    route = (request.args.get("route") or "").strip()[:120]
+    if not route:
+        return jsonify({"error": "route required"}), 400
+    return jsonify({"year": year, "route": route, "note": db.get_note(year, route)})
+
+
+@app.route("/data/route-note", methods=["POST"])
+def save_route_note():
+    payload = request.get_json(silent=True) or {}
+    year = _resolve_year(payload.get("year"))
+    route = (payload.get("route") or "").strip()[:120]
+    note = payload.get("note", "")
+    if not route:
+        return jsonify({"error": "route required"}), 400
+    if not isinstance(note, str):
+        return jsonify({"error": "note must be a string"}), 400
+    saved = db.set_note(year, route, note[:10000])
+    return jsonify({"ok": True, "year": year, "route": route, "note": saved})
 
 
 @app.route("/data/edit/<path:filename>", methods=["POST"])

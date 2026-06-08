@@ -58,6 +58,14 @@
         >
           ☰ Routes
         </button>
+        <button
+          id="stopImageToggle"
+          type="button"
+          class="btn btn-default btn-sm navbar-btn navbar-right"
+          title="View official stop-list signboards while building a route"
+        >
+          🚏 Official stops
+        </button>
       </div>
     </nav>
 
@@ -118,6 +126,38 @@
         </div>
         <div class="list-group" id="routes"></div>
       </div>
+      <!-- Official stop-list signboard reference (floating, draggable, resizable) -->
+      <div id="stopImagePanel" style="display: none">
+        <div id="stopImageHeader">
+          <span class="sip-title">🚏 Official stops</span>
+          <select id="stopImageSelect" class="form-control input-sm" title="Pick a route signboard"></select>
+          <span class="sip-tools">
+            <button type="button" class="btn btn-default btn-xs" id="sipZoomOut" title="Zoom out">−</button>
+            <button type="button" class="btn btn-default btn-xs" id="sipZoomIn" title="Zoom in">+</button>
+            <button type="button" class="btn btn-default btn-xs" id="sipFit" title="Fit to width">Fit</button>
+            <button type="button" class="btn btn-success btn-xs" id="sipCreate" title="Create a new route while viewing this signboard">+ Route</button>
+            <button type="button" class="btn btn-danger btn-xs" id="sipClose" title="Close">×</button>
+          </span>
+        </div>
+        <div id="stopImageBody">
+          <img id="stopImageImg" alt="Official stop list" style="display: none" />
+          <div id="stopImageEmpty" class="sip-empty">No signboard selected.</div>
+        </div>
+        <div id="stopImageNotes">
+          <div class="sip-notes-head">
+            <span>📝 Notes — <span id="stopImageNotesRoute">—</span></span>
+            <span id="stopImageNotesStatus" class="sip-notes-status"></span>
+          </div>
+          <textarea
+            id="stopImageNotesText"
+            rows="3"
+            placeholder="Notes for this route — discrepancies vs the poster, source comparisons, decisions…"
+            disabled
+          ></textarea>
+        </div>
+        <div id="stopImageResize" title="Drag to resize"></div>
+      </div>
+
       <div id="loading">Loading... <a class="btn btn-danger">X</a></div>
       <footer>
         Data via Land Transport Department docs provided for EOI for the
@@ -175,6 +215,7 @@
     <script src="{{ url_for('static', filename='js/route-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/info-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/editor-manager.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/stop-image-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/ride/launcher.js') }}"></script>
   </body>

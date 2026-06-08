@@ -271,3 +271,106 @@ body.editing #sidebar {
 .ed-hist-btns .btn {
   margin-left: 4px;
 }
+
+/* --- Official stop-list signboard reference panel --- */
+#stopImagePanel {
+  position: absolute;
+  top: 120px;
+  left: 12px;
+  width: 340px;
+  height: 480px;
+  min-width: 220px;
+  min-height: 200px;
+  max-width: calc(100% - 24px);
+  max-height: calc(100% - 80px);
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid #aaa;
+  border-radius: 6px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+#stopImageHeader {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 6px;
+  background: #2c3e50;
+  color: #fff;
+  cursor: move;
+  user-select: none;
+}
+#stopImageHeader .sip-title {
+  font-weight: 600;
+  font-size: 12px;
+  margin-right: 2px;
+}
+#stopImageHeader select {
+  width: auto;
+  max-width: 140px;
+  height: 24px;
+  padding: 1px 4px;
+  font-size: 12px;
+  color: #333;
+}
+#stopImageHeader .sip-tools {
+  margin-left: auto;
+  white-space: nowrap;
+}
+#stopImageBody {
+  flex: 1 1 auto;
+  overflow: auto;
+  background: #f2f2f2;
+  text-align: center;
+}
+#stopImageImg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.sip-empty {
+  padding: 24px 16px;
+  color: #888;
+  font-size: 13px;
+}
+#stopImageNotes {
+  flex: 0 0 auto;
+  padding: 6px 8px 8px;
+  background: #fff;
+  border-top: 1px solid #ddd;
+}
+.sip-notes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 4px;
+}
+.sip-notes-status {
+  font-weight: 400;
+  font-size: 11px;
+  color: #2e7d32;
+}
+#stopImageNotesText {
+  width: 100%;
+  resize: vertical;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+#stopImageResize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, #b0b0b0 50%);
+}
