@@ -337,6 +337,34 @@ body.editing #sidebar {
   color: #888;
   font-size: 13px;
 }
+#stopImageNotes {
+  flex: 0 0 auto;
+  padding: 6px 8px 8px;
+  background: #fff;
+  border-top: 1px solid #ddd;
+}
+.sip-notes-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 4px;
+}
+.sip-notes-status {
+  font-weight: 400;
+  font-size: 11px;
+  color: #2e7d32;
+}
+#stopImageNotesText {
+  width: 100%;
+  resize: vertical;
+  font-size: 12px;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
 #stopImageResize {
   position: absolute;
   right: 0;

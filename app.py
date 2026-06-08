@@ -557,6 +557,30 @@ def stop_image(year, filename):
     return send_from_directory(os.path.dirname(path), os.path.basename(path))
 
 
+@app.route("/data/route-note")
+def get_route_note():
+    """Free-text triage note for a route, keyed by (year, route)."""
+    year = _resolve_year(request.args.get("year"))
+    route = (request.args.get("route") or "").strip()[:120]
+    if not route:
+        return jsonify({"error": "route required"}), 400
+    return jsonify({"year": year, "route": route, "note": db.get_note(year, route)})
+
+
+@app.route("/data/route-note", methods=["POST"])
+def save_route_note():
+    payload = request.get_json(silent=True) or {}
+    year = _resolve_year(payload.get("year"))
+    route = (payload.get("route") or "").strip()[:120]
+    note = payload.get("note", "")
+    if not route:
+        return jsonify({"error": "route required"}), 400
+    if not isinstance(note, str):
+        return jsonify({"error": "note must be a string"}), 400
+    saved = db.set_note(year, route, note[:10000])
+    return jsonify({"ok": True, "year": year, "route": route, "note": saved})
+
+
 @app.route("/data/edit/<path:filename>", methods=["POST"])
 def save_edit(filename):
     # Save a new edited version of a route's geometry into the SQLite store.
