@@ -9,9 +9,12 @@ window.APP = window.APP || {};
 APP.GtfsEditorManager = class {
   constructor() {
     this.zoom = 1;
-    this.current = null; // { year, file, label }
+    this.current = null; // { year, file, label, isUser }
+    this.page = null; // GtfsPage backref (map focus, layer reload, editor state)
+    this.geom = null; // { segments, stops, name } of the selected route
     this._saveTimer = null;
     this._feedTimer = null;
+    this._stopsTimer = null;
     this._populating = false; // suppress autosave while filling the form
   }
 
@@ -22,6 +25,7 @@ APP.GtfsEditorManager = class {
     this.routeLabel = document.getElementById("gepRouteLabel");
     this.status = document.getElementById("gepStatus");
     this.feedStatus = document.getElementById("gepFeedStatus");
+    this.stopsStatus = document.getElementById("gepStopsStatus");
     this._bind();
     this._setFormEnabled(false);
     this._loadTimings();
@@ -31,18 +35,20 @@ APP.GtfsEditorManager = class {
   // --- Selected route ----------------------------------------------------------
 
   /** Load a route into the pane (called by GtfsPage on selection). */
-  setRoute(year, file, label, kind) {
-    // Flush a pending save for the route we're leaving.
+  setRoute(year, file, label, kind, isUser) {
+    // Flush pending saves for the route we're leaving.
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
       this._saveMeta();
     }
+    this._flushStopsSave();
     this.year = year; // for downloads, even when no schedulable route is current
     if (kind === "geojson") {
       // Path tracings have no stops, so they can't be scheduled or exported
       // directly. Editing copies them to a KML route where stops can be added.
       this.current = null;
+      this.geom = null;
       this.routeLabel.textContent = label || file.replace(/\.geojson$/, "");
       this.status.classList.add("hint");
       this.status.textContent = "path only — ✎ Edit copies it, then add stops";
@@ -50,9 +56,15 @@ APP.GtfsEditorManager = class {
       this._setFormEnabled(false);
       this.timingSelect.val("");
       this._showTiming();
+      this._renderStops();
       return;
     }
-    this.current = { year, file, label: label || file.replace(/\.kml$/, "") };
+    this.current = {
+      year,
+      file,
+      label: label || file.replace(/\.kml$/, ""),
+      isUser: !!isUser,
+    };
     this.routeLabel.textContent = this.current.label;
     this.status.classList.remove("hint");
     this.status.textContent = "Loading…";
@@ -73,6 +85,13 @@ APP.GtfsEditorManager = class {
         this.status.textContent = "Load failed";
         console.error("gtfs-meta load failed", err);
       });
+    this._loadStops();
+  }
+
+  /** Re-fetch the stops after the map editor saved or exited (geometry may
+   * have changed under us). */
+  refreshStops() {
+    if (this.current) this._loadStops();
   }
 
   /** Update the displayed name (e.g. after a rename in the editor). */
@@ -87,13 +106,167 @@ APP.GtfsEditorManager = class {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
     }
+    if (this._stopsTimer) {
+      clearTimeout(this._stopsTimer);
+      this._stopsTimer = null;
+    }
     this.current = null;
+    this.geom = null;
     this.routeLabel.textContent = "—";
     this.status.textContent = "";
     this._fillForm({});
     this._setFormEnabled(false);
     this.timingSelect.val("");
     this._showTiming();
+    this._renderStops();
+  }
+
+  // --- Stops list ----------------------------------------------------------------
+
+  _loadStops() {
+    const ctx = this.current;
+    if (!ctx) return;
+    this.geom = null;
+    this._renderStops();
+    this.stopsStatus.textContent = "Loading…";
+    const q = `?year=${encodeURIComponent(ctx.year)}`;
+    fetch(`/data/route-geometry/${encodeURIComponent(ctx.file)}${q}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (!this.current || this.current.file !== ctx.file || this.current.year !== ctx.year) {
+          return; // stale
+        }
+        this.geom = {
+          segments: d.segments || [],
+          stops: d.stops || [],
+          name: d.name || ctx.label,
+        };
+        this.stopsStatus.textContent = "";
+        this._renderStops();
+      })
+      .catch((err) => {
+        this.stopsStatus.textContent = "Load failed";
+        console.error("route-geometry load failed", err);
+      });
+  }
+
+  /** Stops are saved as a new geometry version, which only user routes
+   * accept; the map editor being active also pauses list editing. */
+  _stopsEditable() {
+    return !!(
+      this.current &&
+      this.current.isUser &&
+      this.geom &&
+      !(this.page && this.page.editorManager.active)
+    );
+  }
+
+  _renderStops() {
+    const list = $("#gepStopsList").empty();
+    const hint = $("#gepStopsHint");
+    const count = $("#gepStopCount");
+    const stops = (this.geom && this.geom.stops) || [];
+    count.text(stops.length ? `· ${stops.length}` : "");
+    if (!this.geom) {
+      hint.hide();
+      return;
+    }
+    if (!stops.length) {
+      hint
+        .text(
+          this.current && this.current.isUser
+            ? "No stops yet — ✎ Edit the route and use + Stop to place them."
+            : "No stops on this route."
+        )
+        .show();
+      return;
+    }
+    let note = "";
+    if (this.page && this.page.editorManager.active) {
+      note = "Map editor open — stop edits happen there until you exit.";
+    } else if (this.current && !this.current.isUser) {
+      note = "Official route — ✎ Edit copies it to make stops editable.";
+    }
+    hint.text(note).toggle(!!note);
+    const editable = this._stopsEditable();
+    stops.forEach((s, i) => {
+      const row = $('<div class="gep-stop-row"></div>').attr("data-i", i);
+      row.append(
+        $('<button type="button" class="gep-stop-seq" title="Show on map"></button>').text(i + 1)
+      );
+      row.append(
+        $('<input type="text" class="gep-stop-name" placeholder="(unnamed)" />')
+          .val(s.name || "")
+          .prop("disabled", !editable)
+      );
+      row.append(
+        $('<input type="text" class="gep-stop-coord gep-stop-lat" title="Latitude" />')
+          .val(s.lat.toFixed(6))
+          .prop("disabled", !editable)
+      );
+      row.append(
+        $('<input type="text" class="gep-stop-coord gep-stop-lon" title="Longitude" />')
+          .val(s.lon.toFixed(6))
+          .prop("disabled", !editable)
+      );
+      if (editable) {
+        const tools = $('<span class="gep-stop-tools"></span>');
+        tools.append($('<a class="gep-stop-up" title="Move earlier">↑</a>'));
+        tools.append($('<a class="gep-stop-down" title="Move later">↓</a>'));
+        tools.append($('<a class="gep-stop-del" title="Remove stop">✕</a>'));
+        row.append(tools);
+      }
+      list.append(row);
+    });
+  }
+
+  _stopAt(el) {
+    const i = parseInt($(el).closest(".gep-stop-row").attr("data-i"), 10);
+    const stops = (this.geom && this.geom.stops) || [];
+    return i >= 0 && i < stops.length ? i : null;
+  }
+
+  _queueStopsSave() {
+    if (!this._stopsEditable()) return;
+    this.stopsStatus.textContent = "Saving…";
+    if (this._stopsTimer) clearTimeout(this._stopsTimer);
+    this._stopsTimer = setTimeout(() => {
+      this._stopsTimer = null;
+      this._saveStops();
+    }, 800);
+  }
+
+  _flushStopsSave() {
+    if (this._stopsTimer) {
+      clearTimeout(this._stopsTimer);
+      this._stopsTimer = null;
+      this._saveStops();
+    }
+  }
+
+  _saveStops() {
+    if (!this.current || !this.geom) return;
+    const ctx = this.current;
+    fetch(`/data/edit/${encodeURIComponent(ctx.file)}?year=${encodeURIComponent(ctx.year)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        segments: this.geom.segments,
+        stops: this.geom.stops,
+        name: this.geom.name,
+        label: "Stop edits (GTFS pane)",
+      }),
+    })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!this.current || this.current.file !== ctx.file) return;
+        this.stopsStatus.textContent = ok ? `Saved v${d.version} ✓` : d.error || "Save failed";
+        if (ok && this.page) this.page.reloadRoute(ctx.year, ctx.file);
+      })
+      .catch((err) => {
+        this.stopsStatus.textContent = "Save failed";
+        console.error("stops save failed", err);
+      });
   }
 
   _formInputs() {
@@ -319,6 +492,7 @@ APP.GtfsEditorManager = class {
   // --- Download ------------------------------------------------------------------------
 
   _download() {
+    this._flushStopsSave();
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
@@ -350,5 +524,53 @@ APP.GtfsEditorManager = class {
       "#gepAgencyName, #gepAgencyUrl, #gepAgencyPhone, #gepAgencyEmail, " +
         "#gepFarePrice, #gepFareCurrency"
     ).on("input change", () => this._queueFeedSave());
+
+    // Stops list (rows are rebuilt per route, so delegate).
+    const stopsList = $("#gepStopsList");
+    stopsList.on("click", ".gep-stop-seq", (e) => {
+      const i = this._stopAt(e.currentTarget);
+      if (i != null && this.page) {
+        const s = this.geom.stops[i];
+        this.page.focusStop(s.lon, s.lat);
+      }
+    });
+    stopsList.on("input", ".gep-stop-name", (e) => {
+      const i = this._stopAt(e.currentTarget);
+      if (i == null) return;
+      this.geom.stops[i].name = e.currentTarget.value;
+      this._queueStopsSave();
+    });
+    stopsList.on("change", ".gep-stop-coord", (e) => {
+      const i = this._stopAt(e.currentTarget);
+      if (i == null) return;
+      const v = parseFloat(e.currentTarget.value);
+      const isLat = $(e.currentTarget).hasClass("gep-stop-lat");
+      const ok = isFinite(v) && (isLat ? Math.abs(v) <= 90 : Math.abs(v) <= 180);
+      const s = this.geom.stops[i];
+      if (!ok) {
+        e.currentTarget.value = (isLat ? s.lat : s.lon).toFixed(6); // revert
+        return;
+      }
+      if (isLat) s.lat = v;
+      else s.lon = v;
+      this._queueStopsSave();
+    });
+    stopsList.on("click", ".gep-stop-up, .gep-stop-down", (e) => {
+      const i = this._stopAt(e.currentTarget);
+      if (i == null) return;
+      const j = $(e.currentTarget).hasClass("gep-stop-up") ? i - 1 : i + 1;
+      const stops = this.geom.stops;
+      if (j < 0 || j >= stops.length) return;
+      [stops[i], stops[j]] = [stops[j], stops[i]];
+      this._renderStops();
+      this._queueStopsSave();
+    });
+    stopsList.on("click", ".gep-stop-del", (e) => {
+      const i = this._stopAt(e.currentTarget);
+      if (i == null) return;
+      this.geom.stops.splice(i, 1);
+      this._renderStops();
+      this._queueStopsSave();
+    });
   }
 };

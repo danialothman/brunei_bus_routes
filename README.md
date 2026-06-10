@@ -171,6 +171,10 @@ full flow is draw → schedule → download. The GTFS pane covers:
   frequency entry), with intermediate stop times spread over the route's run
   time (entered, or estimated from shape length at ~18 km/h)
 - **Route metadata** — route number, long name, color (`routes.txt`)
+- **Stops list** — every stop of the selected route in sequence order, with
+  editable names and coordinates, reorder/remove, and click-to-locate on the
+  map; edits save as new geometry versions (official routes become editable
+  via the ✎ copy flow)
 - **Feed settings** — agency details and flat fare (`agency.txt`,
   `fare_attributes.txt`)
 - **Timing signboard reference** — the official JPD timing photo for the route

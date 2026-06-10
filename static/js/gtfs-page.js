@@ -35,6 +35,7 @@ APP.GtfsPage = class {
     this.editorManager = new APP.EditorManager(this.map, this, this.infoManager);
     this.stopImageManager = new APP.StopImageManager(this.editorManager);
     this.gtfsEditor = new APP.GtfsEditorManager();
+    this.gtfsEditor.page = this; // map focus, layer reloads, editor state
     this.infoManager.init();
     this.editorManager.init();
     this.stopImageManager.init();
@@ -159,8 +160,29 @@ APP.GtfsPage = class {
     const row = this._rowFor(id).addClass("selected");
     if (row.length) row[0].scrollIntoView({ block: "nearest" });
     this._loadLayer();
-    this.gtfsEditor.setRoute(year, file, this.names[id], kind);
+    this.gtfsEditor.setRoute(year, file, this.names[id], kind, this.userIds.has(id));
     $("#gtfsEditBtn").show();
+  }
+
+  /** Pan/zoom to a stop and flash a marker over it (from the stops list). */
+  focusStop(lon, lat) {
+    const center = APP.MapUtils.toOL([lon, lat]);
+    const view = this.map.getView();
+    view.animate({ center, zoom: Math.max(view.getZoom() || 0, 16), duration: 350 });
+    const flash = new ol.layer.Vector({
+      zIndex: 5000,
+      source: new ol.source.Vector({
+        features: [new ol.Feature(new ol.geom.Point(center))],
+      }),
+      style: new ol.style.Style({
+        image: new ol.style.Circle({
+          radius: 13,
+          stroke: new ol.style.Stroke({ color: "#ff4136", width: 3 }),
+        }),
+      }),
+    });
+    this.map.addLayer(flash);
+    setTimeout(() => this.map.removeLayer(flash), 1500);
   }
 
   _loadLayer() {
@@ -280,12 +302,16 @@ APP.GtfsPage = class {
     if (this.selected && this.selected.id === this._id(year, file) && this.layer) {
       this.layer.setVisible(false);
     }
+    // Editor is taking over: the stops list pauses (re-render shows the hint).
+    this.gtfsEditor._renderStops();
   }
 
   showRouteAfterEdit(year, file) {
     if (this.selected && this.selected.id === this._id(year, file) && this.layer) {
       this.layer.setVisible(true);
     }
+    // Editor exited: re-fetch stops, which it may have changed.
+    this.gtfsEditor.refreshStops();
   }
 
   reloadRoute(year, file) {
