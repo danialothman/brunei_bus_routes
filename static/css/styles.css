@@ -191,7 +191,9 @@ body {
   padding-top: 50px;
 }
 
-footer {
+/* Map-page footer only: overlays the bottom edge of the map. (Scoped so it
+   doesn't hijack other pages' footers, e.g. the guide's.) */
+body:not(.guide-page) footer {
   padding: 2px 0;
   position: absolute;
   bottom: 0;
@@ -209,7 +211,7 @@ footer {
 }
 
 @media (max-width: 767px) {
-  footer {
+  body:not(.guide-page) footer {
     position: relative;
   }
   #map {
@@ -1224,6 +1226,18 @@ body.guide-page {
   padding: 0;
   background: var(--gtfs-paper);
   color: var(--gtfs-ink);
+  /* No Bootstrap on this page — supply the body face it would have given. */
+  font-family: "Helvetica Neue", Arial, "Segoe UI", sans-serif;
+}
+.guide a {
+  color: var(--gtfs-ink);
+  text-decoration-color: var(--gtfs-accent);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 2px;
+}
+.guide a:hover {
+  background: var(--gtfs-accent);
+  text-decoration: none;
 }
 .guide {
   max-width: 780px;
@@ -1284,7 +1298,6 @@ body.guide-page {
   border-collapse: collapse;
   background: var(--gtfs-card);
   border: 1px solid var(--gtfs-line);
-  border-radius: 6px;
   margin: 8px 0 14px;
 }
 .guide-table th,
@@ -1344,14 +1357,40 @@ body.guide-page {
   color: var(--gtfs-ink-soft);
 }
 .guide-footer .btn {
+  display: inline-block;
+  padding: 8px 18px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-family: var(--gtfs-display);
+  font-size: 16px;
+  letter-spacing: 0.03em;
   background: var(--gtfs-accent);
   border: 1px solid #e6b94f;
   color: var(--gtfs-accent-ink);
   font-weight: 600;
 }
+.guide-footer .btn:hover {
+  background: #ffdd85;
+  color: var(--gtfs-accent-ink);
+}
+@media (max-width: 600px) {
+  /* Long row headers would otherwise force the tables wider than the
+     viewport (nowrap min-content). */
+  .guide-table th {
+    width: 110px;
+    white-space: normal;
+  }
+}
 @media print {
   .guide-footer .btn {
     display: none;
+  }
+  /* Printers drop backgrounds; keep the chips legible on paper. */
+  .guide-kicker,
+  .guide code {
+    background: none;
+    color: var(--gtfs-ink);
+    border: 1px solid var(--gtfs-ink);
   }
 }
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -36,7 +36,7 @@
         <p>The workbench has three columns:</p>
         <table class="guide-table">
           <tr>
-            <th>Left — route list</th>
+            <th scope="row">Left — route list</th>
             <td>Every route, with a <strong>4-segment progress meter</strong>
               next to its name: <em>schedule · departures · operator ·
               headsign</em>. A segment turns green when that data is entered.
@@ -44,14 +44,14 @@
               work on it.</td>
           </tr>
           <tr>
-            <th>Middle — map</th>
+            <th scope="row">Middle — map</th>
             <td>Shows the selected route's line (blue) and stops (yellow).
               <strong>✎ Edit route</strong> opens the drawing tools. Official
               routes are read-only — editing one automatically creates a copy
               under "My routes", which is the one you edit from then on.</td>
           </tr>
           <tr>
-            <th>Right — route form</th>
+            <th scope="row">Right — route form</th>
             <td>Everything about the selected route: schedule, stops list,
               names, operator, and the <strong>timing signboard photo</strong>
               you transcribe from. Every field saves automatically a moment
@@ -66,22 +66,22 @@
 
         <h3>Step 1 — Identify the route</h3>
         <table class="guide-table">
-          <tr><th>No.</th>
+          <tr><th scope="row">No.</th>
             <td>The public route number from the signboard, e.g.
               <code>01A</code>, <code>20</code>, <code>38</code>.</td></tr>
-          <tr><th>Name</th>
+          <tr><th scope="row">Name</th>
             <td>A human-readable route name, e.g.
               <code>BSB – Pekan Muara via Airport</code>.</td></tr>
-          <tr><th>Description</th>
+          <tr><th scope="row">Description</th>
             <td>The fuller routing summary if known, e.g.
               <code>BSB → Mall Gadong → Batu Bersurat: Kiulap — Jame'Asr —
               …</code>. The reference list in
               <code>docs/2016/reference/routes.txt</code> has these for most
               routes — copy them in.</td></tr>
-          <tr><th>Color</th>
+          <tr><th scope="row">Color</th>
             <td>Optional hex color like <code>#E91E63</code> if the route has
               an official color. Skip if unknown.</td></tr>
-          <tr><th>Operator</th>
+          <tr><th scope="row">Operator</th>
             <td>The company that runs this route. Pick from the dropdown —
               if the company isn't listed yet, add it first under
               <strong>⚙ Feed settings</strong> (see section 4). Leave on
@@ -90,19 +90,19 @@
 
         <h3>Step 2 — Type &amp; headsigns</h3>
         <table class="guide-table">
-          <tr><th>Type</th>
+          <tr><th scope="row">Type</th>
             <td><strong>loop / one-way</strong>: the bus goes round a circuit
               back to the start (e.g. BSB Circular).<br />
               <strong>out &amp; back</strong>: the bus drives to a far terminal
               and returns the same way (e.g. BSB → Pekan Muara → BSB). Choose
               this and the export automatically produces both directions.</td></tr>
-          <tr><th>Headsign</th>
+          <tr><th scope="row">Headsign</th>
             <td>What the front of the bus displays going out, e.g.
               <code>PEKAN MUARA</code>.</td></tr>
-          <tr><th>Return</th>
+          <tr><th scope="row">Return</th>
             <td>(out &amp; back only) The sign coming back, usually
               <code>BSB</code>.</td></tr>
-          <tr><th>hail &amp; ride</th>
+          <tr><th scope="row">hail &amp; ride</th>
             <td>Tick if the route stops on demand anywhere along the road, not
               only at marked stops — common in Brunei.</td></tr>
         </table>
@@ -111,28 +111,28 @@
         <p>The signboard photo appears below the form — zoom with
           <strong>− / + / Fit</strong>. Transcribe what it says:</p>
         <table class="guide-table">
-          <tr><th>Days</th>
+          <tr><th scope="row">Days</th>
             <td>Tick the days this timetable applies to. If weekends differ,
               <strong>+ Add day-type schedule</strong> and give the weekend its
               own block — e.g. block 1 Mo–Fr, block 2 Sa–Su.</td></tr>
-          <tr><th>Every … min, from … to …</th>
+          <tr><th scope="row">Every … min, from … to …</th>
             <td>Use when the signboard gives an interval ("every 30 minutes,
               6:00am–8:00pm"). If the interval changes during the day (peak /
               off-peak), <strong>+ time band</strong> for each window:<br />
               <code>Every 10 min, 06:00–08:30</code> ·
               <code>Every 30 min, 08:30–16:00</code> ·
               <code>Every 15 min, 16:00–19:00</code></td></tr>
-          <tr><th>Exact departures</th>
+          <tr><th scope="row">Exact departures</th>
             <td><strong>Preferred whenever the signboard lists actual
               times.</strong> Type them into the dark board, separated by
               commas or new lines: <code>06:30, 07:00, 07:45, 09:15</code>.
               When filled, this beats the interval — the export contains one
               real trip per departure.</td></tr>
-          <tr><th>Return departures</th>
+          <tr><th scope="row">Return departures</th>
             <td>(out &amp; back only) If the signboard lists departure times
               from the far terminal separately, enter them here. Leave empty
               and the system estimates them (outbound time + run time).</td></tr>
-          <tr><th>run … min</th>
+          <tr><th scope="row">run … min</th>
             <td>End-to-end journey time in minutes, if the signboard or local
               knowledge gives it. Leave on <em>auto</em> to estimate from the
               route's length.</td></tr>
@@ -142,19 +142,19 @@
         <p>The Stops section lists every stop in driving order — the order
           matters, it is the order passengers experience.</p>
         <table class="guide-table">
-          <tr><th>numbered chip</th>
+          <tr><th scope="row">numbered chip</th>
             <td>Click to fly the map to that stop (a red ring flashes).
               Use it to verify each row is the stop you think it is.</td></tr>
-          <tr><th>code</th>
+          <tr><th scope="row">code</th>
             <td>The public stop number if one exists on the physical
               signage.</td></tr>
-          <tr><th>name</th>
+          <tr><th scope="row">name</th>
             <td>The stop name as signed, e.g. <code>PBS OPP TERRACE
               HOTEL</code>. (PBS/EBS prefixes are kept as-is.)</td></tr>
-          <tr><th>lat / lon</th>
+          <tr><th scope="row">lat / lon</th>
             <td>Fine-tune coordinates by typing, or drag the stop on the map
               while editing. Bad values revert automatically.</td></tr>
-          <tr><th>↑ ↓ ✕</th>
+          <tr><th scope="row">↑ ↓ ✕</th>
             <td>Reorder or remove. To <em>add</em> stops, use
               <strong>✎ Edit route → + Stop</strong> on the map, with the
               <strong>🚏 Official stops</strong> signboard panel open for
@@ -181,12 +181,12 @@
       <section>
         <h2>3 · What the signboards give you</h2>
         <table class="guide-table">
-          <tr><th>🚏 Official stops panel</th>
+          <tr><th scope="row">🚏 Official stops panel</th>
             <td>Photos of the official stop-list signboards. Open it (top bar)
               while placing or renaming stops. It has a notes field per route —
               record discrepancies there (e.g. "poster lists a stop the trace
               doesn't have").</td></tr>
-          <tr><th>Timing signboard (in the form)</th>
+          <tr><th scope="row">Timing signboard (in the form)</th>
             <td>Photos of the official departure-time boards. This is the
               source for Step 3. If a route has no timing photo, enter interval
               service from local knowledge and note it in the stops panel
@@ -197,16 +197,16 @@
       <section>
         <h2>4 · Once per dataset — ⚙ Feed settings</h2>
         <table class="guide-table">
-          <tr><th>Operators</th>
+          <tr><th scope="row">Operators</th>
             <td>One row per bus company: name, website, phone. The
               <strong>first row is the default</strong> for routes with no
               explicit operator. Add all known companies here before assigning
               them per route.</td></tr>
-          <tr><th>Holidays</th>
+          <tr><th scope="row">Holidays</th>
             <td>Public holidays where service changes: pick the date and either
               <em>no service</em> or <em>Sunday timetable</em>. Add Hari Raya,
               National Day, etc.</td></tr>
-          <tr><th>Fare</th>
+          <tr><th scope="row">Fare</th>
             <td>The flat fare, e.g. <code>1.00</code> <code>BND</code>.</td></tr>
         </table>
       </section>
@@ -216,7 +216,9 @@
         <p>For the technically curious — where each field ends up in the
           exported zip:</p>
         <table class="guide-table guide-mono">
-          <tr><th>Form field</th><th>GTFS output</th></tr>
+          <thead>
+            <tr><th scope="col">Form field</th><th scope="col">GTFS output</th></tr>
+          </thead>
           <tr><td>No. / Name / Description / Color</td>
             <td>routes.txt — route_short_name, route_long_name, route_desc,
               route_color</td></tr>
