@@ -343,7 +343,13 @@ def _validate_geometry(payload):
         name = s.get("name", "")
         if not isinstance(name, str):
             return None, "stop name must be a string"
-        stops.append({"name": name[:200], "lon": round(lon, 7), "lat": round(lat, 7)})
+        stop = {"name": name[:200], "lon": round(lon, 7), "lat": round(lat, 7)}
+        code = s.get("code", "")
+        if not isinstance(code, str):
+            return None, "stop code must be a string"
+        if code.strip():  # public stop number (GTFS stop_code)
+            stop["code"] = code.strip()[:30]
+        stops.append(stop)
 
     label = payload.get("label")
     if label is not None and not isinstance(label, str):

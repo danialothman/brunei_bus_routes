@@ -886,6 +886,11 @@ body.editing #gtfsEditBtn {
   border-color: #cfc8b8;
   background: #fffdf8;
 }
+.gep-stop-code {
+  flex: 0 0 48px;
+  font-family: var(--gtfs-mono);
+  font-size: 10px !important;
+}
 .gep-stop-name {
   flex: 1 1 auto;
   min-width: 60px;

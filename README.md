@@ -179,9 +179,10 @@ full flow is draw → schedule → download. The GTFS pane covers:
   departures offset by the run time) and set the bus's destination signs
   (`trip_headsign`); loops/one-ways stay single-direction
 - **Stops list** — every stop of the selected route in sequence order, with
-  editable names and coordinates, reorder/remove, and click-to-locate on the
-  map; edits save as new geometry versions (official routes become editable
-  via the ✎ copy flow)
+  editable public stop codes (`stop_code`, à la Singapore's numbered stops),
+  names and coordinates, reorder/remove, and click-to-locate on the map;
+  edits save as new geometry versions (official routes become editable via
+  the ✎ copy flow)
 - **Feed settings** — the operator list (multiple companies supported; the
   first is the default for unassigned routes) and flat fare (`agency.txt`,
   `fare_attributes.txt`)

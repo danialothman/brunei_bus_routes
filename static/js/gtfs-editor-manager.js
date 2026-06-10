@@ -161,6 +161,7 @@ APP.GtfsEditorManager = class {
     set(".gep-stop-lat", ll[1].toFixed(6));
     set(".gep-stop-lon", ll[0].toFixed(6));
     set(".gep-stop-name", feature.get("name") || "");
+    set(".gep-stop-code", feature.get("code") || "");
   }
 
   /** Stops as plain data, from the live editor session or saved geometry. */
@@ -168,7 +169,12 @@ APP.GtfsEditorManager = class {
     if (this._liveSource) {
       return this._liveStopFeatures().map((f) => {
         const ll = APP.MapUtils.toNormal(f.getGeometry().getCoordinates());
-        return { name: f.get("name") || "", lon: ll[0], lat: ll[1] };
+        return {
+          name: f.get("name") || "",
+          code: f.get("code") || "",
+          lon: ll[0],
+          lat: ll[1],
+        };
       });
     }
     return (this.geom && this.geom.stops) || [];
@@ -279,6 +285,11 @@ APP.GtfsEditorManager = class {
       const row = $('<div class="gep-stop-row"></div>').attr("data-i", i);
       row.append(
         $('<button type="button" class="gep-stop-seq" title="Show on map"></button>').text(i + 1)
+      );
+      row.append(
+        $('<input type="text" class="gep-stop-code" placeholder="code" title="Public stop number (GTFS stop_code)" />')
+          .val(s.code || "")
+          .prop("disabled", !editable)
       );
       row.append(
         $('<input type="text" class="gep-stop-name" placeholder="(unnamed)" />')
@@ -813,8 +824,19 @@ APP.GtfsEditorManager = class {
       this.geom.stops[i].name = e.currentTarget.value;
       this._queueStopsSave();
     });
-    // In live mode a rename becomes one undo step when the field is left.
-    stopsList.on("change", ".gep-stop-name", () => {
+    stopsList.on("input", ".gep-stop-code", (e) => {
+      const i = this._stopAt(e.currentTarget);
+      if (i == null) return;
+      if (this._liveSource) {
+        const f = this._liveStopFeatures()[i];
+        if (f) f.set("code", e.currentTarget.value.trim());
+        return;
+      }
+      this.geom.stops[i].code = e.currentTarget.value.trim();
+      this._queueStopsSave();
+    });
+    // In live mode a rename/recode becomes one undo step when the field is left.
+    stopsList.on("change", ".gep-stop-name, .gep-stop-code", () => {
       if (this._liveSource) this.page.editorManager._snapshot();
     });
     stopsList.on("change", ".gep-stop-coord", (e) => {

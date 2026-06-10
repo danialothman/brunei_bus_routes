@@ -256,6 +256,7 @@ APP.EditorManager = class {
         const f = new ol.Feature(new ol.geom.Point(APP.MapUtils.toOL([s.lon, s.lat])));
         f.set("kind", "stop");
         f.set("name", s.name || "");
+        f.set("code", s.code || ""); // public stop number (GTFS stop_code)
         this.source.addFeature(f);
       });
     }
@@ -275,7 +276,9 @@ APP.EditorManager = class {
         );
       } else if (f.get("kind") === "stop") {
         const ll = APP.MapUtils.toNormal(geom.getCoordinates());
-        stops.push({ name: f.get("name") || "", lon: round7(ll[0]), lat: round7(ll[1]) });
+        const stop = { name: f.get("name") || "", lon: round7(ll[0]), lat: round7(ll[1]) };
+        if (f.get("code")) stop.code = f.get("code");
+        stops.push(stop);
       }
     });
     return { segments, stops, name: this.routeName };

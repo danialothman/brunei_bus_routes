@@ -111,19 +111,27 @@ class _StopPool:
         self.merges = 0
 
     def resolve(self, stop):
-        """Return a stop_id for `stop` ({name, lon, lat}), merging when possible."""
+        """Return a stop_id for `stop` ({name, lon, lat, code?}), merging when
+        possible. Stops with two DIFFERENT public codes never merge; a merge
+        backfills a code the first occurrence lacked."""
         key = _norm_name(stop.get("name"))
+        code = (stop.get("code") or "").strip()
         sp = [stop["lon"], stop["lat"]]
         if key:  # named stops merge by name + proximity
             for idx in self._by_name.get(key, []):
                 ex = self._entries[idx]
+                if code and ex["code"] and ex["code"] != code:
+                    continue  # same name but distinct signed stops
                 if _haversine(sp, [ex["lon"], ex["lat"]]) <= STOP_MERGE_RADIUS_M:
+                    if code and not ex["code"]:
+                        ex["code"] = code
                     self.merges += 1
                     return ex["stop_id"]
         stop_id = f"S{len(self._entries) + 1:04d}"
         self._entries.append({
             "stop_id": stop_id,
             "name": stop.get("name") or stop_id,
+            "code": code,
             "lon": stop["lon"],
             "lat": stop["lat"],
         })
@@ -135,6 +143,7 @@ class _StopPool:
         """stops.txt rows with coords formatted to 6 decimals."""
         return [{
             "stop_id": e["stop_id"],
+            "stop_code": e["code"],
             "stop_name": e["name"],
             "stop_lat": f"{e['lat']:.6f}",
             "stop_lon": f"{e['lon']:.6f}",
@@ -344,6 +353,10 @@ def build_feed(routes, agencies, params):
                             "departure_time": hhmm,
                             "stop_id": sid,
                             "stop_sequence": seq,
+                            # Only the first stop of a transcribed-departure
+                            # trip is an exact time; everything else here is
+                            # interpolated (an estimate, per the spec).
+                            "timepoint": 1 if (departures and seq == 1) else 0,
                             "shape_dist_traveled": f"{dist:.1f}" if has_shape else "",
                         })
 
@@ -390,7 +403,8 @@ def build_feed(routes, agencies, params):
             ["agency_id", "agency_name", "agency_url", "agency_timezone",
              "agency_lang", "agency_phone", "agency_email"], agency_rows),
         "stops.txt": _csv(
-            ["stop_id", "stop_name", "stop_lat", "stop_lon"], pool.rows()),
+            ["stop_id", "stop_code", "stop_name", "stop_lat", "stop_lon"],
+            pool.rows()),
         "routes.txt": _csv(
             ["route_id", "agency_id", "route_short_name", "route_long_name",
              "route_type", "route_color"], routes_rows),
@@ -399,7 +413,8 @@ def build_feed(routes, agencies, params):
              "direction_id", "shape_id"], trips_rows),
         "stop_times.txt": _csv(
             ["trip_id", "arrival_time", "departure_time", "stop_id",
-             "stop_sequence", "shape_dist_traveled"], stop_times_rows),
+             "stop_sequence", "timepoint", "shape_dist_traveled"],
+            stop_times_rows),
         "shapes.txt": _csv(
             ["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence",
              "shape_dist_traveled"], shapes_rows),
