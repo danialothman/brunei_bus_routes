@@ -152,6 +152,23 @@ These are placeholders to be replaced with real values transcribed from the JPD
 timing signboards. A single placeholder agency (ADBS) is used until the real
 operator-per-route mapping is known.
 
+### GTFS editor
+
+The **🕐 GTFS** button in the navbar opens an editor panel for filling in the
+real values:
+
+- **Per-route schedule** — headway, first/last bus, operating days (becomes
+  `frequencies.txt` and per-pattern `calendar.txt` services)
+- **Route metadata** — route number, long name, color (`routes.txt`)
+- **Feed settings** — agency details and flat fare (`agency.txt`,
+  `fare_attributes.txt`)
+- **Timing signboard reference** — the official JPD timing photo for the route
+  (`docs/<year>/images/timings/`) is shown beside the form so departure times
+  can be transcribed directly
+
+Edits auto-save to the local SQLite store (`instance/edits.db`) and are merged
+into every subsequent export from both the endpoint and the CLI.
+
 ## Technologies Used
 
 - [Flask](https://flask.palletsprojects.com/) — Python web server

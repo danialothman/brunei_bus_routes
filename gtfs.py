@@ -24,9 +24,11 @@ import zipfile
 STOP_MERGE_RADIUS_M = 40.0
 
 # GTFS files we emit, in a stable order (zip listing reads sensibly).
+# fare_attributes.txt is only present when a fare is configured.
 _FILE_ORDER = [
     "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
-    "shapes.txt", "frequencies.txt", "calendar.txt", "feed_info.txt",
+    "shapes.txt", "frequencies.txt", "calendar.txt", "fare_attributes.txt",
+    "feed_info.txt",
 ]
 
 
@@ -134,25 +136,40 @@ def _csv(header, rows):
 
 
 # --- feed builder ------------------------------------------------------------
+def _hhmmss_to_secs(t):
+    h, m, s = (int(x) for x in t.split(":"))
+    return h * 3600 + m * 60 + s
+
+
 def build_feed(routes, agency, params):
     """Build a GTFS feed and return it as zip bytes.
 
-    routes: [{route_id, short_name, long_name, segments, stops}]
+    routes: [{route_id, short_name, long_name, segments, stops, color?,
+              schedule?}] where schedule overrides the feed defaults per route:
+             {headway_secs?, start_time?, end_time?, days?[7]}
     agency: {id, name, url, phone, timezone, lang, email?}
     params: {headway_secs, start_time, end_time, service_id, days[7],
              start_date, end_date, feed_version, publisher_name, publisher_url,
-             feed_lang}
+             feed_lang, fare?: {price, currency}}
     """
     agency_id = agency["id"]
-    service_id = params["service_id"]
-    headway = int(params["headway_secs"])
+    default_service_id = params["service_id"]
+    default_days = list(params["days"])
 
-    # Service window as seconds since midnight; trip stop_times span it from 0.
-    def _hhmmss_to_secs(t):
-        h, m, s = (int(x) for x in t.split(":"))
-        return h * 3600 + m * 60 + s
+    # Each distinct operating-days pattern becomes its own service_id; the
+    # feed-default pattern keeps the default id (e.g. DAILY).
+    services = {}  # tuple(days) -> service_id
 
-    win_start = _hhmmss_to_secs(params["start_time"])
+    def _service_for(days):
+        key = tuple(int(bool(d)) for d in days)
+        if key not in services:
+            if list(key) == default_days:
+                services[key] = default_service_id
+            else:
+                services[key] = "SVC_" + "".join(str(d) for d in key)
+        return services[key]
+
+    _service_for(default_days)  # always emit the default service
 
     pool = _StopPool()
     routes_rows, trips_rows, shapes_rows, stop_times_rows, freq_rows = [], [], [], [], []
@@ -161,6 +178,15 @@ def build_feed(routes, agency, params):
         rid = r["route_id"]
         shape_id = f"shp_{rid}"
         trip_id = f"trip_{rid}"
+
+        # Per-route schedule overrides, falling back to the feed defaults.
+        sched = r.get("schedule") or {}
+        headway = int(sched.get("headway_secs") or params["headway_secs"])
+        start_time = sched.get("start_time") or params["start_time"]
+        end_time = sched.get("end_time") or params["end_time"]
+        days = sched.get("days") or default_days
+        service_id = _service_for(days)
+        win_start = _hhmmss_to_secs(start_time)
 
         points = _flatten_segments(r.get("segments", []))
         cum = _cumulative_dist(points)
@@ -172,6 +198,7 @@ def build_feed(routes, agency, params):
             "route_short_name": r.get("short_name", "") or "",
             "route_long_name": r.get("long_name", "") or "",
             "route_type": 3,  # 3 = bus
+            "route_color": (r.get("color") or "").lstrip("#").upper(),
         })
 
         for i, p in enumerate(points):
@@ -221,21 +248,23 @@ def build_feed(routes, agency, params):
 
         freq_rows.append({
             "trip_id": trip_id,
-            "start_time": params["start_time"],
-            "end_time": params["end_time"],
+            "start_time": start_time,
+            "end_time": end_time,
             "headway_secs": headway,
             "exact_times": 0,
         })
 
-    days = params["days"]
-    calendar_rows = [{
-        "service_id": service_id,
-        "monday": days[0], "tuesday": days[1], "wednesday": days[2],
-        "thursday": days[3], "friday": days[4], "saturday": days[5],
-        "sunday": days[6],
-        "start_date": params["start_date"],
-        "end_date": params["end_date"],
-    }]
+    calendar_rows = [
+        {
+            "service_id": sid,
+            "monday": key[0], "tuesday": key[1], "wednesday": key[2],
+            "thursday": key[3], "friday": key[4], "saturday": key[5],
+            "sunday": key[6],
+            "start_date": params["start_date"],
+            "end_date": params["end_date"],
+        }
+        for key, sid in sorted(services.items(), key=lambda kv: kv[1])
+    ]
 
     agency_rows = [{
         "agency_id": agency_id,
@@ -262,7 +291,7 @@ def build_feed(routes, agency, params):
             ["stop_id", "stop_name", "stop_lat", "stop_lon"], pool.rows()),
         "routes.txt": _csv(
             ["route_id", "agency_id", "route_short_name", "route_long_name",
-             "route_type"], routes_rows),
+             "route_type", "route_color"], routes_rows),
         "trips.txt": _csv(
             ["route_id", "service_id", "trip_id", "shape_id"], trips_rows),
         "stop_times.txt": _csv(
@@ -283,10 +312,24 @@ def build_feed(routes, agency, params):
              "feed_version"], feed_info_rows),
     }
 
+    # Optional flat fare (e.g. Brunei's B$1): payment on board, no transfers info.
+    fare = params.get("fare") or {}
+    if fare.get("price"):
+        tables["fare_attributes.txt"] = _csv(
+            ["fare_id", "price", "currency_type", "payment_method", "transfers"],
+            [{
+                "fare_id": "FLAT",
+                "price": f"{float(fare['price']):.2f}",
+                "currency_type": fare.get("currency", "BND"),
+                "payment_method": 0,  # paid on board
+                "transfers": "",      # unlimited / unknown
+            }])
+
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
         for name in _FILE_ORDER:
-            zf.writestr(name, tables[name])
+            if name in tables:
+                zf.writestr(name, tables[name])
 
     return out.getvalue(), {
         "routes": len(routes_rows),

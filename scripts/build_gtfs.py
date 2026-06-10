@@ -26,11 +26,10 @@ def main():
     args = ap.parse_args()
 
     year = appmod._resolve_year(args.year)
-    routes = appmod.gather_gtfs_routes(year)
+    routes, agency, params = appmod.gtfs_feed_inputs(year)
     if not routes:
         sys.exit(f"No exportable routes found for year {year}.")
 
-    params = dict(appmod.GTFS_PARAMS, feed_version=f"{year}.1")
     if args.headway:
         params["headway_secs"] = args.headway
     if args.start_time:
@@ -38,7 +37,7 @@ def main():
     if args.end_time:
         params["end_time"] = args.end_time
 
-    data, stats = gtfs.build_feed(routes, appmod.GTFS_AGENCY, params)
+    data, stats = gtfs.build_feed(routes, agency, params)
     with open(args.out, "wb") as f:
         f.write(data)
 
