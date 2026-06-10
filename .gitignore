@@ -32,3 +32,7 @@ env/
 
 # Local development settings
 instance/
+
+# Generated GTFS feed (build it with scripts/build_gtfs.py or /data/gtfs.zip)
+/gtfs.zip
+brunei-gtfs-*.zip
