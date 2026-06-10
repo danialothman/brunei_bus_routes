@@ -1,59 +1,8 @@
-/*
- * Style tweaks
- * --------------------------------------------------
- */
+/* The mobile sidebar collapse is #sidebar.collapsed (styles.css) toggled by
+ * offcanvas.js. The slide-out transform pushes past the viewport edge — this
+ * keeps that from creating a horizontal scrollbar. (The Bootstrap offcanvas
+ * boilerplate that used to live here targeted markup this app never had.) */
 html,
 body {
-  overflow-x: hidden; /* Prevent scroll on narrow devices */
-}
-body {
-  padding-top: 70px;
-}
-footer {
-  padding: 30px 0;
-}
-
-/*
- * Off Canvas
- * --------------------------------------------------
- */
-@media screen and (max-width: 767px) {
-  .row-offcanvas {
-    position: relative;
-    -webkit-transition: all .25s ease-out;
-         -o-transition: all .25s ease-out;
-            transition: all .25s ease-out;
-  }
-
-  .row-offcanvas-right {
-    right: 0;
-  }
-
-  .row-offcanvas-left {
-    left: 0;
-  }
-
-  .row-offcanvas-right
-  .sidebar-offcanvas {
-    right: -75%; /* roomier for long route names */
-  }
-
-  .row-offcanvas-left
-  .sidebar-offcanvas {
-    left: -75%;
-  }
-
-  .row-offcanvas-right.active {
-    right: 75%;
-  }
-
-  .row-offcanvas-left.active {
-    left: 75%;
-  }
-
-  .sidebar-offcanvas {
-    position: absolute;
-    top: 0;
-    width: 75%;
-  }
+  overflow-x: hidden;
 }

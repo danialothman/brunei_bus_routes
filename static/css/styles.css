@@ -10,13 +10,14 @@
   --gtfs-accent: #ffd166;     /* signage yellow (matches the stop markers) */
   --gtfs-accent-ink: #6b5200;
   --gtfs-go: #2e7d32;
+  --gtfs-danger: #c0392b;
   --gtfs-display: "Barlow Condensed", "Arial Narrow", sans-serif;
   --gtfs-mono: "IBM Plex Mono", Consolas, monospace;
 }
 
 html,
 body {
-  height: 99%;
+  height: 100%;
 }
 
 /* --- Shared chrome: slate navbar with signage type --- */
@@ -73,7 +74,7 @@ body {
   border-radius: 999px;
   box-shadow: 0 2px 10px rgba(29, 42, 51, 0.4);
   display: none;
-  top: 1.5em;
+  top: 60px; /* clear of the fixed navbar (its parent isn't positioned) */
   left: 0;
   right: 0;
   margin-left: auto;
@@ -81,7 +82,20 @@ body {
   width: 12em;
   text-align: center;
   position: absolute;
-  z-index: 1050;
+  z-index: 1020; /* over the map, under navbar (1030) and modals (1050) */
+  cursor: pointer; /* the whole pill cancels loading */
+}
+/* The cancel "X" inside the pill: a small accent glyph, not a full
+   Bootstrap danger button straddling the pill's edge. */
+#loading .btn {
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  background: transparent;
+  border: 1px solid var(--gtfs-accent);
+  color: var(--gtfs-accent);
+  border-radius: 3px;
+  margin-left: 6px;
 }
 
 #info {
@@ -124,11 +138,6 @@ body {
 }
 
 #map {
-  width: 100%;
-  height: 98%;
-}
-
-.fill {
   width: 100%;
   height: 100%;
 }
@@ -183,8 +192,41 @@ body {
   margin-bottom: 6px;
 }
 
-nav {
-  height: 50px;
+/* The navbar lays out as a wrapping flex row (Bootstrap 3's float-based
+   navbar breaks below 768px without a collapse, and a fixed height clipped
+   the background when buttons wrapped). The brand + map-style group sits
+   left, action buttons right; extra rows keep the slate background. */
+nav.navbar {
+  min-height: 50px;
+  height: auto;
+}
+.navbar > .container,
+.navbar > .container-fluid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.navbar .navbar-header {
+  float: none;
+}
+.navbar .navbar-nav {
+  float: none;
+  margin-right: auto; /* push the action buttons to the right edge */
+}
+.navbar .navbar-nav > li {
+  float: none;
+}
+.navbar .navbar-btn,
+.navbar a.navbar-btn {
+  float: none !important;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.navbar select.form-control {
+  width: auto;
 }
 
 body {
@@ -206,8 +248,19 @@ body:not(.guide-page) footer {
   pointer-events: none;
 }
 
-[class*="col-"] {
+/* Map page only — the GTFS modals may legitimately use grid gutters. */
+body:not(.gtfs-page):not(.guide-page) [class*="col-"] {
   padding: 0;
+}
+
+/* Keyboard users get a visible accent ring on everything interactive. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--gtfs-accent);
+  outline-offset: 1px;
 }
 
 @media (max-width: 767px) {
@@ -221,23 +274,6 @@ body:not(.guide-page) footer {
 
 .navbar-nav {
   margin: 0;
-}
-
-.navbar-nav > li > a {
-  padding-top: 15px;
-  padding-bottom: 15px;
-}
-
-#mapStyle,
-#dataYear {
-  margin-top: 8px;
-}
-
-/* Year picker only holds "2016"/"2026" — keep it compact, not full-width */
-#dataYear {
-  width: auto;
-  display: inline-block;
-  margin-right: 6px;
 }
 
 /* --- Floating routes sidebar --- */
@@ -277,11 +313,6 @@ body.editing #sidebar {
   padding-bottom: 4px;
   border-bottom: 2px solid var(--gtfs-accent);
 }
-.sidebar-subtitle {
-  font-weight: 600;
-  font-size: 13px;
-  margin: 10px 0 6px;
-}
 /* The whole panel scrolls, so don't nest a second scroll area in the lists. */
 #sidebar #routes {
   max-height: none;
@@ -307,12 +338,6 @@ body.editing #sidebar {
 }
 
 /* --- Route editor --- */
-#routes .route-item,
-#geojsonRoutes .route-item {
-  display: flex;
-  align-items: center;
-}
-
 .route-edit-btn,
 .route-ride-btn,
 .route-del-btn,
@@ -331,7 +356,7 @@ body.editing #sidebar {
   opacity: 1;
 }
 .route-del-btn {
-  color: #c0392b;
+  color: var(--gtfs-danger);
 }
 
 #editorToolbar {
@@ -360,12 +385,12 @@ body.editing #sidebar {
   margin-right: 4px;
 }
 #editorToolbar .ed-tool.active {
-  background-color: #ffd166;
+  background-color: var(--gtfs-accent);
   border-color: #e0a800;
   font-weight: 600;
 }
 #editorToolbar .ed-status {
-  color: #2e7d32;
+  color: var(--gtfs-go);
   font-size: 12px;
 }
 
@@ -396,13 +421,13 @@ body.editing #sidebar {
   min-height: 200px;
   max-width: calc(100% - 24px);
   max-height: calc(100% - 80px);
-  z-index: 1100;
+  z-index: 1010; /* above the sidebar (1000), below modals (1050) */
   display: flex;
   flex-direction: column;
-  background: #fff;
-  border: 1px solid #aaa;
+  background: var(--gtfs-card);
+  border: 1px solid var(--gtfs-line);
   border-radius: 6px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 18px rgba(29, 42, 51, 0.35);
   overflow: hidden;
 }
 #stopImageHeader {
@@ -439,7 +464,7 @@ body.editing #sidebar {
 #stopImageBody {
   flex: 1 1 auto;
   overflow: auto;
-  background: #f2f2f2;
+  background: #e9e5da; /* matches the timing panel's photo well */
   text-align: center;
 }
 #stopImageImg {
@@ -449,14 +474,14 @@ body.editing #sidebar {
 }
 .sip-empty {
   padding: 24px 16px;
-  color: #888;
+  color: var(--gtfs-ink-soft);
   font-size: 13px;
 }
 #stopImageNotes {
   flex: 0 0 auto;
   padding: 6px 8px 8px;
-  background: #fff;
-  border-top: 1px solid #ddd;
+  background: var(--gtfs-card);
+  border-top: 1px solid var(--gtfs-line);
 }
 .sip-notes-head {
   display: flex;
@@ -464,13 +489,13 @@ body.editing #sidebar {
   justify-content: space-between;
   font-size: 12px;
   font-weight: 600;
-  color: #444;
+  color: var(--gtfs-ink);
   margin-bottom: 4px;
 }
 .sip-notes-status {
   font-weight: 400;
   font-size: 11px;
-  color: #2e7d32;
+  color: var(--gtfs-go);
 }
 #stopImageNotesText {
   width: 100%;
@@ -631,14 +656,14 @@ body.gtfs-page .navbar .navbar-btn {
 }
 .gtfs-route-del {
   flex: 0 0 auto;
-  color: #c0392b;
-  opacity: 0.45;
+  color: var(--gtfs-danger);
+  opacity: 0.7;
   text-decoration: none;
   font-size: 13px;
 }
 .gtfs-route-del:hover {
   opacity: 1;
-  color: #c0392b;
+  color: var(--gtfs-danger);
   text-decoration: none;
 }
 
@@ -749,6 +774,14 @@ body.editing #gtfsEditBtn {
   text-transform: none;
   font-weight: 400;
 }
+/* Buttons in the head would otherwise inherit the display-type styling
+   ("FIT" in tracked uppercase Barlow). */
+.gep-section-head .gep-tools .btn {
+  font-family: "Helvetica Neue", Arial, sans-serif;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 400;
+}
 .gep-status {
   font-family: var(--gtfs-mono);
   font-weight: 400;
@@ -758,7 +791,7 @@ body.editing #gtfsEditBtn {
   color: var(--gtfs-go);
 }
 .gep-status.hint {
-  color: #97917f;
+  color: var(--gtfs-ink-soft);
 }
 .gep-row {
   display: flex;
@@ -778,6 +811,15 @@ body.editing #gtfsEditBtn {
   gap: 4px;
   margin: 0;
   font-weight: 400;
+}
+/* Labels are flex items themselves, so growing the field means growing its
+   label — these two should fill the remaining row width. */
+.gep-row label:has(> #gepLong),
+.gep-row label:has(> #gepOperator) {
+  flex: 1 1 auto;
+}
+.gep-row input[type="checkbox"] {
+  margin: 0; /* Bootstrap's 4px top margin misaligns in centered flex rows */
 }
 .gep-row input[type="text"],
 .gep-row input[type="number"],
@@ -914,7 +956,8 @@ body.editing #gtfsEditBtn {
   min-width: 60px;
 }
 .gep-stop-coord {
-  flex: 0 0 72px;
+  flex: 0 1 72px; /* shrinkable, or rows overflow the narrow-pane basis */
+  min-width: 56px;
   font-family: var(--gtfs-mono);
   font-size: 10px !important;
   color: var(--gtfs-ink-soft) !important;
@@ -936,7 +979,7 @@ body.editing #gtfsEditBtn {
   text-decoration: none;
 }
 .gep-stop-tools .gep-stop-del {
-  color: #c0392b;
+  color: var(--gtfs-danger);
 }
 
 #gtfsTimingBody {
@@ -954,8 +997,12 @@ body.editing #gtfsEditBtn {
 }
 .gep-empty {
   padding: 18px;
-  color: #97917f;
+  color: var(--gtfs-ink-soft);
   font-size: 12px;
+}
+/* The stops hint is a one-line status note, not an empty-state well. */
+#gepStopsHint {
+  padding: 4px 0;
 }
 /* Day-type schedule blocks (weekday/weekend…) */
 .gep-sched-block {
@@ -978,14 +1025,16 @@ body.editing #gtfsEditBtn {
   letter-spacing: 0.08em;
   color: var(--gtfs-ink-soft);
 }
-.gep-sched-del {
-  color: #c0392b;
+.gep-sched-del,
+.gep-band-del {
+  color: var(--gtfs-danger);
   opacity: 0.5;
   cursor: pointer;
   text-decoration: none;
   font-size: 12px;
 }
-.gep-sched-del:hover {
+.gep-sched-del:hover,
+.gep-band-del:hover {
   opacity: 1;
   text-decoration: none;
 }
@@ -993,17 +1042,6 @@ body.editing #gtfsEditBtn {
   margin-bottom: 8px;
 }
 /* Time-of-day frequency bands within a block */
-.gep-band-del {
-  color: #c0392b;
-  opacity: 0.5;
-  cursor: pointer;
-  text-decoration: none;
-  font-size: 12px;
-}
-.gep-band-del:hover {
-  opacity: 1;
-  text-decoration: none;
-}
 .gep-band:only-child .gep-band-del {
   display: none; /* a block always keeps at least one band */
 }
@@ -1047,7 +1085,7 @@ body.editing #gtfsEditBtn {
 }
 .gep-holiday-del {
   flex: 0 0 16px;
-  color: #c0392b;
+  color: var(--gtfs-danger);
   opacity: 0.5;
   cursor: pointer;
   text-decoration: none;
@@ -1082,9 +1120,6 @@ body.editing #gtfsEditBtn {
 .gep-feed-form .gep-row {
   margin-bottom: 8px;
 }
-.gep-feed-form .gep-block {
-  flex: 1 1 40%;
-}
 .gep-feed-subhead {
   font-family: var(--gtfs-display);
   font-weight: 600;
@@ -1105,7 +1140,7 @@ body.editing #gtfsEditBtn {
   font-size: 11px;
   text-transform: none;
   letter-spacing: normal;
-  color: #97917f;
+  color: var(--gtfs-ink-soft);
   margin-left: 8px;
 }
 .gep-agency-head,
@@ -1134,7 +1169,7 @@ body.editing #gtfsEditBtn {
 }
 .gep-agency-del {
   flex: 0 0 16px;
-  color: #c0392b;
+  color: var(--gtfs-danger);
   opacity: 0.5;
   cursor: pointer;
   text-decoration: none;
@@ -1149,7 +1184,7 @@ body.editing #gtfsEditBtn {
 .gep-hint {
   margin: 4px 0 0;
   font-size: 11px;
-  color: #97917f;
+  color: var(--gtfs-ink-soft);
 }
 #feedSettingsModal .modal-title .gep-status {
   margin-left: 8px;
@@ -1175,7 +1210,7 @@ body.editing #gtfsEditBtn {
 }
 .gep-validate-summary.err {
   background: #fae3e0;
-  color: #c0392b;
+  color: var(--gtfs-danger);
 }
 .gep-validate-row {
   display: flex;
@@ -1195,7 +1230,7 @@ body.editing #gtfsEditBtn {
   padding: 1px 0;
 }
 .gep-validate-badge.error {
-  background: #c0392b;
+  background: var(--gtfs-danger);
   color: #fff;
 }
 .gep-validate-badge.warning {
@@ -1217,6 +1252,37 @@ body.editing #gtfsEditBtn {
   }
   #gtfsPanel {
     flex-basis: 320px;
+  }
+}
+/* Below ~820px the three non-shrinking columns can't fit side by side and
+   the GTFS pane would be clipped off-screen — stack them instead. */
+@media (max-width: 820px) {
+  body.gtfs-page {
+    overflow: auto;
+  }
+  .gtfs-layout {
+    flex-direction: column;
+    height: auto;
+  }
+  .gtfs-routes-col {
+    flex: none;
+    max-height: 30vh;
+    border-right: none;
+    border-bottom: 1px solid var(--gtfs-line);
+  }
+  .gtfs-map-col {
+    flex: none;
+    height: 55vh;
+    min-width: 0;
+  }
+  #gtfsPanel {
+    flex: none;
+    width: auto;
+    border-left: none;
+    border-top: 1px solid var(--gtfs-line);
+  }
+  #gtfsBody {
+    overflow-y: visible;
   }
 }
 
