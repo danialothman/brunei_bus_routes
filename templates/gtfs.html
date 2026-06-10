@@ -152,28 +152,12 @@
               <span>Schedule</span>
               <span id="gepStatus" class="gep-status"></span>
             </div>
-            <div class="gep-row">
-              <label>Every <input type="number" id="gepHeadway" min="1" max="1440" placeholder="30" /> min,</label>
-              <label>first <input type="time" id="gepStart" /></label>
-              <label>last <input type="time" id="gepEnd" /></label>
-              <label>run <input type="number" id="gepRun" min="1" max="360" placeholder="auto" /> min</label>
-            </div>
-            <div class="gep-row gep-days">
-              <label><input type="checkbox" class="gep-day" checked />Mo</label>
-              <label><input type="checkbox" class="gep-day" checked />Tu</label>
-              <label><input type="checkbox" class="gep-day" checked />We</label>
-              <label><input type="checkbox" class="gep-day" checked />Th</label>
-              <label><input type="checkbox" class="gep-day" checked />Fr</label>
-              <label><input type="checkbox" class="gep-day" checked />Sa</label>
-              <label><input type="checkbox" class="gep-day" checked />Su</label>
-            </div>
-            <div class="gep-row">
-              <label class="gep-block">Exact departures — when filled, real trips are exported
-                instead of the headway estimate.
-                <textarea id="gepDepartures" rows="3" spellcheck="false"
-                  placeholder="06:30, 07:00, 07:45, …"></textarea>
-              </label>
-            </div>
+            <!-- Day-type schedule blocks (weekday/weekend…), built by JS -->
+            <div id="gepSchedList"></div>
+            <button type="button" class="btn btn-default btn-xs" id="gepSchedAdd"
+              title="Add a day-type schedule block — e.g. a different weekend timetable">
+              + Add day-type schedule
+            </button>
             <div class="gep-row">
               <label>No. <input type="text" id="gepShort" size="5" placeholder="e.g. 01A" /></label>
               <label>Name <input type="text" id="gepLong" placeholder="route long name" /></label>

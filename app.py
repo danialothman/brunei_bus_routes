@@ -444,7 +444,8 @@ def gather_gtfs_routes(year):
             "direction": meta.get("direction", ""),
             "headsign": meta.get("headsign", ""),
             "return_headsign": meta.get("return_headsign", ""),
-            "schedule": meta.get("schedule") or None,
+            "schedules": meta.get("schedules")
+                or ([meta["schedule"]] if meta.get("schedule") else None),
             "segments": geom.get("segments", []),
             "stops": geom.get("stops", []),
         })
@@ -526,54 +527,77 @@ def _validate_gtfs_route_meta(payload):
                 return None, f"{field} must be a string"
             if v.strip():
                 meta[field] = v.strip()[:120]
+    # Schedules: a list of day-type blocks (weekday/weekend…). The legacy
+    # single `schedule` key is accepted as one block.
     sched_in = payload.get("schedule")
     if sched_in:
-        if not isinstance(sched_in, dict):
-            return None, "schedule must be an object"
-        sched = {}
-        hw = sched_in.get("headway_secs")
-        if hw is not None:
-            if not isinstance(hw, (int, float)) or isinstance(hw, bool) \
-                    or not (60 <= hw <= 24 * 3600):
-                return None, "headway_secs must be 60..86400"
-            sched["headway_secs"] = int(hw)
-        for field in ("start_time", "end_time"):
-            v = sched_in.get(field)
-            if v:
-                t = _norm_time(v)
-                if t is None:
-                    return None, f"{field} must be HH:MM or HH:MM:SS"
-                sched[field] = t
-        days = sched_in.get("days")
-        if days is not None:
-            if (not isinstance(days, list) or len(days) != 7
-                    or any(d not in (0, 1, True, False) for d in days)):
-                return None, "days must be 7 values of 0/1"
-            sched["days"] = [int(bool(d)) for d in days]
-        # Exact departure times transcribed from the timing signboard. When
-        # present the export emits one real trip per departure for this route
-        # instead of a synthetic frequency entry.
-        deps = sched_in.get("departures")
-        if deps is not None:
-            if not isinstance(deps, list) or len(deps) > 300:
-                return None, "departures must be a list of times (max 300)"
-            norm = []
-            for d in deps:
-                t = _norm_time(d) if isinstance(d, str) else None
-                if t is None:
-                    return None, f"bad departure time: {str(d)[:20]!r}"
-                norm.append(t)
-            if norm:
-                sched["departures"] = sorted(set(norm))
-        run = sched_in.get("run_secs")
-        if run is not None:
-            if not isinstance(run, (int, float)) or isinstance(run, bool) \
-                    or not (60 <= run <= 6 * 3600):
-                return None, "run_secs must be 60..21600"
-            sched["run_secs"] = int(run)
+        sched, err = _validate_schedule_block(sched_in)
+        if err:
+            return None, err
         if sched:
             meta["schedule"] = sched
+    scheds_in = payload.get("schedules")
+    if scheds_in is not None:
+        if not isinstance(scheds_in, list) or len(scheds_in) > 7:
+            return None, "schedules must be a list of blocks (max 7)"
+        blocks = []
+        for b in scheds_in:
+            sched, err = _validate_schedule_block(b)
+            if err:
+                return None, err
+            if sched:
+                blocks.append(sched)
+        if blocks:
+            meta["schedules"] = blocks
     return meta, None
+
+
+def _validate_schedule_block(sched_in):
+    """Validate one schedule block. Returns (sched_dict, error)."""
+    if not isinstance(sched_in, dict):
+        return None, "schedule must be an object"
+    sched = {}
+    hw = sched_in.get("headway_secs")
+    if hw is not None:
+        if not isinstance(hw, (int, float)) or isinstance(hw, bool) \
+                or not (60 <= hw <= 24 * 3600):
+            return None, "headway_secs must be 60..86400"
+        sched["headway_secs"] = int(hw)
+    for field in ("start_time", "end_time"):
+        v = sched_in.get(field)
+        if v:
+            t = _norm_time(v)
+            if t is None:
+                return None, f"{field} must be HH:MM or HH:MM:SS"
+            sched[field] = t
+    days = sched_in.get("days")
+    if days is not None:
+        if (not isinstance(days, list) or len(days) != 7
+                or any(d not in (0, 1, True, False) for d in days)):
+            return None, "days must be 7 values of 0/1"
+        sched["days"] = [int(bool(d)) for d in days]
+    # Exact departure times transcribed from the timing signboard. When
+    # present the export emits one real trip per departure for this route
+    # instead of a synthetic frequency entry.
+    deps = sched_in.get("departures")
+    if deps is not None:
+        if not isinstance(deps, list) or len(deps) > 300:
+            return None, "departures must be a list of times (max 300)"
+        norm = []
+        for d in deps:
+            t = _norm_time(d) if isinstance(d, str) else None
+            if t is None:
+                return None, f"bad departure time: {str(d)[:20]!r}"
+            norm.append(t)
+        if norm:
+            sched["departures"] = sorted(set(norm))
+    run = sched_in.get("run_secs")
+    if run is not None:
+        if not isinstance(run, (int, float)) or isinstance(run, bool) \
+                or not (60 <= run <= 6 * 3600):
+            return None, "run_secs must be 60..21600"
+        sched["run_secs"] = int(run)
+    return sched, None
 
 
 def _validate_gtfs_feed_config(payload):

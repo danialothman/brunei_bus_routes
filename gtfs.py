@@ -161,10 +161,12 @@ def build_feed(routes, agencies, params):
     """Build a GTFS feed and return it as zip bytes.
 
     routes: [{route_id, short_name, long_name, segments, stops, color?,
-              agency_id?, direction?, headsign?, return_headsign?, schedule?}]
-             where schedule overrides the feed defaults per route:
-             {headway_secs?, start_time?, end_time?, days?[7],
-              departures?: [HH:MM:SS, ...], run_secs?}.
+              agency_id?, direction?, headsign?, return_headsign?,
+              schedules?, schedule?}]
+             where schedules is a list of day-type blocks (weekday/weekend…),
+             each overriding the feed defaults: {headway_secs?, start_time?,
+              end_time?, days?[7], departures?: [HH:MM:SS, ...], run_secs?}.
+             A legacy single `schedule` dict is treated as one block.
              direction="outback" additionally emits a return pattern
              (direction_id 1, reversed shape/stops, departures offset by one
              run time); anything else is a loop/one-way single pattern.
@@ -210,26 +212,10 @@ def build_feed(routes, agencies, params):
         rid = r["route_id"]
         shape_id = f"shp_{rid}"
 
-        # Per-route schedule overrides, falling back to the feed defaults.
-        sched = r.get("schedule") or {}
-        headway = int(sched.get("headway_secs") or params["headway_secs"])
-        start_time = sched.get("start_time") or params["start_time"]
-        end_time = sched.get("end_time") or params["end_time"]
-        days = sched.get("days") or default_days
-        departures = sched.get("departures") or []
-        service_id = _service_for(days)
-
         points = _flatten_segments(r.get("segments", []))
         cum = _cumulative_dist(points)
         total = cum[-1] if cum else 0.0
         has_shape = len(points) >= 2
-
-        # End-to-end run time used to spread intermediate stop times: explicit
-        # run_secs, else estimated from shape length at ~18 km/h (5 m/s) city
-        # bus average, else one headway as a last resort.
-        run = int(sched.get("run_secs") or 0)
-        if run <= 0:
-            run = int(total / 5.0) if total > 0 else headway
 
         # Per-route operator; unknown/unset assignments fall back to the default.
         aid = r.get("agency_id")
@@ -264,8 +250,7 @@ def build_feed(routes, agencies, params):
 
         # Direction patterns. Loop/one-way routes have a single pattern.
         # Out-and-back routes additionally get a return pattern (direction_id
-        # 1): reversed shape, reversed stop order, and — since the bus turns
-        # around at the far terminal — departures offset by one run time.
+        # 1): reversed shape and reversed stop order.
         patterns = [{
             "suffix": "",
             "shape_id": shape_id,
@@ -274,7 +259,6 @@ def build_feed(routes, agencies, params):
             "direction_id": 0,
             "headsign": r.get("headsign", "") or "",
             "entries": stop_entries,
-            "dep_offset": 0,
         }]
         if r.get("direction") == "outback":
             entries_r = [
@@ -289,7 +273,6 @@ def build_feed(routes, agencies, params):
                 "direction_id": 1,
                 "headsign": r.get("return_headsign", "") or "",
                 "entries": entries_r,
-                "dep_offset": run,
             })
 
         for pat in patterns:
@@ -302,51 +285,76 @@ def build_feed(routes, agencies, params):
                     "shape_dist_traveled": f"{pat['cum'][i]:.1f}",
                 })
 
-            # Transcribed departures -> one real trip each (no frequencies
-            # entry). Otherwise one representative trip + a headway.
-            base = f"trip_{rid}{pat['suffix']}"
-            if departures:
-                trip_starts = [
-                    (f"{base}_{i + 1}", _hhmmss_to_secs(d) + pat["dep_offset"])
-                    for i, d in enumerate(departures)
-                ]
-            else:
-                trip_starts = [(base, _hhmmss_to_secs(start_time) + pat["dep_offset"])]
+        # Schedule blocks: day-type variants (e.g. weekday vs weekend), each
+        # with its own days/headway/window/run/departures -> its own
+        # service_id and trip set. A legacy single `schedule` is one block.
+        blocks = r.get("schedules") or [r.get("schedule") or {}]
+        for bi, sched in enumerate(blocks[:7]):
+            headway = int(sched.get("headway_secs") or params["headway_secs"])
+            start_time = sched.get("start_time") or params["start_time"]
+            end_time = sched.get("end_time") or params["end_time"]
+            days = sched.get("days") or default_days
+            departures = sched.get("departures") or []
+            service_id = _service_for(days)
 
-            for trip_id, dep_secs in trip_starts:
-                trips_rows.append({
-                    "route_id": rid,
-                    "service_id": service_id,
-                    "trip_id": trip_id,
-                    "trip_headsign": pat["headsign"],
-                    "direction_id": pat["direction_id"],
-                    "shape_id": pat["shape_id"] if has_shape else "",
-                })
-                # Monotonic times keep the trip valid even when projection wobbles.
-                prev_secs = None
-                for seq, (sid, frac, dist) in enumerate(pat["entries"], 1):
-                    t = dep_secs + frac * run
-                    if prev_secs is not None and t <= prev_secs:
-                        t = prev_secs + 1
-                    prev_secs = t
-                    hhmm = _secs_to_hhmmss(t)
-                    stop_times_rows.append({
+            # End-to-end run time used to spread intermediate stop times:
+            # explicit run_secs, else estimated from shape length at ~18 km/h
+            # (5 m/s) city bus average, else one headway as a last resort.
+            run = int(sched.get("run_secs") or 0)
+            if run <= 0:
+                run = int(total / 5.0) if total > 0 else headway
+
+            bsuf = "" if bi == 0 else f"_b{bi + 1}"
+            for pat in patterns:
+                # The bus turns around at the far terminal, so the return
+                # direction departs one run time after the outbound.
+                offset = run if pat["direction_id"] else 0
+                base = f"trip_{rid}{bsuf}{pat['suffix']}"
+
+                # Transcribed departures -> one real trip each (no frequencies
+                # entry). Otherwise one representative trip + a headway.
+                if departures:
+                    trip_starts = [
+                        (f"{base}_{i + 1}", _hhmmss_to_secs(d) + offset)
+                        for i, d in enumerate(departures)
+                    ]
+                else:
+                    trip_starts = [(base, _hhmmss_to_secs(start_time) + offset)]
+
+                for trip_id, dep_secs in trip_starts:
+                    trips_rows.append({
+                        "route_id": rid,
+                        "service_id": service_id,
                         "trip_id": trip_id,
-                        "arrival_time": hhmm,
-                        "departure_time": hhmm,
-                        "stop_id": sid,
-                        "stop_sequence": seq,
-                        "shape_dist_traveled": f"{dist:.1f}" if has_shape else "",
+                        "trip_headsign": pat["headsign"],
+                        "direction_id": pat["direction_id"],
+                        "shape_id": pat["shape_id"] if has_shape else "",
                     })
+                    # Monotonic times keep the trip valid even when projection wobbles.
+                    prev_secs = None
+                    for seq, (sid, frac, dist) in enumerate(pat["entries"], 1):
+                        t = dep_secs + frac * run
+                        if prev_secs is not None and t <= prev_secs:
+                            t = prev_secs + 1
+                        prev_secs = t
+                        hhmm = _secs_to_hhmmss(t)
+                        stop_times_rows.append({
+                            "trip_id": trip_id,
+                            "arrival_time": hhmm,
+                            "departure_time": hhmm,
+                            "stop_id": sid,
+                            "stop_sequence": seq,
+                            "shape_dist_traveled": f"{dist:.1f}" if has_shape else "",
+                        })
 
-            if not departures:
-                freq_rows.append({
-                    "trip_id": base,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "headway_secs": headway,
-                    "exact_times": 0,
-                })
+                if not departures:
+                    freq_rows.append({
+                        "trip_id": base,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "headway_secs": headway,
+                        "exact_times": 0,
+                    })
 
     calendar_rows = [
         {

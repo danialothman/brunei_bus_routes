@@ -164,12 +164,14 @@ agency and fare settings live under **⚙ Feed settings** in the top bar, and
 **⬇ Download GTFS** grabs the zip. User-drawn routes are exported too, so the
 full flow is draw → schedule → download. The GTFS pane covers:
 
-- **Per-route schedule** — headway, first/last bus, operating days (becomes
-  `frequencies.txt` and per-pattern `calendar.txt` services), or **exact
-  departure times** transcribed from the signboard — routes with departures
-  export one real trip per departure (pure schedule-based GTFS, no synthetic
-  frequency entry), with intermediate stop times spread over the route's run
-  time (entered, or estimated from shape length at ~18 km/h)
+- **Per-route schedules in day-type blocks** — each block has its own
+  operating days, headway, first/last bus, run time, and optional **exact
+  departure times** transcribed from the signboard, so a route can carry e.g.
+  a weekday and a different weekend timetable (each block becomes its own
+  `calendar.txt` service). Routes with departures export one real trip per
+  departure (pure schedule-based GTFS, no synthetic frequency entry), with
+  intermediate stop times spread over the run time (entered, or estimated
+  from shape length at ~18 km/h)
 - **Route metadata** — route number, long name, color, and the operator
   running the route (`routes.txt`, including per-route `agency_id`)
 - **Directions & headsigns** — mark a route *out & back* to export both

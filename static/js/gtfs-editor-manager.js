@@ -374,9 +374,9 @@ APP.GtfsEditorManager = class {
 
   _formInputs() {
     return $(
-      "#gepHeadway, #gepStart, #gepEnd, #gepRun, #gepDepartures, " +
+      "#gepSchedList input, #gepSchedList textarea, #gepSchedAdd, " +
         "#gepShort, #gepLong, #gepColor, #gepOperator, #gepDirection, " +
-        "#gepHeadsign, #gepReturnHeadsign, .gep-day"
+        "#gepHeadsign, #gepReturnHeadsign"
     );
   }
 
@@ -386,20 +386,77 @@ APP.GtfsEditorManager = class {
 
   // --- Form <-> meta -------------------------------------------------------------
 
+  /** One day-type schedule block's form (weekday/weekend…). */
+  _schedBlockEl(sched) {
+    const block = $('<div class="gep-sched-block"></div>');
+    const head = $('<div class="gep-sched-head"></div>');
+    head.append($('<span class="gep-sched-title"></span>'));
+    head.append($('<a class="gep-sched-del" title="Remove this schedule block">✕</a>'));
+    block.append(head);
+    const days = sched.days || [1, 1, 1, 1, 1, 1, 1];
+    const daysRow = $('<div class="gep-row gep-days"></div>');
+    ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].forEach((d, i) => {
+      const label = $("<label></label>").text(d);
+      label.prepend(
+        $('<input type="checkbox" class="gep-day" />').prop("checked", !!days[i])
+      );
+      daysRow.append(label);
+    });
+    block.append(daysRow);
+    const row = $('<div class="gep-row"></div>');
+    row.append(
+      $("<label>Every </label>").append(
+        $('<input type="number" class="gep-headway" min="1" max="1440" />')
+          .attr("placeholder", this._defHeadwayMin || 30)
+          .val(sched.headway_secs ? Math.round(sched.headway_secs / 60) : "")
+      ).append(" min,")
+    );
+    row.append(
+      $("<label>first </label>").append(
+        $('<input type="time" class="gep-start" />').val((sched.start_time || "").slice(0, 5))
+      )
+    );
+    row.append(
+      $("<label>last </label>").append(
+        $('<input type="time" class="gep-end" />').val((sched.end_time || "").slice(0, 5))
+      )
+    );
+    row.append(
+      $("<label>run </label>").append(
+        $('<input type="number" class="gep-run" min="1" max="360" placeholder="auto" />')
+          .val(sched.run_secs ? Math.round(sched.run_secs / 60) : "")
+      ).append(" min")
+    );
+    block.append(row);
+    const depRow = $('<div class="gep-row"></div>');
+    depRow.append(
+      $('<label class="gep-block">Exact departures — when filled, real trips are exported instead of the headway estimate.</label>').append(
+        $('<textarea class="gep-departures" rows="2" spellcheck="false" placeholder="06:30, 07:00, 07:45, …"></textarea>')
+          .val((sched.departures || []).map((t) => t.slice(0, 5)).join(", "))
+      )
+    );
+    block.append(depRow);
+    return block;
+  }
+
+  _renderSched(blocks) {
+    const list = $("#gepSchedList").empty();
+    (blocks.length ? blocks : [{}]).forEach((b) => list.append(this._schedBlockEl(b)));
+    this._renumberSched();
+  }
+
+  /** Title each block and only offer ✕ when there is more than one. */
+  _renumberSched() {
+    const rows = $("#gepSchedList .gep-sched-block");
+    rows.each((i, el) => {
+      $(el).find(".gep-sched-title").text(`Schedule ${i + 1}`);
+    });
+    $("#gepSchedList .gep-sched-head").toggle(rows.length > 1);
+  }
+
   _fillForm(meta) {
     this._populating = true;
-    const sched = meta.schedule || {};
-    $("#gepHeadway").val(sched.headway_secs ? Math.round(sched.headway_secs / 60) : "");
-    $("#gepStart").val((sched.start_time || "").slice(0, 5));
-    $("#gepEnd").val((sched.end_time || "").slice(0, 5));
-    $("#gepRun").val(sched.run_secs ? Math.round(sched.run_secs / 60) : "");
-    $("#gepDepartures").val(
-      (sched.departures || []).map((t) => t.slice(0, 5)).join(", ")
-    );
-    const days = sched.days || [1, 1, 1, 1, 1, 1, 1];
-    $(".gep-day").each((i, el) => {
-      el.checked = !!days[i];
-    });
+    this._renderSched(meta.schedules || (meta.schedule ? [meta.schedule] : []));
     $("#gepShort").val(meta.short_name || "");
     $("#gepLong").val(meta.long_name || "");
     $("#gepColor").val(meta.color ? "#" + meta.color : "");
@@ -418,21 +475,23 @@ APP.GtfsEditorManager = class {
 
   _readForm() {
     const meta = {};
-    const sched = {};
-    const headway = parseInt($("#gepHeadway").val(), 10);
-    if (headway > 0) sched.headway_secs = headway * 60;
-    if ($("#gepStart").val()) sched.start_time = $("#gepStart").val();
-    if ($("#gepEnd").val()) sched.end_time = $("#gepEnd").val();
-    const run = parseInt($("#gepRun").val(), 10);
-    if (run > 0) sched.run_secs = run * 60;
-    const deps = $("#gepDepartures")
-      .val()
-      .split(/[\s,;]+/)
-      .filter(Boolean);
-    if (deps.length) sched.departures = deps;
-    const days = $(".gep-day").map((_, el) => (el.checked ? 1 : 0)).get();
-    if (days.some((d) => !d)) sched.days = days; // only save non-default patterns
-    if (Object.keys(sched).length) meta.schedule = sched;
+    const blocks = [];
+    $("#gepSchedList .gep-sched-block").each((_, el) => {
+      const b = $(el);
+      const sched = {};
+      const headway = parseInt(b.find(".gep-headway").val(), 10);
+      if (headway > 0) sched.headway_secs = headway * 60;
+      if (b.find(".gep-start").val()) sched.start_time = b.find(".gep-start").val();
+      if (b.find(".gep-end").val()) sched.end_time = b.find(".gep-end").val();
+      const run = parseInt(b.find(".gep-run").val(), 10);
+      if (run > 0) sched.run_secs = run * 60;
+      const deps = b.find(".gep-departures").val().split(/[\s,;]+/).filter(Boolean);
+      if (deps.length) sched.departures = deps;
+      const days = b.find(".gep-day").map((_, d) => (d.checked ? 1 : 0)).get();
+      if (days.some((d) => !d)) sched.days = days; // only save non-default patterns
+      if (Object.keys(sched).length) blocks.push(sched); // all-default blocks drop out
+    });
+    if (blocks.length) meta.schedules = blocks;
     if ($("#gepShort").val().trim()) meta.short_name = $("#gepShort").val().trim();
     if ($("#gepLong").val().trim()) meta.long_name = $("#gepLong").val().trim();
     const color = $("#gepColor").val().trim();
@@ -497,7 +556,8 @@ APP.GtfsEditorManager = class {
         $("#gepFarePrice").val(fare.price != null ? fare.price : "");
         $("#gepFareCurrency").val(fare.currency || "");
         if (def.headway_secs) {
-          $("#gepHeadway").attr("placeholder", Math.round(def.headway_secs / 60));
+          this._defHeadwayMin = Math.round(def.headway_secs / 60);
+          $("#gepSchedList .gep-headway").attr("placeholder", this._defHeadwayMin);
         }
         this._populating = false;
       });
@@ -696,14 +756,26 @@ APP.GtfsEditorManager = class {
     $("#gepZoomOut").on("click", () => this._setZoom(this.zoom / 1.25));
     $("#gepFit").on("click", () => this._setZoom(1));
     $(
-      "#gepHeadway, #gepStart, #gepEnd, #gepRun, #gepDepartures, " +
-        "#gepShort, #gepLong, #gepColor, #gepOperator, #gepDirection, " +
+      "#gepShort, #gepLong, #gepColor, #gepOperator, #gepDirection, " +
         "#gepHeadsign, #gepReturnHeadsign"
     ).on("input change", () => this._queueSave());
     $("#gepDirection").on("change", () => {
       $("#gepReturnWrap").toggle($("#gepDirection").val() === "outback");
     });
-    $(".gep-day").on("change", () => this._queueSave());
+    // Schedule blocks are rebuilt per route — delegate.
+    $("#gepSchedList").on("input change", "input, textarea", () => this._queueSave());
+    $("#gepSchedList").on("click", ".gep-sched-del", (e) => {
+      const block = $(e.currentTarget).closest(".gep-sched-block");
+      if (block.find("input").prop("disabled")) return;
+      block.remove();
+      this._renumberSched();
+      this._queueSave();
+    });
+    $("#gepSchedAdd").on("click", () => {
+      if (!this.current) return;
+      $("#gepSchedList").append(this._schedBlockEl({}));
+      this._renumberSched();
+    });
     $("#gepFarePrice, #gepFareCurrency").on("input change", () => this._queueFeedSave());
     // Operator rows are dynamic — delegate, and refresh the route pane's
     // dropdown as names change.

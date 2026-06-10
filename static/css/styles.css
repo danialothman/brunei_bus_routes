@@ -934,6 +934,42 @@ body.editing #gtfsEditBtn {
   color: #97917f;
   font-size: 12px;
 }
+/* Day-type schedule blocks (weekday/weekend…) */
+.gep-sched-block {
+  border: 1px dashed var(--gtfs-line);
+  border-radius: 4px;
+  padding: 6px 8px 8px;
+  margin-bottom: 6px;
+}
+.gep-sched-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.gep-sched-title {
+  font-family: var(--gtfs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gtfs-ink-soft);
+}
+.gep-sched-del {
+  color: #c0392b;
+  opacity: 0.5;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 12px;
+}
+.gep-sched-del:hover {
+  opacity: 1;
+  text-decoration: none;
+}
+#gepSchedAdd {
+  margin-bottom: 8px;
+}
+
 /* Route pane selects (operator, direction type) */
 .gep-row select {
   font-size: 12px;
