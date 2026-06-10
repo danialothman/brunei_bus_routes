@@ -2,6 +2,7 @@ from flask import (
     Flask, render_template, send_from_directory, jsonify, json, request, Response,
     url_for,
 )
+import datetime
 import os
 import re
 import math
@@ -576,6 +577,34 @@ def _validate_schedule_block(sched_in):
             if t is None:
                 return None, f"{field} must be HH:MM or HH:MM:SS"
             sched[field] = t
+    # Time-of-day frequency bands (peak/off-peak): each becomes its own
+    # frequencies.txt row. The legacy top-level fields above act as band one.
+    bands_in = sched_in.get("bands")
+    if bands_in is not None:
+        if not isinstance(bands_in, list) or len(bands_in) > 10:
+            return None, "bands must be a list (max 10)"
+        bands = []
+        for b in bands_in:
+            if not isinstance(b, dict):
+                return None, "each band must be an object"
+            band = {}
+            bh = b.get("headway_secs")
+            if bh is not None:
+                if not isinstance(bh, (int, float)) or isinstance(bh, bool) \
+                        or not (60 <= bh <= 24 * 3600):
+                    return None, "band headway_secs must be 60..86400"
+                band["headway_secs"] = int(bh)
+            for field in ("start_time", "end_time"):
+                v = b.get(field)
+                if v:
+                    t = _norm_time(v)
+                    if t is None:
+                        return None, f"band {field} must be HH:MM or HH:MM:SS"
+                    band[field] = t
+            if band:
+                bands.append(band)
+        if bands:
+            sched["bands"] = bands
     days = sched_in.get("days")
     if days is not None:
         if (not isinstance(days, list) or len(days) != 7
@@ -660,6 +689,36 @@ def _validate_gtfs_feed_config(payload):
                     agency[field] = v.strip()[:300]
         if agency:
             config["agency"] = agency
+    # Holiday exceptions -> calendar_dates.txt.
+    holidays_in = payload.get("holidays")
+    if holidays_in is not None:
+        if not isinstance(holidays_in, list) or len(holidays_in) > 50:
+            return None, "holidays must be a list (max 50)"
+        holidays = []
+        for h in holidays_in:
+            if not isinstance(h, dict):
+                return None, "each holiday must be an object"
+            date = h.get("date", "")
+            if not isinstance(date, str):
+                return None, "holiday date must be a string"
+            date = date.replace("-", "").strip()
+            try:
+                datetime.datetime.strptime(date, "%Y%m%d")
+            except ValueError:
+                return None, f"bad holiday date: {date[:12]!r}"
+            mode = h.get("mode", "none")
+            if mode not in ("none", "sunday"):
+                return None, "holiday mode must be 'none' or 'sunday'"
+            entry = {"date": date, "mode": mode}
+            name = h.get("name")
+            if name is not None:
+                if not isinstance(name, str):
+                    return None, "holiday name must be a string"
+                if name.strip():
+                    entry["name"] = name.strip()[:100]
+            holidays.append(entry)
+        if holidays:
+            config["holidays"] = sorted(holidays, key=lambda x: x["date"])
     fare_in = payload.get("fare")
     if fare_in:
         if not isinstance(fare_in, dict):
@@ -828,6 +887,8 @@ def gtfs_feed_inputs(year):
     params = dict(GTFS_PARAMS, feed_version=f"{year}.1")
     if config.get("fare"):
         params["fare"] = config["fare"]
+    if config.get("holidays"):
+        params["holidays"] = config["holidays"]
     return routes, resolved_agencies(year), params
 
 

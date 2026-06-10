@@ -165,13 +165,15 @@ agency and fare settings live under **⚙ Feed settings** in the top bar, and
 full flow is draw → schedule → download. The GTFS pane covers:
 
 - **Per-route schedules in day-type blocks** — each block has its own
-  operating days, headway, first/last bus, run time, and optional **exact
-  departure times** transcribed from the signboard, so a route can carry e.g.
-  a weekday and a different weekend timetable (each block becomes its own
-  `calendar.txt` service). Routes with departures export one real trip per
-  departure (pure schedule-based GTFS, no synthetic frequency entry), with
-  intermediate stop times spread over the run time (entered, or estimated
-  from shape length at ~18 km/h)
+  operating days, run time, optional **exact departure times** transcribed
+  from the signboard, and **time-of-day frequency bands** (peak/off-peak:
+  "every 10 min 06:00–08:30, every 30 min 08:30–16:00…" → one
+  `frequencies.txt` row per band). A route can carry e.g. a weekday and a
+  different weekend timetable (each block becomes its own `calendar.txt`
+  service). Routes with departures export one real trip per departure (pure
+  schedule-based GTFS, no synthetic frequency entry), with intermediate stop
+  times spread over the run time (entered, or estimated from shape length at
+  ~18 km/h)
 - **Route metadata** — route number, long name, color, and the operator
   running the route (`routes.txt`, including per-route `agency_id`)
 - **Directions & headsigns** — mark a route *out & back* to export both
@@ -184,7 +186,9 @@ full flow is draw → schedule → download. The GTFS pane covers:
   edits save as new geometry versions (official routes become editable via
   the ✎ copy flow)
 - **Feed settings** — the operator list (multiple companies supported; the
-  first is the default for unassigned routes) and flat fare (`agency.txt`,
+  first is the default for unassigned routes), holiday exceptions ("no
+  service" or "Sunday timetable" per date → weekday-aware
+  `calendar_dates.txt` rows), and flat fare (`agency.txt`,
   `fare_attributes.txt`)
 - **Timing signboard reference** — the official JPD timing photo for the route
   (`docs/<year>/images/timings/`) is shown beside the form so departure times

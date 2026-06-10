@@ -12,6 +12,7 @@ placeholder headways with real values (e.g. transcribed from the JPD timing
 signboards) when they're known.
 """
 import csv
+import datetime
 import io
 import math
 import re
@@ -24,11 +25,11 @@ import zipfile
 STOP_MERGE_RADIUS_M = 40.0
 
 # GTFS files we emit, in a stable order (zip listing reads sensibly).
-# fare_attributes.txt is only present when a fare is configured.
+# fare_attributes.txt / calendar_dates.txt are only present when configured.
 _FILE_ORDER = [
     "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
-    "shapes.txt", "frequencies.txt", "calendar.txt", "fare_attributes.txt",
-    "feed_info.txt",
+    "shapes.txt", "frequencies.txt", "calendar.txt", "calendar_dates.txt",
+    "fare_attributes.txt", "feed_info.txt",
 ]
 
 
@@ -215,7 +216,7 @@ def validate_feed(data):
                     add("error", "missing_column",
                         f"required column absent", f"{fname}: {c}")
     for opt in ("shapes.txt", "frequencies.txt", "feed_info.txt",
-                "fare_attributes.txt"):
+                "fare_attributes.txt", "calendar_dates.txt"):
         tables[opt] = table(opt) or []
     if "feed_info.txt" not in names:
         add("warning", "no_feed_info", "feed_info.txt is recommended")
@@ -334,6 +335,7 @@ def validate_feed(data):
             add("warning", "service_no_days", "service runs on no days",
                 c.get("service_id"))
 
+    freq_windows = {}
     for f in tables["frequencies.txt"]:
         if f.get("trip_id") not in trip_ids:
             add("error", "bad_reference", "frequencies.trip_id not in trips.txt",
@@ -344,10 +346,32 @@ def validate_feed(data):
         except ValueError:
             add("error", "bad_headway", "headway_secs must be a positive integer",
                 f.get("trip_id"))
-        if (f.get("start_time", "") and f.get("end_time", "")
-                and _hhmmss_to_secs(f["start_time"]) >= _hhmmss_to_secs(f["end_time"])):
-            add("error", "bad_window", "frequency start_time not before end_time",
-                f.get("trip_id"))
+        if f.get("start_time", "") and f.get("end_time", ""):
+            s, e = _hhmmss_to_secs(f["start_time"]), _hhmmss_to_secs(f["end_time"])
+            if s >= e:
+                add("error", "bad_window",
+                    "frequency start_time not before end_time", f.get("trip_id"))
+            freq_windows.setdefault(f.get("trip_id"), []).append((s, e))
+    for tid, wins in freq_windows.items():
+        wins.sort()
+        for (s1, e1), (s2, e2) in zip(wins, wins[1:]):
+            if s2 < e1:
+                add("error", "freq_overlap",
+                    "overlapping frequency windows for one trip", tid)
+                break
+
+    for cd in tables["calendar_dates.txt"]:
+        if cd.get("service_id") not in service_ids:
+            add("error", "bad_reference",
+                "calendar_dates.service_id not in calendar.txt",
+                cd.get("service_id"))
+        if not _DATE_OK.match(cd.get("date", "")):
+            add("error", "bad_date", "calendar_dates date is not YYYYMMDD",
+                f"{cd.get('service_id')}: {cd.get('date')}")
+        if cd.get("exception_type") not in ("1", "2"):
+            add("error", "bad_exception",
+                "calendar_dates exception_type must be 1 or 2",
+                cd.get("service_id"))
 
     prev = {}
     for s in tables["shapes.txt"]:
@@ -518,9 +542,16 @@ def build_feed(routes, agencies, params):
         # service_id and trip set. A legacy single `schedule` is one block.
         blocks = r.get("schedules") or [r.get("schedule") or {}]
         for bi, sched in enumerate(blocks[:7]):
-            headway = int(sched.get("headway_secs") or params["headway_secs"])
-            start_time = sched.get("start_time") or params["start_time"]
-            end_time = sched.get("end_time") or params["end_time"]
+            # Time-of-day bands: [{start_time, end_time, headway_secs}, ...]
+            # (peak vs off-peak). Legacy top-level fields are band one.
+            bands = sched.get("bands") or [{
+                k: sched[k]
+                for k in ("headway_secs", "start_time", "end_time")
+                if sched.get(k)
+            }]
+            headway = int(bands[0].get("headway_secs") or params["headway_secs"])
+            start_time = bands[0].get("start_time") or params["start_time"]
+            end_time = bands[0].get("end_time") or params["end_time"]
             days = sched.get("days") or default_days
             departures = sched.get("departures") or []
             service_id = _service_for(days)
@@ -580,13 +611,16 @@ def build_feed(routes, agencies, params):
                         })
 
                 if not departures:
-                    freq_rows.append({
-                        "trip_id": base,
-                        "start_time": start_time,
-                        "end_time": end_time,
-                        "headway_secs": headway,
-                        "exact_times": 0,
-                    })
+                    # One frequencies.txt row per time-of-day band, all
+                    # against the same representative trip.
+                    for band in bands:
+                        freq_rows.append({
+                            "trip_id": base,
+                            "start_time": band.get("start_time") or params["start_time"],
+                            "end_time": band.get("end_time") or params["end_time"],
+                            "headway_secs": int(band.get("headway_secs") or params["headway_secs"]),
+                            "exact_times": 0,
+                        })
 
     calendar_rows = [
         {
@@ -599,6 +633,34 @@ def build_feed(routes, agencies, params):
         }
         for key, sid in sorted(services.items(), key=lambda kv: kv[1])
     ]
+
+    # Holiday exceptions (calendar_dates.txt). Each service is adjusted
+    # relative to what it normally does on that date's weekday, so no
+    # redundant added-but-already-active rows are emitted:
+    #   mode "none":   services active that weekday are removed (type 2)
+    #   mode "sunday": Sunday-running services are added where inactive
+    #                  (type 1), non-Sunday services are removed (type 2)
+    calendar_dates_rows = []
+    for h in params.get("holidays") or []:
+        date = h.get("date", "")
+        try:
+            wd = datetime.datetime.strptime(date, "%Y%m%d").weekday()  # Mon=0
+        except ValueError:
+            continue
+        sunday_mode = h.get("mode") == "sunday"
+        for key, sid in sorted(services.items(), key=lambda kv: kv[1]):
+            active = key[wd] == 1
+            if sunday_mode:
+                runs_sunday = key[6] == 1
+                if runs_sunday and not active:
+                    calendar_dates_rows.append(
+                        {"service_id": sid, "date": date, "exception_type": 1})
+                elif not runs_sunday and active:
+                    calendar_dates_rows.append(
+                        {"service_id": sid, "date": date, "exception_type": 2})
+            elif active:
+                calendar_dates_rows.append(
+                    {"service_id": sid, "date": date, "exception_type": 2})
 
     agency_rows = [{
         "agency_id": a["id"],
@@ -652,6 +714,10 @@ def build_feed(routes, agencies, params):
         tables["frequencies.txt"] = _csv(
             ["trip_id", "start_time", "end_time", "headway_secs", "exact_times"],
             freq_rows)
+
+    if calendar_dates_rows:
+        tables["calendar_dates.txt"] = _csv(
+            ["service_id", "date", "exception_type"], calendar_dates_rows)
 
     # Optional flat fare (e.g. Brunei's B$1): payment on board, no transfers info.
     fare = params.get("fare") or {}

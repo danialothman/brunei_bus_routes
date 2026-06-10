@@ -414,31 +414,27 @@ APP.GtfsEditorManager = class {
       daysRow.append(label);
     });
     block.append(daysRow);
-    const row = $('<div class="gep-row"></div>');
-    row.append(
-      $("<label>Every </label>").append(
-        $('<input type="number" class="gep-headway" min="1" max="1440" />')
-          .attr("placeholder", this._defHeadwayMin || 30)
-          .val(sched.headway_secs ? Math.round(sched.headway_secs / 60) : "")
-      ).append(" min,")
+    // Time-of-day frequency bands (peak/off-peak); legacy single-headway
+    // schedules render as one band.
+    const bandList = $('<div class="gep-band-list"></div>');
+    const bands = sched.bands || [{
+      headway_secs: sched.headway_secs,
+      start_time: sched.start_time,
+      end_time: sched.end_time,
+    }];
+    bands.forEach((b) => bandList.append(this._bandRow(b)));
+    block.append(bandList);
+    const foot = $('<div class="gep-row"></div>');
+    foot.append(
+      $('<a class="gep-band-add" title="Add a peak/off-peak headway window">+ time band</a>')
     );
-    row.append(
-      $("<label>first </label>").append(
-        $('<input type="time" class="gep-start" />').val((sched.start_time || "").slice(0, 5))
-      )
-    );
-    row.append(
-      $("<label>last </label>").append(
-        $('<input type="time" class="gep-end" />').val((sched.end_time || "").slice(0, 5))
-      )
-    );
-    row.append(
+    foot.append(
       $("<label>run </label>").append(
         $('<input type="number" class="gep-run" min="1" max="360" placeholder="auto" />')
           .val(sched.run_secs ? Math.round(sched.run_secs / 60) : "")
       ).append(" min")
     );
-    block.append(row);
+    block.append(foot);
     const depRow = $('<div class="gep-row"></div>');
     depRow.append(
       $('<label class="gep-block">Exact departures — when filled, real trips are exported instead of the headway estimate.</label>').append(
@@ -448,6 +444,30 @@ APP.GtfsEditorManager = class {
     );
     block.append(depRow);
     return block;
+  }
+
+  /** One time-of-day frequency window: "every N min, HH:MM–HH:MM". */
+  _bandRow(band) {
+    const row = $('<div class="gep-row gep-band"></div>');
+    row.append(
+      $("<label>Every </label>").append(
+        $('<input type="number" class="gep-headway" min="1" max="1440" />')
+          .attr("placeholder", this._defHeadwayMin || 30)
+          .val(band.headway_secs ? Math.round(band.headway_secs / 60) : "")
+      ).append(" min,")
+    );
+    row.append(
+      $("<label>from </label>").append(
+        $('<input type="time" class="gep-start" />').val((band.start_time || "").slice(0, 5))
+      )
+    );
+    row.append(
+      $("<label>to </label>").append(
+        $('<input type="time" class="gep-end" />').val((band.end_time || "").slice(0, 5))
+      )
+    );
+    row.append($('<a class="gep-band-del" title="Remove this time band">✕</a>'));
+    return row;
   }
 
   _renderSched(blocks) {
@@ -490,10 +510,17 @@ APP.GtfsEditorManager = class {
     $("#gepSchedList .gep-sched-block").each((_, el) => {
       const b = $(el);
       const sched = {};
-      const headway = parseInt(b.find(".gep-headway").val(), 10);
-      if (headway > 0) sched.headway_secs = headway * 60;
-      if (b.find(".gep-start").val()) sched.start_time = b.find(".gep-start").val();
-      if (b.find(".gep-end").val()) sched.end_time = b.find(".gep-end").val();
+      const bands = [];
+      b.find(".gep-band").each((_, bel) => {
+        const bb = $(bel);
+        const band = {};
+        const headway = parseInt(bb.find(".gep-headway").val(), 10);
+        if (headway > 0) band.headway_secs = headway * 60;
+        if (bb.find(".gep-start").val()) band.start_time = bb.find(".gep-start").val();
+        if (bb.find(".gep-end").val()) band.end_time = bb.find(".gep-end").val();
+        if (Object.keys(band).length) bands.push(band);
+      });
+      if (bands.length) sched.bands = bands;
       const run = parseInt(b.find(".gep-run").val(), 10);
       if (run > 0) sched.run_secs = run * 60;
       const deps = b.find(".gep-departures").val().split(/[\s,;]+/).filter(Boolean);
@@ -563,6 +590,8 @@ APP.GtfsEditorManager = class {
         this._defaultAgency = agencies[0] || { id: "ADBS", name: (def.agency || {}).name || "Default" };
         this._renderAgencyRows(agencies);
         this._updateOperatorOptions();
+        const list = $("#gepHolidayList").empty();
+        (c.holidays || []).forEach((h) => list.append(this._holidayRow(h)));
         const fare = c.fare || {};
         $("#gepFarePrice").val(fare.price != null ? fare.price : "");
         $("#gepFareCurrency").val(fare.currency || "");
@@ -587,6 +616,41 @@ APP.GtfsEditorManager = class {
     row.append($('<input type="text" class="gep-agency-phone" placeholder="+673 …" />').val(a.phone || ""));
     row.append($('<a class="gep-agency-del" title="Remove operator">✕</a>'));
     return row;
+  }
+
+  _holidayRow(h) {
+    const row = $('<div class="gep-holiday-row"></div>');
+    const v = h.date
+      ? `${h.date.slice(0, 4)}-${h.date.slice(4, 6)}-${h.date.slice(6, 8)}`
+      : "";
+    row.append($('<input type="date" class="gep-holiday-date" />').val(v));
+    row.append(
+      $(
+        '<select class="gep-holiday-mode">' +
+          '<option value="none">no service</option>' +
+          '<option value="sunday">Sunday timetable</option></select>'
+      ).val(h.mode || "none")
+    );
+    row.append(
+      $('<input type="text" class="gep-holiday-name" placeholder="name (optional)" />')
+        .val(h.name || "")
+    );
+    row.append($('<a class="gep-holiday-del" title="Remove holiday">✕</a>'));
+    return row;
+  }
+
+  _holidayData() {
+    const out = [];
+    $("#gepHolidayList .gep-holiday-row").each((_, el) => {
+      const row = $(el);
+      const date = (row.find(".gep-holiday-date").val() || "").replace(/-/g, "");
+      if (!/^\d{8}$/.test(date)) return; // dateless rows are drafts
+      const entry = { date, mode: row.find(".gep-holiday-mode").val() || "none" };
+      const name = row.find(".gep-holiday-name").val().trim();
+      if (name) entry.name = name;
+      out.push(entry);
+    });
+    return out;
   }
 
   /** Operators as data, from the modal rows. Rows without an id get one
@@ -649,6 +713,8 @@ APP.GtfsEditorManager = class {
     const config = {};
     const agencies = this._agencyData(true); // pin ids now that typing settled
     if (agencies.length) config.agencies = agencies;
+    const holidays = this._holidayData();
+    if (holidays.length) config.holidays = holidays;
     const fare = {};
     if ($("#gepFarePrice").val() !== "") fare.price = parseFloat($("#gepFarePrice").val());
     if ($("#gepFareCurrency").val().trim()) fare.currency = $("#gepFareCurrency").val().trim();
@@ -856,6 +922,17 @@ APP.GtfsEditorManager = class {
       $("#gepSchedList").append(this._schedBlockEl({}));
       this._renumberSched();
     });
+    $("#gepSchedList").on("click", ".gep-band-add", (e) => {
+      const block = $(e.currentTarget).closest(".gep-sched-block");
+      if (block.find("input").prop("disabled")) return;
+      block.find(".gep-band-list").append(this._bandRow({}));
+    });
+    $("#gepSchedList").on("click", ".gep-band-del", (e) => {
+      const band = $(e.currentTarget).closest(".gep-band");
+      if (band.find("input").prop("disabled")) return;
+      band.remove();
+      this._queueSave();
+    });
     $("#gepFarePrice, #gepFareCurrency").on("input change", () => this._queueFeedSave());
     // Operator rows are dynamic — delegate, and refresh the route pane's
     // dropdown as names change.
@@ -870,6 +947,16 @@ APP.GtfsEditorManager = class {
     });
     $("#gepAgencyAdd").on("click", () => {
       $("#gepAgencyList").append(this._agencyRow({}));
+    });
+    $("#gepHolidayList").on("input change", "input, select", () =>
+      this._queueFeedSave()
+    );
+    $("#gepHolidayList").on("click", ".gep-holiday-del", (e) => {
+      $(e.currentTarget).closest(".gep-holiday-row").remove();
+      this._queueFeedSave();
+    });
+    $("#gepHolidayAdd").on("click", () => {
+      $("#gepHolidayList").append(this._holidayRow({}));
     });
 
     // Stops list (rows are rebuilt per route, so delegate). Every edit

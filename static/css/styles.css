@@ -974,6 +974,73 @@ body.editing #gtfsEditBtn {
 #gepSchedAdd {
   margin-bottom: 8px;
 }
+/* Time-of-day frequency bands within a block */
+.gep-band-del {
+  color: #c0392b;
+  opacity: 0.5;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 12px;
+}
+.gep-band-del:hover {
+  opacity: 1;
+  text-decoration: none;
+}
+.gep-band:only-child .gep-band-del {
+  display: none; /* a block always keeps at least one band */
+}
+.gep-band-add {
+  font-size: 11px;
+  color: var(--gtfs-ink-soft);
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px dotted var(--gtfs-ink-soft);
+}
+.gep-band-add:hover {
+  color: var(--gtfs-ink);
+  text-decoration: none;
+}
+
+/* Holiday rows in feed settings */
+.gep-holiday-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.gep-holiday-row input,
+.gep-holiday-row select {
+  font-size: 12px;
+  padding: 3px 6px;
+  height: 26px;
+  border: 1px solid #cfc8b8;
+  border-radius: 3px;
+  min-width: 0;
+}
+.gep-holiday-date {
+  flex: 0 0 130px;
+  font-family: var(--gtfs-mono);
+}
+.gep-holiday-mode {
+  flex: 0 0 140px;
+}
+.gep-holiday-name {
+  flex: 1 1 90px;
+}
+.gep-holiday-del {
+  flex: 0 0 16px;
+  color: #c0392b;
+  opacity: 0.5;
+  cursor: pointer;
+  text-decoration: none;
+}
+.gep-holiday-del:hover {
+  opacity: 1;
+  text-decoration: none;
+}
+#gepHolidayAdd {
+  margin-bottom: 4px;
+}
 
 /* Route pane selects (operator, direction type) */
 .gep-row select {
