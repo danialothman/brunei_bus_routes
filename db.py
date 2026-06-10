@@ -64,6 +64,19 @@ def init_db(db_path):
             )
             """
         )
+        # Every overwritten gtfs_meta value is archived here, so a bad
+        # autosave is recoverable (via SQL; no UI). Append-only.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gtfs_meta_history (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                year        TEXT NOT NULL,
+                key         TEXT NOT NULL,
+                data        TEXT NOT NULL,
+                replaced_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
 
 
 def _connect():
@@ -227,8 +240,18 @@ def get_gtfs_meta(year, key):
 
 
 def set_gtfs_meta(year, key, data):
-    """Upsert GTFS metadata for a route (or '_feed'). Returns the saved dict."""
+    """Upsert GTFS metadata for a route (or '_feed'), archiving the value
+    being replaced into gtfs_meta_history. Returns the saved dict."""
+    payload = json.dumps(data, ensure_ascii=False)
     with _connect() as conn:
+        row = conn.execute(
+            "SELECT data FROM gtfs_meta WHERE year=? AND key=?", (year, key)
+        ).fetchone()
+        if row and row["data"] != payload:
+            conn.execute(
+                "INSERT INTO gtfs_meta_history (year, key, data) VALUES (?, ?, ?)",
+                (year, key, row["data"]),
+            )
         conn.execute(
             """
             INSERT INTO gtfs_meta (year, key, data, updated_at)
@@ -236,7 +259,7 @@ def set_gtfs_meta(year, key, data):
             ON CONFLICT(year, key) DO UPDATE SET
                 data = excluded.data, updated_at = excluded.updated_at
             """,
-            (year, key, json.dumps(data, ensure_ascii=False)),
+            (year, key, payload),
         )
         conn.commit()
     return data

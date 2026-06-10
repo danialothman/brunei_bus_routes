@@ -611,6 +611,22 @@ body.gtfs-page .navbar .navbar-btn {
   border-style: solid;
   border-color: var(--gtfs-accent);
 }
+/* Transcription-progress meter: schedule | departures | operator | headsign */
+.gtfs-route-meter {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 2px;
+  align-self: center;
+}
+.gtfs-route-meter i {
+  width: 4px;
+  height: 11px;
+  border-radius: 1px;
+  background: var(--gtfs-line);
+}
+.gtfs-route-meter i.on {
+  background: var(--gtfs-go);
+}
 .gtfs-route-del {
   flex: 0 0 auto;
   color: #c0392b;

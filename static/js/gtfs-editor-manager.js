@@ -387,7 +387,7 @@ APP.GtfsEditorManager = class {
     return $(
       "#gepSchedList input, #gepSchedList textarea, #gepSchedAdd, " +
         "#gepShort, #gepLong, #gepColor, #gepOperator, #gepDirection, " +
-        "#gepHeadsign, #gepReturnHeadsign"
+        "#gepHeadsign, #gepReturnHeadsign, #gepDesc, #gepHail"
     );
   }
 
@@ -443,7 +443,24 @@ APP.GtfsEditorManager = class {
       )
     );
     block.append(depRow);
+    // Return-direction departures: only meaningful for out & back routes
+    // (visibility synced to the Type selector).
+    const retRow = $('<div class="gep-row gep-return-deps" style="display:none"></div>');
+    retRow.append(
+      $('<label class="gep-block">Return departures — optional; derived from outbound + run time when empty.</label>').append(
+        $('<textarea class="gep-ret-departures" rows="2" spellcheck="false" placeholder="07:30, 08:00, …"></textarea>')
+          .val((sched.return_departures || []).map((t) => t.slice(0, 5)).join(", "))
+      )
+    );
+    block.append(retRow);
     return block;
+  }
+
+  /** Show return-direction fields only for out & back routes. */
+  _syncReturnUI() {
+    const outback = $("#gepDirection").val() === "outback";
+    $("#gepReturnWrap").toggle(outback);
+    $("#gepSchedList .gep-return-deps").toggle(outback);
   }
 
   /** One time-of-day frequency window: "every N min, HH:MM–HH:MM". */
@@ -494,7 +511,9 @@ APP.GtfsEditorManager = class {
     $("#gepDirection").val(meta.direction || "");
     $("#gepHeadsign").val(meta.headsign || "");
     $("#gepReturnHeadsign").val(meta.return_headsign || "");
-    $("#gepReturnWrap").toggle(meta.direction === "outback");
+    $("#gepDesc").val(meta.desc || "");
+    $("#gepHail").prop("checked", !!meta.hail);
+    this._syncReturnUI();
     // Remember the assignment so the dropdown survives option rebuilds
     // (operators may still be loading, or get edited in the modal).
     this._currentOperator = meta.agency_id || "";
@@ -525,6 +544,10 @@ APP.GtfsEditorManager = class {
       if (run > 0) sched.run_secs = run * 60;
       const deps = b.find(".gep-departures").val().split(/[\s,;]+/).filter(Boolean);
       if (deps.length) sched.departures = deps;
+      const rdeps = b.find(".gep-ret-departures").val().split(/[\s,;]+/).filter(Boolean);
+      if (rdeps.length && $("#gepDirection").val() === "outback") {
+        sched.return_departures = rdeps;
+      }
       const days = b.find(".gep-day").map((_, d) => (d.checked ? 1 : 0)).get();
       if (days.some((d) => !d)) sched.days = days; // only save non-default patterns
       if (Object.keys(sched).length) blocks.push(sched); // all-default blocks drop out
@@ -542,6 +565,8 @@ APP.GtfsEditorManager = class {
     if ($("#gepReturnHeadsign").val().trim()) {
       meta.return_headsign = $("#gepReturnHeadsign").val().trim();
     }
+    if ($("#gepDesc").val().trim()) meta.desc = $("#gepDesc").val().trim();
+    if ($("#gepHail").prop("checked")) meta.hail = true;
     return meta;
   }
 
@@ -558,15 +583,27 @@ APP.GtfsEditorManager = class {
   _saveMeta() {
     if (!this.current) return;
     const ctx = this.current;
+    const meta = this._readForm();
     fetch("/data/gtfs-meta", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ year: ctx.year, route: ctx.file, meta: this._readForm() }),
+      body: JSON.stringify({ year: ctx.year, route: ctx.file, meta }),
     })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
       .then(({ ok, d }) => {
         if (this.current && this.current.file === ctx.file) {
           this.status.textContent = ok ? "Saved ✓" : d.error || "Save failed";
+        }
+        if (ok && this.page) {
+          const blocks = meta.schedules || [];
+          this.page.setRouteStatus(ctx.year, ctx.file, {
+            schedule: blocks.length > 0,
+            departures: blocks.some(
+              (b) => (b.departures || []).length || (b.return_departures || []).length
+            ),
+            operator: !!meta.agency_id,
+            headsign: !!meta.headsign,
+          });
         }
       })
       .catch((err) => {
@@ -903,11 +940,9 @@ APP.GtfsEditorManager = class {
     $("#gepFit").on("click", () => this._setZoom(1));
     $(
       "#gepShort, #gepLong, #gepColor, #gepOperator, #gepDirection, " +
-        "#gepHeadsign, #gepReturnHeadsign"
+        "#gepHeadsign, #gepReturnHeadsign, #gepDesc, #gepHail"
     ).on("input change", () => this._queueSave());
-    $("#gepDirection").on("change", () => {
-      $("#gepReturnWrap").toggle($("#gepDirection").val() === "outback");
-    });
+    $("#gepDirection").on("change", () => this._syncReturnUI());
     // Schedule blocks are rebuilt per route — delegate.
     $("#gepSchedList").on("input change", "input, textarea", () => this._queueSave());
     $("#gepSchedList").on("click", ".gep-sched-del", (e) => {
@@ -921,6 +956,7 @@ APP.GtfsEditorManager = class {
       if (!this.current) return;
       $("#gepSchedList").append(this._schedBlockEl({}));
       this._renumberSched();
+      this._syncReturnUI();
     });
     $("#gepSchedList").on("click", ".gep-band-add", (e) => {
       const block = $(e.currentTarget).closest(".gep-sched-block");

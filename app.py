@@ -451,6 +451,8 @@ def gather_gtfs_routes(year):
             "direction": meta.get("direction", ""),
             "headsign": meta.get("headsign", ""),
             "return_headsign": meta.get("return_headsign", ""),
+            "desc": meta.get("desc", ""),
+            "hail": bool(meta.get("hail")),
             "schedules": meta.get("schedules")
                 or ([meta["schedule"]] if meta.get("schedule") else None),
             "segments": geom.get("segments", []),
@@ -534,6 +536,14 @@ def _validate_gtfs_route_meta(payload):
                 return None, f"{field} must be a string"
             if v.strip():
                 meta[field] = v.strip()[:120]
+    desc = payload.get("desc")
+    if desc is not None:
+        if not isinstance(desc, str):
+            return None, "desc must be a string"
+        if desc.strip():
+            meta["desc"] = desc.strip()[:500]
+    if payload.get("hail"):
+        meta["hail"] = True  # hail & ride: continuous pickup/drop-off
     # Schedules: a list of day-type blocks (weekday/weekend…). The legacy
     # single `schedule` key is accepted as one block.
     sched_in = payload.get("schedule")
@@ -614,18 +624,19 @@ def _validate_schedule_block(sched_in):
     # Exact departure times transcribed from the timing signboard. When
     # present the export emits one real trip per departure for this route
     # instead of a synthetic frequency entry.
-    deps = sched_in.get("departures")
-    if deps is not None:
-        if not isinstance(deps, list) or len(deps) > 300:
-            return None, "departures must be a list of times (max 300)"
-        norm = []
-        for d in deps:
-            t = _norm_time(d) if isinstance(d, str) else None
-            if t is None:
-                return None, f"bad departure time: {str(d)[:20]!r}"
-            norm.append(t)
-        if norm:
-            sched["departures"] = sorted(set(norm))
+    for field in ("departures", "return_departures"):
+        deps = sched_in.get(field)
+        if deps is not None:
+            if not isinstance(deps, list) or len(deps) > 300:
+                return None, f"{field} must be a list of times (max 300)"
+            norm = []
+            for d in deps:
+                t = _norm_time(d) if isinstance(d, str) else None
+                if t is None:
+                    return None, f"bad departure time: {str(d)[:20]!r}"
+                norm.append(t)
+            if norm:
+                sched[field] = sorted(set(norm))
     run = sched_in.get("run_secs")
     if run is not None:
         if not isinstance(run, (int, float)) or isinstance(run, bool) \
@@ -770,6 +781,28 @@ def save_gtfs_meta():
     return jsonify({"ok": True, "year": year, "route": route, "meta": saved})
 
 
+@app.route("/data/gtfs-meta-summary")
+def gtfs_meta_summary():
+    """Per-route transcription status for the workbench list badges:
+    {filename: {schedule, departures, operator, headsign}} for every route
+    with saved GTFS metadata."""
+    year = _resolve_year(request.args.get("year"))
+    out = {}
+    for key, m in db.all_gtfs_meta(year).items():
+        if key.startswith("_"):
+            continue
+        blocks = m.get("schedules") or ([m["schedule"]] if m.get("schedule") else [])
+        out[key] = {
+            "schedule": bool(blocks),
+            "departures": any(
+                b.get("departures") or b.get("return_departures") for b in blocks
+            ),
+            "operator": bool(m.get("agency_id")),
+            "headsign": bool(m.get("headsign")),
+        }
+    return jsonify({"year": year, "routes": out})
+
+
 @app.route("/data/gtfs-config")
 def get_gtfs_config():
     """Feed-level GTFS settings (operators + fare), the resolved operator list
@@ -884,7 +917,9 @@ def gtfs_feed_inputs(year):
     Shared by the /data/gtfs.zip endpoint and scripts/build_gtfs.py."""
     routes = gather_gtfs_routes(year)
     config = db.get_gtfs_meta(year, "_feed")
-    params = dict(GTFS_PARAMS, feed_version=f"{year}.1")
+    # Version stamps the export date so consumers can tell feeds apart.
+    today = datetime.date.today().strftime("%Y%m%d")
+    params = dict(GTFS_PARAMS, feed_version=f"{year}.{today}")
     if config.get("fare"):
         params["fare"] = config["fare"]
     if config.get("holidays"):

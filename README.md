@@ -177,9 +177,16 @@ full flow is draw → schedule → download. The GTFS pane covers:
 - **Route metadata** — route number, long name, color, and the operator
   running the route (`routes.txt`, including per-route `agency_id`)
 - **Directions & headsigns** — mark a route *out & back* to export both
-  directions (`direction_id` 0/1 with reversed shape and stop order, return
-  departures offset by the run time) and set the bus's destination signs
-  (`trip_headsign`); loops/one-ways stay single-direction
+  directions (`direction_id` 0/1 with reversed shape and stop order) and set
+  the bus's destination signs (`trip_headsign`); return departures can be
+  transcribed exactly per block, or are derived (outbound + run time) when
+  left empty. Loops/one-ways stay single-direction
+- **Description & hail-and-ride** — per-route `route_desc`, and a *hail &
+  ride* flag for Brunei's flag-down culture (`continuous_pickup`/
+  `continuous_drop_off`)
+- **Transcription progress** — each route in the list carries a 4-segment
+  meter (schedule · departures · operator · headsign) showing what's left
+  to transcribe
 - **Stops list** — every stop of the selected route in sequence order, with
   editable public stop codes (`stop_code`, à la Singapore's numbered stops),
   names and coordinates, reorder/remove, and click-to-locate on the map;
@@ -195,10 +202,14 @@ full flow is draw → schedule → download. The GTFS pane covers:
   can be transcribed directly
 - **✔ Validate** — builds the feed in memory and runs structural checks
   (required files/columns, duplicate ids, referential integrity, time/date
-  formats, per-trip monotonicity, unused entities) with results in a modal;
-  also available as `scripts/build_gtfs.py --validate`. For publish-grade
+  formats, per-trip monotonicity, frequency-window overlap, stops far off
+  their route's line, unused entities) with results in a modal; also
+  available as `scripts/build_gtfs.py --validate`. For publish-grade
   conformance, additionally run [MobilityData's canonical
   validator](https://gtfs-validator.mobilitydata.org/)
+
+Exports also include auto-generated walking **`transfers.txt`** (distinct
+stops within 100 m), and `feed_version` is stamped with the export date.
 
 Edits auto-save to the local SQLite store (`instance/edits.db`) and are merged
 into every subsequent export from both the endpoint and the CLI.

@@ -114,9 +114,45 @@ APP.GtfsPage = class {
           }
         });
         $("#newRouteBtn").toggle(years.indexOf(APP.USER_ROUTE_YEAR) >= 0);
+        this._loadStatuses(years);
         if (first) this.select(first.year, first.file);
       })
       .catch((e) => APP.MapUtils.handleError(e, "Loading catalog"));
+  }
+
+  /** Transcription-progress badges: 4 segments per route (schedule,
+   * departures, operator, headsign). */
+  _loadStatuses(years) {
+    years.forEach((y) => {
+      fetch(`/data/gtfs-meta-summary?year=${encodeURIComponent(y)}`)
+        .then((r) => r.json())
+        .then((d) => {
+          Object.entries(d.routes || {}).forEach(([file, st]) =>
+            this.setRouteStatus(y, file, st)
+          );
+        })
+        .catch(() => {});
+    });
+  }
+
+  setRouteStatus(year, file, st) {
+    const row = this._rowFor(this._id(year, file));
+    if (!row.length) return;
+    let meter = row.find(".gtfs-route-meter");
+    const flags = ["schedule", "departures", "operator", "headsign"];
+    if (!meter.length) {
+      meter = $('<span class="gtfs-route-meter"></span>');
+      flags.forEach(() => meter.append("<i></i>"));
+      row.find(".gtfs-route-label").after(meter);
+    }
+    meter.children().each((i, el) => {
+      $(el).toggleClass("on", !!(st && st[flags[i]]));
+    });
+    meter.attr(
+      "title",
+      "transcribed: " +
+        flags.map((f) => `${f} ${st && st[f] ? "✓" : "—"}`).join(" · ")
+    );
   }
 
   _row(id, year, file, display, isUser, kind) {

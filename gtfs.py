@@ -24,12 +24,15 @@ import zipfile
 # small leaves duplicates.
 STOP_MERGE_RADIUS_M = 40.0
 
+# Distinct stops within this walking distance become transfers.txt pairs.
+TRANSFER_RADIUS_M = 100.0
+
 # GTFS files we emit, in a stable order (zip listing reads sensibly).
-# fare_attributes.txt / calendar_dates.txt are only present when configured.
+# fare_attributes/calendar_dates/transfers are only present when applicable.
 _FILE_ORDER = [
     "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
     "shapes.txt", "frequencies.txt", "calendar.txt", "calendar_dates.txt",
-    "fare_attributes.txt", "feed_info.txt",
+    "transfers.txt", "fare_attributes.txt", "feed_info.txt",
 ]
 
 
@@ -150,6 +153,35 @@ class _StopPool:
             "stop_lon": f"{e['lon']:.6f}",
         } for e in self._entries]
 
+    def transfer_pairs(self, radius_m):
+        """Directed pairs of DISTINCT stops within walking radius — transfer
+        opportunities for transfers.txt. Grid-bucketed so the all-pairs scan
+        stays linear-ish."""
+        cell = radius_m / 111000.0  # ~degrees per radius
+        grid = {}
+        for i, e in enumerate(self._entries):
+            grid.setdefault(
+                (int(e["lat"] / cell), int(e["lon"] / cell)), []
+            ).append(i)
+        pairs = []
+        for (gy, gx), idxs in grid.items():
+            neighbours = [
+                j
+                for dy in (-1, 0, 1)
+                for dx in (-1, 0, 1)
+                for j in grid.get((gy + dy, gx + dx), [])
+            ]
+            for i in idxs:
+                a = self._entries[i]
+                for j in neighbours:
+                    if j <= i:
+                        continue
+                    b = self._entries[j]
+                    d = _haversine([a["lon"], a["lat"]], [b["lon"], b["lat"]])
+                    if d <= radius_m:
+                        pairs.append((a["stop_id"], b["stop_id"], d))
+        return pairs
+
 
 # --- validation ----------------------------------------------------------------
 # Required files and the columns each must carry (a subset of the spec
@@ -216,7 +248,7 @@ def validate_feed(data):
                     add("error", "missing_column",
                         f"required column absent", f"{fname}: {c}")
     for opt in ("shapes.txt", "frequencies.txt", "feed_info.txt",
-                "fare_attributes.txt", "calendar_dates.txt"):
+                "fare_attributes.txt", "calendar_dates.txt", "transfers.txt"):
         tables[opt] = table(opt) or []
     if "feed_info.txt" not in names:
         add("warning", "no_feed_info", "feed_info.txt is recommended")
@@ -243,11 +275,13 @@ def validate_feed(data):
             add("error", "no_timezone", "agency_timezone is required",
                 a.get("agency_id"))
 
+    stop_coords = {}
     for s in tables["stops.txt"]:
         try:
             lat, lon = float(s.get("stop_lat", "")), float(s.get("stop_lon", ""))
             if not (-90 <= lat <= 90 and -180 <= lon <= 180):
                 raise ValueError
+            stop_coords[s.get("stop_id")] = (lon, lat)
             if lat == 0 and lon == 0:
                 add("warning", "null_island", "stop at coordinates 0,0",
                     s.get("stop_id"))
@@ -268,7 +302,10 @@ def validate_feed(data):
                 f"{r.get('route_id')}: {color}")
 
     used_routes, used_services = set(), set()
+    shape_first_trip = {}  # shape_id -> a representative trip on it
     for t in tables["trips.txt"]:
+        if t.get("shape_id") and t["shape_id"] not in shape_first_trip:
+            shape_first_trip[t["shape_id"]] = t.get("trip_id")
         if t.get("route_id") not in route_ids:
             add("error", "bad_reference", "trips.route_id not in routes.txt",
                 t.get("trip_id"))
@@ -286,9 +323,11 @@ def validate_feed(data):
         add("warning", "service_without_trips", "calendar service unused", sid)
 
     by_trip = {}
+    trip_stops = {}
     used_stops = set()
     for st in tables["stop_times.txt"]:
         tid = st.get("trip_id", "")
+        trip_stops.setdefault(tid, set()).add(st.get("stop_id"))
         if tid not in trip_ids:
             add("error", "bad_reference", "stop_times.trip_id not in trips.txt", tid)
         if st.get("stop_id") not in stop_ids:
@@ -374,11 +413,15 @@ def validate_feed(data):
                 cd.get("service_id"))
 
     prev = {}
+    shape_pts = {}
     for s in tables["shapes.txt"]:
         sid = s.get("shape_id", "")
         try:
             seq = int(s.get("shape_pt_sequence", ""))
             dist = float(s.get("shape_dist_traveled") or 0)
+            shape_pts.setdefault(sid, []).append(
+                (float(s.get("shape_pt_lon", "")), float(s.get("shape_pt_lat", "")))
+            )
         except ValueError:
             add("error", "bad_shape", "unparseable shape sequence/distance", sid)
             continue
@@ -386,6 +429,39 @@ def validate_feed(data):
             add("warning", "shape_disorder",
                 "shape sequence/distance not increasing", sid)
         prev[sid] = (seq, dist)
+
+    for tr in tables["transfers.txt"]:
+        for col in ("from_stop_id", "to_stop_id"):
+            if tr.get(col) not in stop_ids:
+                add("error", "bad_reference",
+                    f"transfers.{col} not in stops.txt", tr.get(col))
+        if tr.get("transfer_type") not in ("", "0", "1", "2", "3"):
+            add("error", "bad_transfer_type",
+                "transfer_type must be 0..3", tr.get("from_stop_id"))
+        if tr.get("from_stop_id") == tr.get("to_stop_id"):
+            add("warning", "self_transfer", "transfer from a stop to itself",
+                tr.get("from_stop_id"))
+
+    # A stop far off its route's drawn line is almost always a placement or
+    # tracing error. Checked once per shape with a fast equirectangular
+    # approximation against shape vertices.
+    for sid, tid in shape_first_trip.items():
+        pts = shape_pts.get(sid)
+        if not pts:
+            continue
+        coslat = math.cos(math.radians(pts[0][1]))
+        for stop_id in trip_stops.get(tid, set()):
+            c = stop_coords.get(stop_id)
+            if not c:
+                continue
+            best = min(
+                (((c[0] - p[0]) * coslat) ** 2 + (c[1] - p[1]) ** 2)
+                for p in pts
+            )
+            if (best ** 0.5) * 111320.0 > 150.0:
+                add("warning", "stop_off_shape",
+                    "stop is over 150 m from its route's line",
+                    f"{stop_id} on {sid}")
 
     findings = sorted(
         agg.values(), key=lambda f: (f["severity"] != "error", f["code"])
@@ -473,13 +549,17 @@ def build_feed(routes, agencies, params):
         aid = r.get("agency_id")
         if aid not in known_agency_ids:
             aid = default_agency_id
+        hail = bool(r.get("hail"))  # hail & ride: continuous stopping allowed
         routes_rows.append({
             "route_id": rid,
             "agency_id": aid,
             "route_short_name": r.get("short_name", "") or "",
             "route_long_name": r.get("long_name", "") or "",
+            "route_desc": r.get("desc", "") or "",
             "route_type": 3,  # 3 = bus
             "route_color": (r.get("color") or "").lstrip("#").upper(),
+            "continuous_pickup": 0 if hail else "",
+            "continuous_drop_off": 0 if hail else "",
         })
 
         # Project each stop onto the shape once; every trip reuses the offsets.
@@ -554,6 +634,7 @@ def build_feed(routes, agencies, params):
             end_time = bands[0].get("end_time") or params["end_time"]
             days = sched.get("days") or default_days
             departures = sched.get("departures") or []
+            ret_departures = sched.get("return_departures") or []
             service_id = _service_for(days)
 
             # End-to-end run time used to spread intermediate stop times:
@@ -565,19 +646,28 @@ def build_feed(routes, agencies, params):
 
             bsuf = "" if bi == 0 else f"_b{bi + 1}"
             for pat in patterns:
-                # The bus turns around at the far terminal, so the return
-                # direction departs one run time after the outbound.
-                offset = run if pat["direction_id"] else 0
                 base = f"trip_{rid}{bsuf}{pat['suffix']}"
+                is_return = bool(pat["direction_id"])
 
                 # Transcribed departures -> one real trip each (no frequencies
-                # entry). Otherwise one representative trip + a headway.
-                if departures:
+                # entry). The return direction prefers exactly transcribed
+                # return times; else outbound + one run time (the bus turns
+                # around at the far terminal). No times at all -> one
+                # representative trip + a headway.
+                if is_return and ret_departures:
+                    exact = [(d, 0) for d in ret_departures]
+                elif departures:
+                    exact = [(d, run if is_return else 0) for d in departures]
+                else:
+                    exact = None
+
+                if exact is not None:
                     trip_starts = [
-                        (f"{base}_{i + 1}", _hhmmss_to_secs(d) + offset)
-                        for i, d in enumerate(departures)
+                        (f"{base}_{i + 1}", _hhmmss_to_secs(d) + off)
+                        for i, (d, off) in enumerate(exact)
                     ]
                 else:
+                    offset = run if is_return else 0
                     trip_starts = [(base, _hhmmss_to_secs(start_time) + offset)]
 
                 for trip_id, dep_secs in trip_starts:
@@ -605,12 +695,16 @@ def build_feed(routes, agencies, params):
                             "stop_sequence": seq,
                             # Only the first stop of a transcribed-departure
                             # trip is an exact time; everything else here is
-                            # interpolated (an estimate, per the spec).
-                            "timepoint": 1 if (departures and seq == 1) else 0,
+                            # interpolated (an estimate, per the spec). The
+                            # derived return direction is all estimates.
+                            "timepoint": 1 if (
+                                exact is not None and seq == 1
+                                and not (is_return and not ret_departures)
+                            ) else 0,
                             "shape_dist_traveled": f"{dist:.1f}" if has_shape else "",
                         })
 
-                if not departures:
+                if exact is None:
                     # One frequencies.txt row per time-of-day band, all
                     # against the same representative trip.
                     for band in bands:
@@ -688,7 +782,8 @@ def build_feed(routes, agencies, params):
             pool.rows()),
         "routes.txt": _csv(
             ["route_id", "agency_id", "route_short_name", "route_long_name",
-             "route_type", "route_color"], routes_rows),
+             "route_desc", "route_type", "route_color", "continuous_pickup",
+             "continuous_drop_off"], routes_rows),
         "trips.txt": _csv(
             ["route_id", "service_id", "trip_id", "trip_headsign",
              "direction_id", "shape_id"], trips_rows),
@@ -718,6 +813,20 @@ def build_feed(routes, agencies, params):
     if calendar_dates_rows:
         tables["calendar_dates.txt"] = _csv(
             ["service_id", "date", "exception_type"], calendar_dates_rows)
+
+    # Walking transfers between distinct nearby stops (both directions).
+    # transfer_type 2 = minimum time required: walk at ~1 m/s + a buffer.
+    transfer_rows = []
+    for a, b, dist in pool.transfer_pairs(TRANSFER_RADIUS_M):
+        t = int(dist) + 60
+        transfer_rows.append({"from_stop_id": a, "to_stop_id": b,
+                              "transfer_type": 2, "min_transfer_time": t})
+        transfer_rows.append({"from_stop_id": b, "to_stop_id": a,
+                              "transfer_type": 2, "min_transfer_time": t})
+    if transfer_rows:
+        tables["transfers.txt"] = _csv(
+            ["from_stop_id", "to_stop_id", "transfer_type",
+             "min_transfer_time"], transfer_rows)
 
     # Optional flat fare (e.g. Brunei's B$1): payment on board, no transfers info.
     fare = params.get("fare") or {}
