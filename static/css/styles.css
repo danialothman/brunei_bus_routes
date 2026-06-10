@@ -934,9 +934,8 @@ body.editing #gtfsEditBtn {
   color: #97917f;
   font-size: 12px;
 }
-/* Route pane operator picker */
-.gep-row select#gepOperator {
-  flex: 1 1 auto;
+/* Route pane selects (operator, direction type) */
+.gep-row select {
   font-size: 12px;
   height: 24px;
   padding: 2px 4px;
@@ -944,6 +943,13 @@ body.editing #gtfsEditBtn {
   border-radius: 3px;
   background: #fffdf8;
   color: var(--gtfs-ink);
+}
+.gep-row select#gepOperator {
+  flex: 1 1 auto;
+}
+.gep-row #gepHeadsign,
+.gep-row #gepReturnHeadsign {
+  width: 110px;
 }
 
 /* Feed settings modal */

@@ -375,7 +375,8 @@ APP.GtfsEditorManager = class {
   _formInputs() {
     return $(
       "#gepHeadway, #gepStart, #gepEnd, #gepRun, #gepDepartures, " +
-        "#gepShort, #gepLong, #gepColor, #gepOperator, .gep-day"
+        "#gepShort, #gepLong, #gepColor, #gepOperator, #gepDirection, " +
+        "#gepHeadsign, #gepReturnHeadsign, .gep-day"
     );
   }
 
@@ -402,6 +403,10 @@ APP.GtfsEditorManager = class {
     $("#gepShort").val(meta.short_name || "");
     $("#gepLong").val(meta.long_name || "");
     $("#gepColor").val(meta.color ? "#" + meta.color : "");
+    $("#gepDirection").val(meta.direction || "");
+    $("#gepHeadsign").val(meta.headsign || "");
+    $("#gepReturnHeadsign").val(meta.return_headsign || "");
+    $("#gepReturnWrap").toggle(meta.direction === "outback");
     // Remember the assignment so the dropdown survives option rebuilds
     // (operators may still be loading, or get edited in the modal).
     this._currentOperator = meta.agency_id || "";
@@ -435,6 +440,11 @@ APP.GtfsEditorManager = class {
     const operator = $("#gepOperator").val();
     if (operator) meta.agency_id = operator;
     this._currentOperator = operator || "";
+    if ($("#gepDirection").val() === "outback") meta.direction = "outback";
+    if ($("#gepHeadsign").val().trim()) meta.headsign = $("#gepHeadsign").val().trim();
+    if ($("#gepReturnHeadsign").val().trim()) {
+      meta.return_headsign = $("#gepReturnHeadsign").val().trim();
+    }
     return meta;
   }
 
@@ -687,8 +697,12 @@ APP.GtfsEditorManager = class {
     $("#gepFit").on("click", () => this._setZoom(1));
     $(
       "#gepHeadway, #gepStart, #gepEnd, #gepRun, #gepDepartures, " +
-        "#gepShort, #gepLong, #gepColor, #gepOperator"
+        "#gepShort, #gepLong, #gepColor, #gepOperator, #gepDirection, " +
+        "#gepHeadsign, #gepReturnHeadsign"
     ).on("input change", () => this._queueSave());
+    $("#gepDirection").on("change", () => {
+      $("#gepReturnWrap").toggle($("#gepDirection").val() === "outback");
+    });
     $(".gep-day").on("change", () => this._queueSave());
     $("#gepFarePrice, #gepFareCurrency").on("input change", () => this._queueFeedSave());
     // Operator rows are dynamic — delegate, and refresh the route pane's

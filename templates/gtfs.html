@@ -182,6 +182,16 @@
             <div class="gep-row">
               <label>Operator <select id="gepOperator" title="Which company runs this route (define operators in ⚙ Feed settings)"></select></label>
             </div>
+            <div class="gep-row">
+              <label>Type
+                <select id="gepDirection" title="Out &amp; back exports a return direction too: reversed stops &amp; shape, departures offset by the run time">
+                  <option value="">loop / one-way</option>
+                  <option value="outback">out &amp; back</option>
+                </select>
+              </label>
+              <label>Headsign <input type="text" id="gepHeadsign" placeholder="e.g. PEKAN MUARA" /></label>
+              <label id="gepReturnWrap" style="display: none">Return <input type="text" id="gepReturnHeadsign" placeholder="e.g. BSB" /></label>
+            </div>
           </div>
           <div class="gep-section" id="gepStopsSection">
             <div class="gep-section-head">

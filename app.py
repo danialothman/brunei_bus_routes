@@ -441,6 +441,9 @@ def gather_gtfs_routes(year):
             "long_name": meta.get("long_name") or geom.get("name") or long_name,
             "color": meta.get("color", ""),
             "agency_id": meta.get("agency_id", ""),
+            "direction": meta.get("direction", ""),
+            "headsign": meta.get("headsign", ""),
+            "return_headsign": meta.get("return_headsign", ""),
             "schedule": meta.get("schedule") or None,
             "segments": geom.get("segments", []),
             "stops": geom.get("stops", []),
@@ -511,6 +514,18 @@ def _validate_gtfs_route_meta(payload):
             return None, "agency_id must be a string"
         if agency_id.strip():
             meta["agency_id"] = agency_id.strip()[:30]
+    direction = payload.get("direction")
+    if direction:
+        if direction != "outback":
+            return None, "direction must be 'outback' or omitted (loop/one-way)"
+        meta["direction"] = "outback"
+    for field in ("headsign", "return_headsign"):
+        v = payload.get(field)
+        if v is not None:
+            if not isinstance(v, str):
+                return None, f"{field} must be a string"
+            if v.strip():
+                meta[field] = v.strip()[:120]
     sched_in = payload.get("schedule")
     if sched_in:
         if not isinstance(sched_in, dict):

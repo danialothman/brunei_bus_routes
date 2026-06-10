@@ -161,9 +161,13 @@ def build_feed(routes, agencies, params):
     """Build a GTFS feed and return it as zip bytes.
 
     routes: [{route_id, short_name, long_name, segments, stops, color?,
-              agency_id?, schedule?}] where schedule overrides the feed
-             defaults per route: {headway_secs?, start_time?, end_time?,
-              days?[7], departures?: [HH:MM:SS, ...], run_secs?}
+              agency_id?, direction?, headsign?, return_headsign?, schedule?}]
+             where schedule overrides the feed defaults per route:
+             {headway_secs?, start_time?, end_time?, days?[7],
+              departures?: [HH:MM:SS, ...], run_secs?}.
+             direction="outback" additionally emits a return pattern
+             (direction_id 1, reversed shape/stops, departures offset by one
+             run time); anything else is a loop/one-way single pattern.
     agencies: list of {id, name, url, phone, timezone, lang, email?} —
               the FIRST is the default operator for unassigned routes.
               (A single dict is accepted for backward compatibility.)
@@ -240,15 +244,6 @@ def build_feed(routes, agencies, params):
             "route_color": (r.get("color") or "").lstrip("#").upper(),
         })
 
-        for i, p in enumerate(points):
-            shapes_rows.append({
-                "shape_id": shape_id,
-                "shape_pt_lon": f"{p[0]:.6f}",
-                "shape_pt_lat": f"{p[1]:.6f}",
-                "shape_pt_sequence": i,
-                "shape_dist_traveled": f"{cum[i]:.1f}",
-            })
-
         # Project each stop onto the shape once; every trip reuses the offsets.
         # Times are spread over the first->last stop span (not the full shape),
         # so a trip departs its first stop exactly at the departure time.
@@ -267,48 +262,91 @@ def build_feed(routes, agencies, params):
                 frac = (idx / (n - 1)) if n > 1 else 0.0
             stop_entries.append((pool.resolve(s), frac, dist))
 
-        # Transcribed departures -> one real trip each (no frequencies entry).
-        # Otherwise a single representative trip + a frequency-based headway.
-        if departures:
-            trip_starts = [
-                (f"trip_{rid}_{i + 1}", _hhmmss_to_secs(d))
-                for i, d in enumerate(departures)
+        # Direction patterns. Loop/one-way routes have a single pattern.
+        # Out-and-back routes additionally get a return pattern (direction_id
+        # 1): reversed shape, reversed stop order, and — since the bus turns
+        # around at the far terminal — departures offset by one run time.
+        patterns = [{
+            "suffix": "",
+            "shape_id": shape_id,
+            "points": points,
+            "cum": cum,
+            "direction_id": 0,
+            "headsign": r.get("headsign", "") or "",
+            "entries": stop_entries,
+            "dep_offset": 0,
+        }]
+        if r.get("direction") == "outback":
+            entries_r = [
+                (sid, 1.0 - frac, total - dist)
+                for sid, frac, dist in reversed(stop_entries)
             ]
-        else:
-            trip_starts = [(f"trip_{rid}", _hhmmss_to_secs(start_time))]
-
-        for trip_id, dep_secs in trip_starts:
-            trips_rows.append({
-                "route_id": rid,
-                "service_id": service_id,
-                "trip_id": trip_id,
-                "shape_id": shape_id if has_shape else "",
+            patterns.append({
+                "suffix": "_r",
+                "shape_id": f"{shape_id}_r",
+                "points": points[::-1],
+                "cum": [total - c for c in reversed(cum)],
+                "direction_id": 1,
+                "headsign": r.get("return_headsign", "") or "",
+                "entries": entries_r,
+                "dep_offset": run,
             })
-            # Monotonic times keep the trip valid even when projection wobbles.
-            prev_secs = None
-            for seq, (sid, frac, dist) in enumerate(stop_entries, 1):
-                t = dep_secs + frac * run
-                if prev_secs is not None and t <= prev_secs:
-                    t = prev_secs + 1
-                prev_secs = t
-                hhmm = _secs_to_hhmmss(t)
-                stop_times_rows.append({
-                    "trip_id": trip_id,
-                    "arrival_time": hhmm,
-                    "departure_time": hhmm,
-                    "stop_id": sid,
-                    "stop_sequence": seq,
-                    "shape_dist_traveled": f"{dist:.1f}" if has_shape else "",
+
+        for pat in patterns:
+            for i, p in enumerate(pat["points"]):
+                shapes_rows.append({
+                    "shape_id": pat["shape_id"],
+                    "shape_pt_lon": f"{p[0]:.6f}",
+                    "shape_pt_lat": f"{p[1]:.6f}",
+                    "shape_pt_sequence": i,
+                    "shape_dist_traveled": f"{pat['cum'][i]:.1f}",
                 })
 
-        if not departures:
-            freq_rows.append({
-                "trip_id": f"trip_{rid}",
-                "start_time": start_time,
-                "end_time": end_time,
-                "headway_secs": headway,
-                "exact_times": 0,
-            })
+            # Transcribed departures -> one real trip each (no frequencies
+            # entry). Otherwise one representative trip + a headway.
+            base = f"trip_{rid}{pat['suffix']}"
+            if departures:
+                trip_starts = [
+                    (f"{base}_{i + 1}", _hhmmss_to_secs(d) + pat["dep_offset"])
+                    for i, d in enumerate(departures)
+                ]
+            else:
+                trip_starts = [(base, _hhmmss_to_secs(start_time) + pat["dep_offset"])]
+
+            for trip_id, dep_secs in trip_starts:
+                trips_rows.append({
+                    "route_id": rid,
+                    "service_id": service_id,
+                    "trip_id": trip_id,
+                    "trip_headsign": pat["headsign"],
+                    "direction_id": pat["direction_id"],
+                    "shape_id": pat["shape_id"] if has_shape else "",
+                })
+                # Monotonic times keep the trip valid even when projection wobbles.
+                prev_secs = None
+                for seq, (sid, frac, dist) in enumerate(pat["entries"], 1):
+                    t = dep_secs + frac * run
+                    if prev_secs is not None and t <= prev_secs:
+                        t = prev_secs + 1
+                    prev_secs = t
+                    hhmm = _secs_to_hhmmss(t)
+                    stop_times_rows.append({
+                        "trip_id": trip_id,
+                        "arrival_time": hhmm,
+                        "departure_time": hhmm,
+                        "stop_id": sid,
+                        "stop_sequence": seq,
+                        "shape_dist_traveled": f"{dist:.1f}" if has_shape else "",
+                    })
+
+            if not departures:
+                freq_rows.append({
+                    "trip_id": base,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "headway_secs": headway,
+                    "exact_times": 0,
+                })
 
     calendar_rows = [
         {
@@ -349,7 +387,8 @@ def build_feed(routes, agencies, params):
             ["route_id", "agency_id", "route_short_name", "route_long_name",
              "route_type", "route_color"], routes_rows),
         "trips.txt": _csv(
-            ["route_id", "service_id", "trip_id", "shape_id"], trips_rows),
+            ["route_id", "service_id", "trip_id", "trip_headsign",
+             "direction_id", "shape_id"], trips_rows),
         "stop_times.txt": _csv(
             ["trip_id", "arrival_time", "departure_time", "stop_id",
              "stop_sequence", "shape_dist_traveled"], stop_times_rows),

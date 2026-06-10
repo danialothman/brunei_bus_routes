@@ -172,6 +172,10 @@ full flow is draw → schedule → download. The GTFS pane covers:
   time (entered, or estimated from shape length at ~18 km/h)
 - **Route metadata** — route number, long name, color, and the operator
   running the route (`routes.txt`, including per-route `agency_id`)
+- **Directions & headsigns** — mark a route *out & back* to export both
+  directions (`direction_id` 0/1 with reversed shape and stop order, return
+  departures offset by the run time) and set the bus's destination signs
+  (`trip_headsign`); loops/one-ways stay single-direction
 - **Stops list** — every stop of the selected route in sequence order, with
   editable names and coordinates, reorder/remove, and click-to-locate on the
   map; edits save as new geometry versions (official routes become editable
