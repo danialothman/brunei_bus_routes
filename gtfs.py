@@ -62,15 +62,31 @@ def _cumulative_dist(points):
     return out
 
 
-def _project_dist(stop, points, cum):
-    """Distance along the shape (metres) of the vertex nearest to `stop`."""
-    best_i, best_d = 0, float("inf")
-    sp = [stop["lon"], stop["lat"]]
-    for i, p in enumerate(points):
-        d = _haversine(sp, p)
-        if d < best_d:
-            best_i, best_d = i, d
-    return cum[best_i]
+def _project_stops(stops, points, cum):
+    """Distance along the shape (metres) for each stop, in stop order.
+
+    Stops are listed in travel order in the source KML, so the search moves
+    monotonically forward through the shape — and among near-equal candidates
+    the EARLIEST vertex wins. Both guards matter for loop routes, where the
+    terminal appears at the start and the end of the shape: a plain global
+    nearest-vertex search can snap every stop to the closing vertices,
+    collapsing all stop times at the end of the trip."""
+    dists = []
+    start = 0
+    for s in stops:
+        sp = [s["lon"], s["lat"]]
+        best_i, best_d = start, float("inf")
+        for i in range(start, len(points)):
+            d = _haversine(sp, points[i])
+            if d < best_d:
+                best_i, best_d = i, d
+        for i in range(start, best_i):  # earliest within tolerance wins
+            if _haversine(sp, points[i]) <= best_d + 25.0:
+                best_i = i
+                break
+        dists.append(cum[best_i])
+        start = best_i
+    return dists
 
 
 def _secs_to_hhmmss(s):
@@ -146,11 +162,18 @@ def build_feed(routes, agency, params):
 
     routes: [{route_id, short_name, long_name, segments, stops, color?,
               schedule?}] where schedule overrides the feed defaults per route:
-             {headway_secs?, start_time?, end_time?, days?[7]}
+             {headway_secs?, start_time?, end_time?, days?[7],
+              departures?: [HH:MM:SS, ...], run_secs?}
     agency: {id, name, url, phone, timezone, lang, email?}
     params: {headway_secs, start_time, end_time, service_id, days[7],
              start_date, end_date, feed_version, publisher_name, publisher_url,
              feed_lang, fare?: {price, currency}}
+
+    Routes WITH transcribed departures get one real trip per departure time
+    (pure schedule-based GTFS, no frequencies.txt entry). Routes without fall
+    back to a single representative trip plus a frequency-based headway.
+    Intermediate stop times are interpolated along the shape over the route's
+    run time (run_secs if given, else estimated from shape length at ~18 km/h).
     """
     agency_id = agency["id"]
     default_service_id = params["service_id"]
@@ -177,7 +200,6 @@ def build_feed(routes, agency, params):
     for r in routes:
         rid = r["route_id"]
         shape_id = f"shp_{rid}"
-        trip_id = f"trip_{rid}"
 
         # Per-route schedule overrides, falling back to the feed defaults.
         sched = r.get("schedule") or {}
@@ -185,12 +207,20 @@ def build_feed(routes, agency, params):
         start_time = sched.get("start_time") or params["start_time"]
         end_time = sched.get("end_time") or params["end_time"]
         days = sched.get("days") or default_days
+        departures = sched.get("departures") or []
         service_id = _service_for(days)
-        win_start = _hhmmss_to_secs(start_time)
 
         points = _flatten_segments(r.get("segments", []))
         cum = _cumulative_dist(points)
         total = cum[-1] if cum else 0.0
+        has_shape = len(points) >= 2
+
+        # End-to-end run time used to spread intermediate stop times: explicit
+        # run_secs, else estimated from shape length at ~18 km/h (5 m/s) city
+        # bus average, else one headway as a last resort.
+        run = int(sched.get("run_secs") or 0)
+        if run <= 0:
+            run = int(total / 5.0) if total > 0 else headway
 
         routes_rows.append({
             "route_id": rid,
@@ -210,49 +240,66 @@ def build_feed(routes, agency, params):
                 "shape_dist_traveled": f"{cum[i]:.1f}",
             })
 
-        has_shape = len(points) >= 2
-        trips_rows.append({
-            "route_id": rid,
-            "service_id": service_id,
-            "trip_id": trip_id,
-            "shape_id": shape_id if has_shape else "",
-        })
-
-        # Stop times: project each stop onto the shape, then map its distance to
-        # a time proportional to the service window. Enforce monotonic times so
-        # the trip is valid even when projection order wobbles.
+        # Project each stop onto the shape once; every trip reuses the offsets.
+        # Times are spread over the first->last stop span (not the full shape),
+        # so a trip departs its first stop exactly at the departure time.
         stops = r.get("stops", [])
-        run = headway  # nominal end-to-end run time for one trip = one headway
-        prev_secs = None
-        seq = 0
-        for s in stops:
-            sid = pool.resolve(s)
-            if has_shape and total > 0:
-                frac = _project_dist(s, points, cum) / total
+        n = len(stops)
+        if has_shape and total > 0 and stops:
+            dists = _project_stops(stops, points, cum)
+        else:
+            dists = [0.0] * n
+        span = (dists[-1] - dists[0]) if n > 1 else 0.0
+        stop_entries = []  # (stop_id, time fraction 0..1, dist along shape)
+        for idx, (s, dist) in enumerate(zip(stops, dists)):
+            if span > 0:
+                frac = (dist - dists[0]) / span
             else:
-                frac = (seq / (len(stops) - 1)) if len(stops) > 1 else 0.0
-            t = win_start + frac * run
-            if prev_secs is not None and t <= prev_secs:
-                t = prev_secs + 1
-            prev_secs = t
-            seq += 1
-            hhmm = _secs_to_hhmmss(t)
-            stop_times_rows.append({
-                "trip_id": trip_id,
-                "arrival_time": hhmm,
-                "departure_time": hhmm,
-                "stop_id": sid,
-                "stop_sequence": seq,
-                "shape_dist_traveled": f"{frac * total:.1f}" if has_shape else "",
-            })
+                frac = (idx / (n - 1)) if n > 1 else 0.0
+            stop_entries.append((pool.resolve(s), frac, dist))
 
-        freq_rows.append({
-            "trip_id": trip_id,
-            "start_time": start_time,
-            "end_time": end_time,
-            "headway_secs": headway,
-            "exact_times": 0,
-        })
+        # Transcribed departures -> one real trip each (no frequencies entry).
+        # Otherwise a single representative trip + a frequency-based headway.
+        if departures:
+            trip_starts = [
+                (f"trip_{rid}_{i + 1}", _hhmmss_to_secs(d))
+                for i, d in enumerate(departures)
+            ]
+        else:
+            trip_starts = [(f"trip_{rid}", _hhmmss_to_secs(start_time))]
+
+        for trip_id, dep_secs in trip_starts:
+            trips_rows.append({
+                "route_id": rid,
+                "service_id": service_id,
+                "trip_id": trip_id,
+                "shape_id": shape_id if has_shape else "",
+            })
+            # Monotonic times keep the trip valid even when projection wobbles.
+            prev_secs = None
+            for seq, (sid, frac, dist) in enumerate(stop_entries, 1):
+                t = dep_secs + frac * run
+                if prev_secs is not None and t <= prev_secs:
+                    t = prev_secs + 1
+                prev_secs = t
+                hhmm = _secs_to_hhmmss(t)
+                stop_times_rows.append({
+                    "trip_id": trip_id,
+                    "arrival_time": hhmm,
+                    "departure_time": hhmm,
+                    "stop_id": sid,
+                    "stop_sequence": seq,
+                    "shape_dist_traveled": f"{dist:.1f}" if has_shape else "",
+                })
+
+        if not departures:
+            freq_rows.append({
+                "trip_id": f"trip_{rid}",
+                "start_time": start_time,
+                "end_time": end_time,
+                "headway_secs": headway,
+                "exact_times": 0,
+            })
 
     calendar_rows = [
         {
@@ -300,9 +347,6 @@ def build_feed(routes, agency, params):
         "shapes.txt": _csv(
             ["shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence",
              "shape_dist_traveled"], shapes_rows),
-        "frequencies.txt": _csv(
-            ["trip_id", "start_time", "end_time", "headway_secs", "exact_times"],
-            freq_rows),
         "calendar.txt": _csv(
             ["service_id", "monday", "tuesday", "wednesday", "thursday",
              "friday", "saturday", "sunday", "start_date", "end_date"],
@@ -311,6 +355,13 @@ def build_feed(routes, agency, params):
             ["feed_publisher_name", "feed_publisher_url", "feed_lang",
              "feed_version"], feed_info_rows),
     }
+
+    # Only routes still on the synthetic headway need frequencies.txt; a fully
+    # transcribed feed (every route has departures) is pure schedule-based.
+    if freq_rows:
+        tables["frequencies.txt"] = _csv(
+            ["trip_id", "start_time", "end_time", "headway_secs", "exact_times"],
+            freq_rows)
 
     # Optional flat fare (e.g. Brunei's B$1): payment on board, no transfers info.
     fare = params.get("fare") or {}
@@ -333,6 +384,8 @@ def build_feed(routes, agency, params):
 
     return out.getvalue(), {
         "routes": len(routes_rows),
+        "trips": len(trips_rows),
+        "scheduled_routes": len(routes_rows) - len(freq_rows),
         "stops": len(pool._entries),
         "stop_times": len(stop_times_rows),
         "shape_points": len(shapes_rows),

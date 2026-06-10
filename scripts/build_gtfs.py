@@ -42,7 +42,9 @@ def main():
         f.write(data)
 
     print(f"Wrote {args.out} ({len(data):,} bytes)")
-    print(f"  routes:      {stats['routes']}")
+    print(f"  routes:      {stats['routes']} "
+          f"({stats['scheduled_routes']} with transcribed departures)")
+    print(f"  trips:       {stats['trips']}")
     print(f"  stops:       {stats['stops']} ({stats['merged_stops']} merges)")
     print(f"  stop_times:  {stats['stop_times']}")
     print(f"  shape_points:{stats['shape_points']}")

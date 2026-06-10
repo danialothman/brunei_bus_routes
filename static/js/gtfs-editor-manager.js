@@ -165,6 +165,10 @@ APP.GtfsEditorManager = class {
     $("#gepHeadway").val(sched.headway_secs ? Math.round(sched.headway_secs / 60) : "");
     $("#gepStart").val((sched.start_time || "").slice(0, 5));
     $("#gepEnd").val((sched.end_time || "").slice(0, 5));
+    $("#gepRun").val(sched.run_secs ? Math.round(sched.run_secs / 60) : "");
+    $("#gepDepartures").val(
+      (sched.departures || []).map((t) => t.slice(0, 5)).join(", ")
+    );
     const days = sched.days || [1, 1, 1, 1, 1, 1, 1];
     $(".gep-day").each((i, el) => {
       el.checked = !!days[i];
@@ -182,6 +186,13 @@ APP.GtfsEditorManager = class {
     if (headway > 0) sched.headway_secs = headway * 60;
     if ($("#gepStart").val()) sched.start_time = $("#gepStart").val();
     if ($("#gepEnd").val()) sched.end_time = $("#gepEnd").val();
+    const run = parseInt($("#gepRun").val(), 10);
+    if (run > 0) sched.run_secs = run * 60;
+    const deps = $("#gepDepartures")
+      .val()
+      .split(/[\s,;]+/)
+      .filter(Boolean);
+    if (deps.length) sched.departures = deps;
     const days = $(".gep-day").map((_, el) => (el.checked ? 1 : 0)).get();
     if (days.some((d) => !d)) sched.days = days; // only save non-default patterns
     if (Object.keys(sched).length) meta.schedule = sched;
@@ -354,10 +365,10 @@ APP.GtfsEditorManager = class {
     $("#gepZoomIn").on("click", () => this._setZoom(this.zoom * 1.25));
     $("#gepZoomOut").on("click", () => this._setZoom(this.zoom / 1.25));
     $("#gepFit").on("click", () => this._setZoom(1));
-    $("#gepHeadway, #gepStart, #gepEnd, #gepShort, #gepLong, #gepColor").on(
-      "input change",
-      () => this._queueSave()
-    );
+    $(
+      "#gepHeadway, #gepStart, #gepEnd, #gepRun, #gepDepartures, " +
+        "#gepShort, #gepLong, #gepColor"
+    ).on("input change", () => this._queueSave());
     $(".gep-day").on("change", () => this._queueSave());
     $(
       "#gepAgencyName, #gepAgencyUrl, #gepAgencyPhone, #gepAgencyEmail, " +

@@ -158,7 +158,11 @@ The **🕐 GTFS** button in the navbar opens an editor panel for filling in the
 real values:
 
 - **Per-route schedule** — headway, first/last bus, operating days (becomes
-  `frequencies.txt` and per-pattern `calendar.txt` services)
+  `frequencies.txt` and per-pattern `calendar.txt` services), or **exact
+  departure times** transcribed from the signboard — routes with departures
+  export one real trip per departure (pure schedule-based GTFS, no synthetic
+  frequency entry), with intermediate stop times spread over the route's run
+  time (entered, or estimated from shape length at ~18 km/h)
 - **Route metadata** — route number, long name, color (`routes.txt`)
 - **Feed settings** — agency details and flat fare (`agency.txt`,
   `fare_attributes.txt`)

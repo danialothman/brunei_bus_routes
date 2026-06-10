@@ -515,6 +515,27 @@ def _validate_gtfs_route_meta(payload):
                     or any(d not in (0, 1, True, False) for d in days)):
                 return None, "days must be 7 values of 0/1"
             sched["days"] = [int(bool(d)) for d in days]
+        # Exact departure times transcribed from the timing signboard. When
+        # present the export emits one real trip per departure for this route
+        # instead of a synthetic frequency entry.
+        deps = sched_in.get("departures")
+        if deps is not None:
+            if not isinstance(deps, list) or len(deps) > 300:
+                return None, "departures must be a list of times (max 300)"
+            norm = []
+            for d in deps:
+                t = _norm_time(d) if isinstance(d, str) else None
+                if t is None:
+                    return None, f"bad departure time: {str(d)[:20]!r}"
+                norm.append(t)
+            if norm:
+                sched["departures"] = sorted(set(norm))
+        run = sched_in.get("run_secs")
+        if run is not None:
+            if not isinstance(run, (int, float)) or isinstance(run, bool) \
+                    or not (60 <= run <= 6 * 3600):
+                return None, "run_secs must be 60..21600"
+            sched["run_secs"] = int(run)
         if sched:
             meta["schedule"] = sched
     return meta, None
