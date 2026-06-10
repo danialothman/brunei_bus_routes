@@ -128,6 +128,30 @@ Ctrl+C in the terminal.
 - Pan and zoom the map to explore different areas
 - On mobile devices, use the "Show Routes" button to access the route toggle menu
 
+## GTFS Export
+
+The route data can be exported as a [GTFS](https://gtfs.org/) feed (the standard
+transit data format consumed by trip planners, OpenTripPlanner, Google/Apple
+Maps, and validators).
+
+```bash
+# build a feed for the 2016 dataset
+.venv/bin/python scripts/build_gtfs.py --year 2016 --out gtfs.zip
+```
+
+Or download it from the running app at
+[`/data/gtfs.zip`](http://localhost:8000/data/gtfs.zip) (add `?year=YYYY` to pick
+a dataset). Both paths reflect any saved route edits.
+
+**Note on schedules:** the source data has real route geometry (`shapes.txt`) and
+named, ordered stops (`stops.txt`), but no machine-readable timetables — only
+photographed signboards. The feed is therefore **frequency-based**: each route
+gets one representative trip with stop times interpolated along its shape, plus a
+`frequencies.txt` row with a nominal 30-minute headway over a 06:00–20:00 window.
+These are placeholders to be replaced with real values transcribed from the JPD
+timing signboards. A single placeholder agency (ADBS) is used until the real
+operator-per-route mapping is known.
+
 ## Technologies Used
 
 - [Flask](https://flask.palletsprojects.com/) — Python web server
@@ -146,7 +170,8 @@ feasibility:
    stops, and journey time and fare estimates.
 2. **Enhanced Bus Stop Information** — comprehensive stop database,
    arrival/departure schedules, stop amenities, and photos and accessibility
-   details.
+   details. (A frequency-based [GTFS export](#gtfs-export) already exists; real
+   timetables transcribed from the timing signboards would complete this.)
 3. **Real-time Features** — live bus tracking, service disruption alerts,
    real-time occupancy levels, and schedule updates.
 4. **User Experience Improvements** — route favorites, offline map support,

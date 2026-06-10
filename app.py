@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as _xml_escape
 
 import db
+import gtfs
 
 # Prefer defusedxml to guard against XXE / entity-expansion attacks; fall back
 # to the stdlib parser (our KML files are trusted, shipped-in-repo assets).
@@ -32,6 +33,39 @@ DATA_YEAR = "2016"
 # no shipped file — they live entirely in the edits DB.
 USER_ROUTE_YEAR = "2026"
 
+# GTFS export. The Brunei data has real geometry + named stops but no timetables,
+# so the feed is frequency-based with synthetic stop times (see gtfs.py). The
+# single agency is a documented placeholder: ~5 operators are suspected but only
+# ADBS is on record (docs/2016/reference/notes.txt). Route -> operator mapping is
+# unknown, so every route references this one agency for now.
+GTFS_AGENCY = {
+    "id": "ADBS",
+    "name": "ADBS Sdn Bhd",
+    "url": "https://www.jpd.gov.bn/",
+    "timezone": "Asia/Brunei",
+    "lang": "ms",
+    "phone": "+673 239 0241",
+    "email": "",
+}
+
+# Feed-wide schedule defaults. Headway/window are nominal placeholders until real
+# values are transcribed from the JPD timing signboards. Calendar validity is a
+# fixed window (kept deterministic — no wall-clock dependency).
+GTFS_PARAMS = {
+    "headway_secs": 1800,          # 30 min
+    "start_time": "06:00:00",
+    "end_time": "20:00:00",
+    "service_id": "DAILY",
+    "days": [1, 1, 1, 1, 1, 1, 1],  # Mon..Sun
+    "start_date": "20160101",
+    "end_date": "20261231",
+    "feed_version": "2016.1",
+    "publisher_name": "Brunei Bus Routes project",
+    "publisher_url": "https://github.com/danialothman/brunei_bus_routes",
+    "feed_lang": "ms",
+}
+
+# Route data is segregated by year so new datasets live alongside the repo
 # Route edits live in a SQLite DB under Flask's instance folder (gitignored), so
 # the shipped route files are never modified. Init at import time so it runs
 # under both `flask run` and `python app.py`.
@@ -363,6 +397,74 @@ def geometry_to_geojson(geom):
         for seg in geom.get("segments", [])
     ]
     return {"type": "FeatureCollection", "features": features}
+
+
+# --- GTFS export -------------------------------------------------------------
+# "Points - *" KML layers are marker overlays (feeder stops, mosques, proposed
+# interchanges), not bus services with a drive path — excluded from the feed.
+_GTFS_SKIP = re.compile(r"^points\s*-", re.IGNORECASE)
+
+
+def _gtfs_route_meta(filename):
+    """(route_id, short_name, long_name) from a KML filename.
+    Pulls a leading route code (e.g. 'Muara 01' -> '01') into short_name."""
+    stem = os.path.splitext(os.path.basename(filename))[0]
+    route_id = re.sub(r"\s+", "-", stem.strip())
+    m = re.search(r"(\d+[A-Za-z]?)\s*$", stem)
+    short = m.group(1) if m else ""
+    return route_id, short, stem
+
+
+def gather_gtfs_routes(year):
+    """Collect this year's KML routes as gtfs.build_feed inputs, preferring an
+    edited geometry from the DB over the shipped file. Skips marker-only layers
+    and routes with no stops (a frequency-based feed needs stops to time)."""
+    rp = os.path.join(app.static_folder, "data", year, "routes.json")
+    if not os.path.exists(rp):
+        return []
+    with open(rp, "r") as f:
+        filenames = json.load(f)
+
+    routes = []
+    for filename in filenames:
+        if _GTFS_SKIP.match(os.path.basename(filename)):
+            continue
+        geom = db.latest_geometry(year, filename)
+        if geom is None:
+            path = _find_kml(filename, year)
+            if not path:
+                continue
+            try:
+                geom = parse_route_geometry(path)
+            except (ValueError, ET.ParseError):
+                continue
+        if not geom.get("stops"):
+            continue  # no stops -> nothing to time against
+        route_id, short, long_name = _gtfs_route_meta(filename)
+        routes.append({
+            "route_id": route_id,
+            "short_name": short,
+            "long_name": geom.get("name") or long_name,
+            "segments": geom.get("segments", []),
+            "stops": geom.get("stops", []),
+        })
+    return routes
+
+
+@app.route("/data/gtfs.zip")
+def gtfs_feed():
+    # On-demand GTFS feed for the year, reflecting DB edits (via gather).
+    year = _resolve_year(request.args.get("year"))
+    routes = gather_gtfs_routes(year)
+    if not routes:
+        return jsonify({"error": "no routes to export"}), 404
+    params = dict(GTFS_PARAMS, feed_version=f"{year}.1")
+    data, _stats = gtfs.build_feed(routes, GTFS_AGENCY, params)
+    return Response(
+        data,
+        mimetype="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="brunei-gtfs-{year}.zip"'},
+    )
 
 
 @app.route("/")
