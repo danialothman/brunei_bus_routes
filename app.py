@@ -974,6 +974,12 @@ def gtfs_page():
     return render_template("gtfs.html")
 
 
+@app.route("/gtfs/guide")
+def gtfs_guide_page():
+    # Data-entry guide for transcription personnel.
+    return render_template("gtfs_guide.html")
+
+
 @app.route("/ride/three")
 def ride_three():
     return render_template("ride_three.html")

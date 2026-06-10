@@ -211,6 +211,11 @@ full flow is draw → schedule → download. The GTFS pane covers:
 Exports also include auto-generated walking **`transfers.txt`** (distinct
 stops within 100 m), and `feed_version` is stamped with the export date.
 
+A **data entry guide** for transcription personnel lives at
+[`/gtfs/guide`](http://localhost:8000/gtfs/guide) (the **？ Guide** button in
+the workbench): what goes where, the per-route checklist, signboard usage,
+and a field-to-GTFS reference.
+
 Edits auto-save to the local SQLite store (`instance/edits.db`) and are merged
 into every subsequent export from both the endpoint and the CLI.
 

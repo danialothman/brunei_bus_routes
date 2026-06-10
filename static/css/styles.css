@@ -1218,3 +1218,140 @@ body.editing #gtfsEditBtn {
   }
 }
 
+/* --- Data entry guide (/gtfs/guide) --- */
+body.guide-page {
+  height: auto;
+  padding: 0;
+  background: var(--gtfs-paper);
+  color: var(--gtfs-ink);
+}
+.guide {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 36px 24px 60px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+.guide-masthead {
+  border-bottom: 4px solid var(--gtfs-ink);
+  margin-bottom: 28px;
+  padding-bottom: 18px;
+}
+.guide-kicker {
+  display: inline-block;
+  font-family: var(--gtfs-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  background: var(--gtfs-ink);
+  color: var(--gtfs-accent);
+  padding: 3px 10px;
+  border-radius: 3px;
+  margin-bottom: 12px;
+}
+.guide h1 {
+  font-family: var(--gtfs-display);
+  font-weight: 700;
+  font-size: 44px;
+  letter-spacing: 0.02em;
+  margin: 0 0 10px;
+}
+.guide-lede {
+  font-size: 16px;
+  color: var(--gtfs-ink-soft);
+  max-width: 640px;
+}
+.guide h2 {
+  font-family: var(--gtfs-display);
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: 0.03em;
+  margin: 34px 0 10px;
+  padding-bottom: 4px;
+  border-bottom: 3px solid var(--gtfs-accent);
+}
+.guide h3 {
+  font-family: var(--gtfs-display);
+  font-weight: 600;
+  font-size: 18px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--gtfs-ink-soft);
+  margin: 20px 0 6px;
+}
+.guide-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--gtfs-card);
+  border: 1px solid var(--gtfs-line);
+  border-radius: 6px;
+  margin: 8px 0 14px;
+}
+.guide-table th,
+.guide-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--gtfs-line);
+}
+.guide-table tr:last-child th,
+.guide-table tr:last-child td {
+  border-bottom: none;
+}
+.guide-table th {
+  width: 170px;
+  font-family: var(--gtfs-display);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+  color: var(--gtfs-ink);
+  white-space: nowrap;
+}
+.guide-mono td,
+.guide-mono th {
+  font-family: var(--gtfs-mono);
+  font-size: 12px;
+  width: auto;
+  white-space: normal;
+}
+.guide code {
+  font-family: var(--gtfs-mono);
+  font-size: 12px;
+  background: #14191d;
+  color: var(--gtfs-accent);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+.guide-note {
+  background: #fdf3d7;
+  border-left: 4px solid var(--gtfs-accent);
+  padding: 8px 12px;
+  border-radius: 0 4px 4px 0;
+  color: #6b5200;
+}
+.guide-rules li {
+  margin-bottom: 6px;
+}
+.guide-footer {
+  margin-top: 40px;
+  padding-top: 16px;
+  border-top: 1px solid var(--gtfs-line);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--gtfs-ink-soft);
+}
+.guide-footer .btn {
+  background: var(--gtfs-accent);
+  border: 1px solid #e6b94f;
+  color: var(--gtfs-accent-ink);
+  font-weight: 600;
+}
+@media print {
+  .guide-footer .btn {
+    display: none;
+  }
+}
+
