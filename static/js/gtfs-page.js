@@ -309,7 +309,9 @@ APP.GtfsPage = class {
       this.layer.setVisible(false);
     }
     // Editor is taking over: the stops list goes live against its session.
-    this.gtfsEditor.enterLive();
+    // Deferred, because EditorManager.enter() calls this BEFORE it creates
+    // its editing source — binding now would find nothing to mirror.
+    setTimeout(() => this.gtfsEditor.enterLive(), 0);
   }
 
   showRouteAfterEdit(year, file) {
