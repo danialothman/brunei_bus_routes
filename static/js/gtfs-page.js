@@ -42,6 +42,12 @@ APP.GtfsPage = class {
     this.gtfsEditor.init();
 
     $("#gtfsEditBtn").on("click", () => this.editSelected());
+    // Brand-new routes enter the editor without hideRouteForEdit firing
+    // (no file yet) — engage the live stops list after the editor opens.
+    // (EditorManager bound these first, so it runs before us.)
+    $("#newRouteBtn, #sipCreate").on("click", () =>
+      setTimeout(() => this.gtfsEditor.enterLive(), 0)
+    );
     const list = $("#gtfsRouteList");
     list.on("click", ".gtfs-route-row", (e) => {
       if ($(e.target).closest(".gtfs-route-del").length) return;
@@ -302,16 +308,16 @@ APP.GtfsPage = class {
     if (this.selected && this.selected.id === this._id(year, file) && this.layer) {
       this.layer.setVisible(false);
     }
-    // Editor is taking over: the stops list pauses (re-render shows the hint).
-    this.gtfsEditor._renderStops();
+    // Editor is taking over: the stops list goes live against its session.
+    this.gtfsEditor.enterLive();
   }
 
   showRouteAfterEdit(year, file) {
     if (this.selected && this.selected.id === this._id(year, file) && this.layer) {
       this.layer.setVisible(true);
     }
-    // Editor exited: re-fetch stops, which it may have changed.
-    this.gtfsEditor.refreshStops();
+    // Editor exited: back to the last saved geometry.
+    this.gtfsEditor.exitLive();
   }
 
   reloadRoute(year, file) {

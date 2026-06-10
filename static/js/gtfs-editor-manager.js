@@ -94,6 +94,86 @@ APP.GtfsEditorManager = class {
     if (this.current) this._loadStops();
   }
 
+  // --- Live mode: mirror the map editor's working stops ---------------------------
+  // While the editor is open, the list reflects its in-session features as they
+  // are dragged/placed/renamed, and list edits write back into those features.
+  // Nothing touches the server until the toolbar Save — exiting without saving
+  // discards both map and list changes together.
+
+  enterLive() {
+    const em = this.page && this.page.editorManager;
+    if (!em || !em.active || !em.source) {
+      this._renderStops();
+      return;
+    }
+    if (this._liveSource === em.source) {
+      this._renderStops(); // re-entered after an editor Save — just refresh
+      return;
+    }
+    this._flushStopsSave(); // pending non-live autosave from before
+    this._liveSource = em.source;
+    this._squelch = false;
+    this._onLiveCoord = (e) => this._updateLiveRow(e.feature);
+    this._onLiveStruct = () => {
+      if (this._squelch) return;
+      // Coalesce bursts (loads, undo/redo rebuilds); never steal typing focus.
+      clearTimeout(this._liveRenderTimer);
+      this._liveRenderTimer = setTimeout(() => {
+        if (!$("#gepStopsList").find(":focus").length) this._renderStops();
+      }, 200);
+    };
+    this._liveSource.on("changefeature", this._onLiveCoord);
+    this._liveSource.on("addfeature", this._onLiveStruct);
+    this._liveSource.on("removefeature", this._onLiveStruct);
+    this._liveSource.on("clear", this._onLiveStruct);
+    this._renderStops();
+  }
+
+  exitLive() {
+    if (this._liveSource) {
+      this._liveSource.un("changefeature", this._onLiveCoord);
+      this._liveSource.un("addfeature", this._onLiveStruct);
+      this._liveSource.un("removefeature", this._onLiveStruct);
+      this._liveSource.un("clear", this._onLiveStruct);
+      this._liveSource = null;
+      clearTimeout(this._liveRenderTimer);
+    }
+    this.refreshStops(); // back to the last saved version
+  }
+
+  _liveStopFeatures() {
+    if (!this._liveSource) return [];
+    return this._liveSource.getFeatures().filter((f) => f.get("kind") === "stop");
+  }
+
+  /** Update one row's inputs in place during a drag (no re-render, no focus loss). */
+  _updateLiveRow(feature) {
+    if (feature.get("kind") !== "stop") return;
+    const i = this._liveStopFeatures().indexOf(feature);
+    if (i < 0) return;
+    const row = $("#gepStopsList .gep-stop-row").eq(i);
+    if (!row.length) return;
+    const ll = APP.MapUtils.toNormal(feature.getGeometry().getCoordinates());
+    const set = (sel, val) => {
+      const el = row.find(sel)[0];
+      if (el && document.activeElement !== el) el.value = val;
+    };
+    set(".gep-stop-lat", ll[1].toFixed(6));
+    set(".gep-stop-lon", ll[0].toFixed(6));
+    set(".gep-stop-name", feature.get("name") || "");
+  }
+
+  /** Stops as plain data, from the live editor session or saved geometry. */
+  _stopsData() {
+    if (this._liveSource) {
+      return this._liveStopFeatures().map((f) => {
+        const ll = APP.MapUtils.toNormal(f.getGeometry().getCoordinates());
+        return { name: f.get("name") || "", lon: ll[0], lat: ll[1] };
+      });
+    }
+    return (this.geom && this.geom.stops) || [];
+  }
+
   /** Update the displayed name (e.g. after a rename in the editor). */
   setLabel(label) {
     if (!this.current) return;
@@ -150,9 +230,10 @@ APP.GtfsEditorManager = class {
       });
   }
 
-  /** Stops are saved as a new geometry version, which only user routes
-   * accept; the map editor being active also pauses list editing. */
+  /** Outside live mode, list edits save as a new geometry version, which only
+   * user routes accept. In live mode the editor session is always editable. */
   _stopsEditable() {
+    if (this._liveSource) return true;
     return !!(
       this.current &&
       this.current.isUser &&
@@ -165,25 +246,30 @@ APP.GtfsEditorManager = class {
     const list = $("#gepStopsList").empty();
     const hint = $("#gepStopsHint");
     const count = $("#gepStopCount");
-    const stops = (this.geom && this.geom.stops) || [];
+    const live = !!this._liveSource;
+    const stops = this._stopsData();
     count.text(stops.length ? `· ${stops.length}` : "");
-    if (!this.geom) {
+    if (!live && !this.geom) {
       hint.hide();
       return;
     }
     if (!stops.length) {
       hint
         .text(
-          this.current && this.current.isUser
-            ? "No stops yet — ✎ Edit the route and use + Stop to place them."
-            : "No stops on this route."
+          live
+            ? "No stops yet — use + Stop on the map; they appear here live."
+            : this.current && this.current.isUser
+              ? "No stops yet — ✎ Edit the route and use + Stop to place them."
+              : "No stops on this route."
         )
         .show();
       return;
     }
     let note = "";
-    if (this.page && this.page.editorManager.active) {
-      note = "Map editor open — stop edits happen there until you exit.";
+    if (live) {
+      note = "● live with the map editor — Save in the toolbar to keep changes";
+    } else if (this.page && this.page.editorManager.active) {
+      note = "Map editor open on another route.";
     } else if (this.current && !this.current.isUser) {
       note = "Official route — ✎ Edit copies it to make stops editable.";
     }
@@ -222,11 +308,28 @@ APP.GtfsEditorManager = class {
 
   _stopAt(el) {
     const i = parseInt($(el).closest(".gep-stop-row").attr("data-i"), 10);
-    const stops = (this.geom && this.geom.stops) || [];
-    return i >= 0 && i < stops.length ? i : null;
+    const n = this._liveSource
+      ? this._liveStopFeatures().length
+      : ((this.geom && this.geom.stops) || []).length;
+    return i >= 0 && i < n ? i : null;
+  }
+
+  /** Reorder the editor session's stop features (order = stop_sequence). */
+  _liveReorder(i, j) {
+    const src = this._liveSource;
+    const feats = this._liveStopFeatures();
+    if (j < 0 || j >= feats.length) return;
+    [feats[i], feats[j]] = [feats[j], feats[i]];
+    this._squelch = true; // one render at the end, not one per remove/add
+    feats.forEach((f) => src.removeFeature(f));
+    feats.forEach((f) => src.addFeature(f));
+    this._squelch = false;
+    this.page.editorManager._snapshot();
+    this._renderStops();
   }
 
   _queueStopsSave() {
+    if (this._liveSource) return; // live edits persist via the editor's Save
     if (!this._stopsEditable()) return;
     this.stopsStatus.textContent = "Saving…";
     if (this._stopsTimer) clearTimeout(this._stopsTimer);
@@ -525,20 +628,30 @@ APP.GtfsEditorManager = class {
         "#gepFarePrice, #gepFareCurrency"
     ).on("input change", () => this._queueFeedSave());
 
-    // Stops list (rows are rebuilt per route, so delegate).
+    // Stops list (rows are rebuilt per route, so delegate). Every edit
+    // branches: live mode writes into the editor's features (persisted only
+    // by the toolbar Save); otherwise it autosaves a new geometry version.
     const stopsList = $("#gepStopsList");
     stopsList.on("click", ".gep-stop-seq", (e) => {
       const i = this._stopAt(e.currentTarget);
-      if (i != null && this.page) {
-        const s = this.geom.stops[i];
-        this.page.focusStop(s.lon, s.lat);
-      }
+      if (i == null || !this.page) return;
+      const s = this._stopsData()[i];
+      if (s) this.page.focusStop(s.lon, s.lat);
     });
     stopsList.on("input", ".gep-stop-name", (e) => {
       const i = this._stopAt(e.currentTarget);
       if (i == null) return;
+      if (this._liveSource) {
+        const f = this._liveStopFeatures()[i];
+        if (f) f.set("name", e.currentTarget.value);
+        return;
+      }
       this.geom.stops[i].name = e.currentTarget.value;
       this._queueStopsSave();
+    });
+    // In live mode a rename becomes one undo step when the field is left.
+    stopsList.on("change", ".gep-stop-name", () => {
+      if (this._liveSource) this.page.editorManager._snapshot();
     });
     stopsList.on("change", ".gep-stop-coord", (e) => {
       const i = this._stopAt(e.currentTarget);
@@ -546,19 +659,32 @@ APP.GtfsEditorManager = class {
       const v = parseFloat(e.currentTarget.value);
       const isLat = $(e.currentTarget).hasClass("gep-stop-lat");
       const ok = isFinite(v) && (isLat ? Math.abs(v) <= 90 : Math.abs(v) <= 180);
-      const s = this.geom.stops[i];
+      const s = this._stopsData()[i];
       if (!ok) {
         e.currentTarget.value = (isLat ? s.lat : s.lon).toFixed(6); // revert
         return;
       }
-      if (isLat) s.lat = v;
-      else s.lon = v;
+      if (this._liveSource) {
+        const f = this._liveStopFeatures()[i];
+        if (!f) return;
+        const lon = isLat ? s.lon : v;
+        const lat = isLat ? v : s.lat;
+        f.setGeometry(new ol.geom.Point(APP.MapUtils.toOL([lon, lat])));
+        this.page.editorManager._snapshot();
+        return;
+      }
+      if (isLat) this.geom.stops[i].lat = v;
+      else this.geom.stops[i].lon = v;
       this._queueStopsSave();
     });
     stopsList.on("click", ".gep-stop-up, .gep-stop-down", (e) => {
       const i = this._stopAt(e.currentTarget);
       if (i == null) return;
       const j = $(e.currentTarget).hasClass("gep-stop-up") ? i - 1 : i + 1;
+      if (this._liveSource) {
+        this._liveReorder(i, j);
+        return;
+      }
       const stops = this.geom.stops;
       if (j < 0 || j >= stops.length) return;
       [stops[i], stops[j]] = [stops[j], stops[i]];
@@ -568,6 +694,14 @@ APP.GtfsEditorManager = class {
     stopsList.on("click", ".gep-stop-del", (e) => {
       const i = this._stopAt(e.currentTarget);
       if (i == null) return;
+      if (this._liveSource) {
+        const f = this._liveStopFeatures()[i];
+        if (f) {
+          this._liveSource.removeFeature(f);
+          this.page.editorManager._snapshot();
+        }
+        return;
+      }
       this.geom.stops.splice(i, 1);
       this._renderStops();
       this._queueStopsSave();
