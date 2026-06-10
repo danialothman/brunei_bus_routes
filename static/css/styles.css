@@ -538,3 +538,62 @@ details.gep-section summary {
   cursor: nwse-resize;
   background: linear-gradient(135deg, transparent 50%, #b0b0b0 50%);
 }
+
+/* --- GTFS workbench page (/gtfs): routes | map+editor | docked GTFS pane --- */
+body.gtfs-page {
+  height: 100%;
+  overflow: hidden;
+}
+.gtfs-layout {
+  display: flex;
+  height: calc(100vh - 50px); /* below the fixed navbar */
+}
+.gtfs-routes-col {
+  flex: 0 0 280px;
+  overflow-y: auto;
+  padding: 8px;
+  background: #fafafa;
+  border-right: 1px solid #ddd;
+}
+.gtfs-routes-col .sidebar-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+.gtfs-map-col {
+  flex: 1 1 auto;
+  position: relative;
+  min-width: 320px;
+}
+body.gtfs-page #map {
+  width: 100%;
+  height: 100%;
+}
+body.gtfs-page #routes {
+  max-height: none;
+}
+/* Docked variant of the GTFS editor: a permanent right column, not a
+   floating window. */
+#gtfsPanel.docked {
+  position: static;
+  flex: 0 0 400px;
+  width: 400px;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  border: none;
+  border-left: 1px solid #ddd;
+  border-radius: 0;
+  box-shadow: none;
+}
+#gtfsPanel.docked #gtfsHeader {
+  cursor: default;
+}
+@media (max-width: 991px) {
+  .gtfs-routes-col {
+    flex-basis: 200px;
+  }
+  #gtfsPanel.docked {
+    flex-basis: 320px;
+    width: 320px;
+  }
+}

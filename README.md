@@ -152,10 +152,15 @@ These are placeholders to be replaced with real values transcribed from the JPD
 timing signboards. A single placeholder agency (ADBS) is used until the real
 operator-per-route mapping is known.
 
-### GTFS editor
+### GTFS workbench
 
-The **🕐 GTFS** button in the navbar opens an editor panel for filling in the
-real values:
+The **🕐 GTFS** button in the navbar opens a dedicated page at
+[`/gtfs`](http://localhost:8000/gtfs): a three-column workbench with the route
+list, the map with the full geometry editor (draw the line, place/rename stops,
+undo/history — the same editor as the main page), and a docked GTFS pane.
+Toggling a route shows it on the map *and* loads it into the GTFS form.
+User-drawn routes are exported too, so the full flow is draw → schedule →
+download. The GTFS pane covers:
 
 - **Per-route schedule** — headway, first/last bus, operating days (becomes
   `frequencies.txt` and per-pattern `calendar.txt` services), or **exact

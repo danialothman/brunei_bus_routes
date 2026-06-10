@@ -18,6 +18,9 @@ APP.GtfsEditorManager = class {
 
   init() {
     this.panel = document.getElementById("gtfsPanel");
+    // Docked mode (the /gtfs page): the panel is a fixed column — always
+    // visible, no drag/resize/close, and route-list toggles drive the form.
+    this.docked = this.panel.classList.contains("docked");
     this.routeSelect = $("#gtfsRouteSelect");
     this.timingSelect = $("#gtfsTimingSelect");
     this.timingImg = document.getElementById("gtfsTimingImg");
@@ -26,6 +29,21 @@ APP.GtfsEditorManager = class {
     this.status = document.getElementById("gepStatus");
     this.feedStatus = document.getElementById("gepFeedStatus");
     this._bind();
+    if (this.docked) this.show();
+  }
+
+  /** Load a specific route into the form (e.g. from a route-list toggle). */
+  selectRoute(year, file) {
+    const opt = this.routeSelect
+      .find("option")
+      .filter((_, o) => o.value === file && $(o).attr("data-year") === year)
+      .first();
+    if (!opt.length) return; // not a GTFS-exportable route (geojson, Points -)
+    if (this.routeSelect.val() === file && this.current && this.current.year === year) {
+      return;
+    }
+    this.routeSelect.val(opt.val());
+    this._showSelected();
   }
 
   // --- Data ----------------------------------------------------------------
@@ -37,10 +55,13 @@ APP.GtfsEditorManager = class {
       .then((d) => {
         this.routeSelect.empty();
         (d.years || []).forEach((y) => {
-          // Only KML routes carry stops, so only they appear in the feed.
-          const files = ((d[y] && d[y].routes) || []).filter(
+          // KML routes carry stops, so they appear in the feed — shipped ones
+          // plus user-created routes (the draw -> schedule -> export flow).
+          const shipped = ((d[y] && d[y].routes) || []).filter(
             (f) => !/^points\s*-/i.test(f)
           );
+          const user = (d[y] && d[y].user) || [];
+          const files = shipped.concat(user);
           if (!files.length) return;
           const names = (d[y] && d[y].names) || {};
           const group = $("<optgroup>").attr("label", `${y} routes`);
@@ -105,6 +126,7 @@ APP.GtfsEditorManager = class {
   }
 
   hide() {
+    if (this.docked) return; // the docked column never closes
     this._flushSaves();
     this.panel.style.display = "none";
   }
@@ -374,8 +396,18 @@ APP.GtfsEditorManager = class {
       "#gepAgencyName, #gepAgencyUrl, #gepAgencyPhone, #gepAgencyEmail, " +
         "#gepFarePrice, #gepFareCurrency"
     ).on("input change", () => this._queueFeedSave());
-    this._enableDrag();
-    this._enableResize();
+    if (this.docked) {
+      // Showing a route on the map also loads it into the GTFS form.
+      $("#routes").on("click", "input", (e) => {
+        if (!e.target.checked) return;
+        const sep = e.target.value.indexOf("::"); // id is "<year>::<file>"
+        if (sep < 0) return;
+        this.selectRoute(e.target.value.slice(0, sep), e.target.value.slice(sep + 2));
+      });
+    } else {
+      this._enableDrag();
+      this._enableResize();
+    }
   }
 
   _enableDrag() {

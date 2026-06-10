@@ -429,6 +429,22 @@ def gather_gtfs_routes(year):
 
     meta_by_file = db.all_gtfs_meta(year)
     routes = []
+
+    def add(filename, geom):
+        if not geom or not geom.get("stops"):
+            return  # no stops -> nothing to time against
+        route_id, short, long_name = _gtfs_route_meta(filename)
+        meta = meta_by_file.get(filename, {})
+        routes.append({
+            "route_id": route_id,
+            "short_name": meta.get("short_name") or short,
+            "long_name": meta.get("long_name") or geom.get("name") or long_name,
+            "color": meta.get("color", ""),
+            "schedule": meta.get("schedule") or None,
+            "segments": geom.get("segments", []),
+            "stops": geom.get("stops", []),
+        })
+
     for filename in filenames:
         if _GTFS_SKIP.match(os.path.basename(filename)):
             continue
@@ -441,19 +457,16 @@ def gather_gtfs_routes(year):
                 geom = parse_route_geometry(path)
             except (ValueError, ET.ParseError):
                 continue
-        if not geom.get("stops"):
-            continue  # no stops -> nothing to time against
-        route_id, short, long_name = _gtfs_route_meta(filename)
-        meta = meta_by_file.get(filename, {})
-        routes.append({
-            "route_id": route_id,
-            "short_name": meta.get("short_name") or short,
-            "long_name": meta.get("long_name") or geom.get("name") or long_name,
-            "color": meta.get("color", ""),
-            "schedule": meta.get("schedule") or None,
-            "segments": geom.get("segments", []),
-            "stops": geom.get("stops", []),
-        })
+        add(filename, geom)
+
+    # User-created routes (DB-only, no shipped file) belong in the feed too —
+    # the workbench flow is draw -> schedule -> export.
+    user_files = sorted(
+        f for f in db.distinct_files(year)
+        if not _find_kml(f, year) and not _find_geojson(f, year)
+    )
+    for filename in user_files:
+        add(filename, db.latest_geometry(year, filename))
     return routes
 
 
@@ -720,6 +733,12 @@ def gtfs_feed():
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/gtfs")
+def gtfs_page():
+    # Dedicated GTFS workbench: route list + geometry editor + schedule forms.
+    return render_template("gtfs.html")
 
 
 @app.route("/ride/three")
