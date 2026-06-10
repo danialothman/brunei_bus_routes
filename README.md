@@ -170,12 +170,14 @@ full flow is draw → schedule → download. The GTFS pane covers:
   export one real trip per departure (pure schedule-based GTFS, no synthetic
   frequency entry), with intermediate stop times spread over the route's run
   time (entered, or estimated from shape length at ~18 km/h)
-- **Route metadata** — route number, long name, color (`routes.txt`)
+- **Route metadata** — route number, long name, color, and the operator
+  running the route (`routes.txt`, including per-route `agency_id`)
 - **Stops list** — every stop of the selected route in sequence order, with
   editable names and coordinates, reorder/remove, and click-to-locate on the
   map; edits save as new geometry versions (official routes become editable
   via the ✎ copy flow)
-- **Feed settings** — agency details and flat fare (`agency.txt`,
+- **Feed settings** — the operator list (multiple companies supported; the
+  first is the default for unassigned routes) and flat fare (`agency.txt`,
   `fare_attributes.txt`)
 - **Timing signboard reference** — the official JPD timing photo for the route
   (`docs/<year>/images/timings/`) is shown beside the form so departure times

@@ -375,7 +375,7 @@ APP.GtfsEditorManager = class {
   _formInputs() {
     return $(
       "#gepHeadway, #gepStart, #gepEnd, #gepRun, #gepDepartures, " +
-        "#gepShort, #gepLong, #gepColor, .gep-day"
+        "#gepShort, #gepLong, #gepColor, #gepOperator, .gep-day"
     );
   }
 
@@ -402,6 +402,12 @@ APP.GtfsEditorManager = class {
     $("#gepShort").val(meta.short_name || "");
     $("#gepLong").val(meta.long_name || "");
     $("#gepColor").val(meta.color ? "#" + meta.color : "");
+    // Remember the assignment so the dropdown survives option rebuilds
+    // (operators may still be loading, or get edited in the modal).
+    this._currentOperator = meta.agency_id || "";
+    const op = $("#gepOperator");
+    op.val(this._currentOperator);
+    if (op.val() == null) op.val("");
     this._populating = false;
   }
 
@@ -426,6 +432,9 @@ APP.GtfsEditorManager = class {
     if ($("#gepLong").val().trim()) meta.long_name = $("#gepLong").val().trim();
     const color = $("#gepColor").val().trim();
     if (/^#?[0-9a-fA-F]{6}$/.test(color)) meta.color = color.replace("#", "");
+    const operator = $("#gepOperator").val();
+    if (operator) meta.agency_id = operator;
+    this._currentOperator = operator || "";
     return meta;
   }
 
@@ -459,7 +468,7 @@ APP.GtfsEditorManager = class {
       });
   }
 
-  // --- Feed-level settings (agency + fare modal) -----------------------------------
+  // --- Feed-level settings (operators + fare modal) ---------------------------------
 
   _loadFeedConfig() {
     return fetch("/data/gtfs-config")
@@ -467,13 +476,13 @@ APP.GtfsEditorManager = class {
       .then((d) => {
         const c = d.config || {};
         const def = d.defaults || {};
-        const agency = c.agency || {};
-        const defAgency = def.agency || {};
         this._populating = true;
-        $("#gepAgencyName").val(agency.name || "").attr("placeholder", defAgency.name || "");
-        $("#gepAgencyUrl").val(agency.url || "").attr("placeholder", defAgency.url || "");
-        $("#gepAgencyPhone").val(agency.phone || "").attr("placeholder", defAgency.phone || "");
-        $("#gepAgencyEmail").val(agency.email || "");
+        // Resolved operators = what the export will actually use (saved list,
+        // or the built-in default). Keep the first as the deletion fallback.
+        const agencies = d.agencies || [];
+        this._defaultAgency = agencies[0] || { id: "ADBS", name: (def.agency || {}).name || "Default" };
+        this._renderAgencyRows(agencies);
+        this._updateOperatorOptions();
         const fare = c.fare || {};
         $("#gepFarePrice").val(fare.price != null ? fare.price : "");
         $("#gepFareCurrency").val(fare.currency || "");
@@ -482,6 +491,67 @@ APP.GtfsEditorManager = class {
         }
         this._populating = false;
       });
+  }
+
+  _renderAgencyRows(agencies) {
+    const list = $("#gepAgencyList").empty();
+    agencies.forEach((a) => list.append(this._agencyRow(a)));
+    if (!agencies.length) list.append(this._agencyRow({}));
+  }
+
+  _agencyRow(a) {
+    const row = $('<div class="gep-agency-row"></div>').attr("data-id", a.id || "");
+    row.append($('<input type="text" class="gep-agency-name" placeholder="Operator name" />').val(a.name || ""));
+    row.append($('<input type="text" class="gep-agency-url" placeholder="https://…" />').val(a.url || ""));
+    row.append($('<input type="text" class="gep-agency-phone" placeholder="+673 …" />').val(a.phone || ""));
+    row.append($('<a class="gep-agency-del" title="Remove operator">✕</a>'));
+    return row;
+  }
+
+  /** Operators as data, from the modal rows. Rows without an id get one
+   * derived from the name (same slug rule as the server). With `pin` the id
+   * is written onto the row, freezing it so route assignments stay stable
+   * across later renames — pin only once typing has settled (save time),
+   * never per keystroke. */
+  _agencyData(pin) {
+    const out = [];
+    const seen = new Set();
+    $("#gepAgencyList .gep-agency-row").each((_, el) => {
+      const row = $(el);
+      const name = row.find(".gep-agency-name").val().trim();
+      if (!name) return;
+      let id = row.attr("data-id");
+      if (!id) {
+        id = name.replace(/[^A-Za-z0-9]+/g, "-").replace(/^-+|-+$/g, "").toUpperCase().slice(0, 30) || "OP";
+        let unique = id;
+        let n = 2;
+        while (seen.has(unique)) unique = `${id}-${n++}`;
+        id = unique;
+        if (pin) row.attr("data-id", id);
+      }
+      if (seen.has(id)) return;
+      seen.add(id);
+      const entry = { id, name };
+      const url = row.find(".gep-agency-url").val().trim();
+      const phone = row.find(".gep-agency-phone").val().trim();
+      if (url) entry.url = url;
+      if (phone) entry.phone = phone;
+      out.push(entry);
+    });
+    return out;
+  }
+
+  /** Rebuild the route pane's Operator dropdown from the modal rows,
+   * preserving the selected route's assignment. */
+  _updateOperatorOptions() {
+    const select = $("#gepOperator");
+    const agencies = this._agencyData();
+    const first = agencies[0] || this._defaultAgency || { id: "", name: "default" };
+    select.empty();
+    select.append($("<option>").val("").text(`(default — ${first.name})`));
+    agencies.forEach((a) => select.append($("<option>").val(a.id).text(a.name)));
+    select.val(this._currentOperator || "");
+    if (select.val() == null) select.val(""); // assignment to a removed operator
   }
 
   _queueFeedSave() {
@@ -496,12 +566,8 @@ APP.GtfsEditorManager = class {
 
   _saveFeedConfig() {
     const config = {};
-    const agency = {};
-    if ($("#gepAgencyName").val().trim()) agency.name = $("#gepAgencyName").val().trim();
-    if ($("#gepAgencyUrl").val().trim()) agency.url = $("#gepAgencyUrl").val().trim();
-    if ($("#gepAgencyPhone").val().trim()) agency.phone = $("#gepAgencyPhone").val().trim();
-    if ($("#gepAgencyEmail").val().trim()) agency.email = $("#gepAgencyEmail").val().trim();
-    if (Object.keys(agency).length) config.agency = agency;
+    const agencies = this._agencyData(true); // pin ids now that typing settled
+    if (agencies.length) config.agencies = agencies;
     const fare = {};
     if ($("#gepFarePrice").val() !== "") fare.price = parseFloat($("#gepFarePrice").val());
     if ($("#gepFareCurrency").val().trim()) fare.currency = $("#gepFareCurrency").val().trim();
@@ -515,6 +581,7 @@ APP.GtfsEditorManager = class {
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
       .then(({ ok, d }) => {
         this.feedStatus.textContent = ok ? "Saved ✓" : d.error || "Save failed";
+        if (ok) this._updateOperatorOptions();
       })
       .catch((err) => {
         this.feedStatus.textContent = "Save failed";
@@ -620,13 +687,24 @@ APP.GtfsEditorManager = class {
     $("#gepFit").on("click", () => this._setZoom(1));
     $(
       "#gepHeadway, #gepStart, #gepEnd, #gepRun, #gepDepartures, " +
-        "#gepShort, #gepLong, #gepColor"
+        "#gepShort, #gepLong, #gepColor, #gepOperator"
     ).on("input change", () => this._queueSave());
     $(".gep-day").on("change", () => this._queueSave());
-    $(
-      "#gepAgencyName, #gepAgencyUrl, #gepAgencyPhone, #gepAgencyEmail, " +
-        "#gepFarePrice, #gepFareCurrency"
-    ).on("input change", () => this._queueFeedSave());
+    $("#gepFarePrice, #gepFareCurrency").on("input change", () => this._queueFeedSave());
+    // Operator rows are dynamic — delegate, and refresh the route pane's
+    // dropdown as names change.
+    $("#gepAgencyList").on("input", "input", () => {
+      this._updateOperatorOptions();
+      this._queueFeedSave();
+    });
+    $("#gepAgencyList").on("click", ".gep-agency-del", (e) => {
+      $(e.currentTarget).closest(".gep-agency-row").remove();
+      this._updateOperatorOptions();
+      this._queueFeedSave();
+    });
+    $("#gepAgencyAdd").on("click", () => {
+      $("#gepAgencyList").append(this._agencyRow({}));
+    });
 
     // Stops list (rows are rebuilt per route, so delegate). Every edit
     // branches: live mode writes into the editor's features (persisted only

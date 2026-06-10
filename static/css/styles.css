@@ -934,12 +934,85 @@ body.editing #gtfsEditBtn {
   color: #97917f;
   font-size: 12px;
 }
+/* Route pane operator picker */
+.gep-row select#gepOperator {
+  flex: 1 1 auto;
+  font-size: 12px;
+  height: 24px;
+  padding: 2px 4px;
+  border: 1px solid #cfc8b8;
+  border-radius: 3px;
+  background: #fffdf8;
+  color: var(--gtfs-ink);
+}
+
 /* Feed settings modal */
 .gep-feed-form .gep-row {
   margin-bottom: 8px;
 }
 .gep-feed-form .gep-block {
   flex: 1 1 40%;
+}
+.gep-feed-subhead {
+  font-family: var(--gtfs-display);
+  font-weight: 600;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gtfs-ink);
+  margin: 12px 0 6px;
+  padding-bottom: 3px;
+  border-bottom: 2px solid var(--gtfs-accent);
+}
+.gep-feed-subhead:first-child {
+  margin-top: 0;
+}
+.gep-hint-inline {
+  font-family: inherit;
+  font-weight: 400;
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: normal;
+  color: #97917f;
+  margin-left: 8px;
+}
+.gep-agency-head,
+.gep-agency-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.gep-agency-head {
+  font-size: 11px;
+  color: var(--gtfs-ink-soft);
+  margin-bottom: 2px;
+}
+.gep-agency-col-name, .gep-agency-row .gep-agency-name { flex: 2 1 120px; }
+.gep-agency-col-url, .gep-agency-row .gep-agency-url { flex: 2 1 100px; }
+.gep-agency-col-phone, .gep-agency-row .gep-agency-phone { flex: 1 1 70px; }
+.gep-agency-col-x { flex: 0 0 16px; }
+.gep-agency-row input {
+  font-size: 12px;
+  padding: 3px 6px;
+  height: 26px;
+  border: 1px solid #cfc8b8;
+  border-radius: 3px;
+  min-width: 0;
+}
+.gep-agency-del {
+  flex: 0 0 16px;
+  color: #c0392b;
+  opacity: 0.5;
+  cursor: pointer;
+  text-decoration: none;
+}
+.gep-agency-del:hover {
+  opacity: 1;
+  text-decoration: none;
+}
+#gepAgencyAdd {
+  margin-bottom: 4px;
 }
 .gep-hint {
   margin: 4px 0 0;

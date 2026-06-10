@@ -179,6 +179,9 @@
               <label>Name <input type="text" id="gepLong" placeholder="route long name" /></label>
               <label>Color <input type="text" id="gepColor" size="7" placeholder="#RRGGBB" /></label>
             </div>
+            <div class="gep-row">
+              <label>Operator <select id="gepOperator" title="Which company runs this route (define operators in ⚙ Feed settings)"></select></label>
+            </div>
           </div>
           <div class="gep-section" id="gepStopsSection">
             <div class="gep-section-head">
@@ -207,9 +210,9 @@
       </div>
     </div>
 
-    <!-- Feed-wide settings: agency + flat fare (applies to the whole export). -->
+    <!-- Feed-wide settings: operators + flat fare (applies to the whole export). -->
     <div class="modal fade" id="feedSettingsModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-sm" role="document">
+      <div class="modal-dialog" role="document">
         <div class="modal-content">
           <div class="modal-header">
             <button type="button" class="close" data-dismiss="modal">&times;</button>
@@ -218,24 +221,22 @@
             </h4>
           </div>
           <div class="modal-body gep-feed-form">
-            <div class="gep-row">
-              <label class="gep-block">Agency name
-                <input type="text" id="gepAgencyName" placeholder="ADBS Sdn Bhd" /></label>
+            <div class="gep-feed-subhead">Operators
+              <span class="gep-hint-inline">first = default; assign per route in the route pane</span>
             </div>
-            <div class="gep-row">
-              <label class="gep-block">Agency URL
-                <input type="text" id="gepAgencyUrl" placeholder="https://…" /></label>
+            <div class="gep-agency-head">
+              <span class="gep-agency-col-name">Name</span>
+              <span class="gep-agency-col-url">URL</span>
+              <span class="gep-agency-col-phone">Phone</span>
+              <span class="gep-agency-col-x"></span>
             </div>
+            <div id="gepAgencyList"></div>
+            <button type="button" class="btn btn-default btn-xs" id="gepAgencyAdd">+ Add operator</button>
+            <div class="gep-feed-subhead">Fare</div>
             <div class="gep-row">
-              <label class="gep-block">Phone
-                <input type="text" id="gepAgencyPhone" placeholder="+673 …" /></label>
-              <label class="gep-block">Email
-                <input type="text" id="gepAgencyEmail" placeholder="ops@…" /></label>
-            </div>
-            <div class="gep-row">
-              <label class="gep-block">Flat fare
+              <label>Flat fare
                 <input type="number" id="gepFarePrice" min="0" step="0.10" placeholder="1.00" /></label>
-              <label class="gep-block">Currency
+              <label>Currency
                 <input type="text" id="gepFareCurrency" size="4" placeholder="BND" /></label>
             </div>
             <p class="gep-hint">Saved automatically; applied to every download.</p>

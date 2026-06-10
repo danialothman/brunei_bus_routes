@@ -157,14 +157,16 @@ def _hhmmss_to_secs(t):
     return h * 3600 + m * 60 + s
 
 
-def build_feed(routes, agency, params):
+def build_feed(routes, agencies, params):
     """Build a GTFS feed and return it as zip bytes.
 
     routes: [{route_id, short_name, long_name, segments, stops, color?,
-              schedule?}] where schedule overrides the feed defaults per route:
-             {headway_secs?, start_time?, end_time?, days?[7],
-              departures?: [HH:MM:SS, ...], run_secs?}
-    agency: {id, name, url, phone, timezone, lang, email?}
+              agency_id?, schedule?}] where schedule overrides the feed
+             defaults per route: {headway_secs?, start_time?, end_time?,
+              days?[7], departures?: [HH:MM:SS, ...], run_secs?}
+    agencies: list of {id, name, url, phone, timezone, lang, email?} —
+              the FIRST is the default operator for unassigned routes.
+              (A single dict is accepted for backward compatibility.)
     params: {headway_secs, start_time, end_time, service_id, days[7],
              start_date, end_date, feed_version, publisher_name, publisher_url,
              feed_lang, fare?: {price, currency}}
@@ -175,7 +177,10 @@ def build_feed(routes, agency, params):
     Intermediate stop times are interpolated along the shape over the route's
     run time (run_secs if given, else estimated from shape length at ~18 km/h).
     """
-    agency_id = agency["id"]
+    if isinstance(agencies, dict):
+        agencies = [agencies]
+    default_agency_id = agencies[0]["id"]
+    known_agency_ids = {a["id"] for a in agencies}
     default_service_id = params["service_id"]
     default_days = list(params["days"])
 
@@ -222,9 +227,13 @@ def build_feed(routes, agency, params):
         if run <= 0:
             run = int(total / 5.0) if total > 0 else headway
 
+        # Per-route operator; unknown/unset assignments fall back to the default.
+        aid = r.get("agency_id")
+        if aid not in known_agency_ids:
+            aid = default_agency_id
         routes_rows.append({
             "route_id": rid,
-            "agency_id": agency_id,
+            "agency_id": aid,
             "route_short_name": r.get("short_name", "") or "",
             "route_long_name": r.get("long_name", "") or "",
             "route_type": 3,  # 3 = bus
@@ -314,14 +323,14 @@ def build_feed(routes, agency, params):
     ]
 
     agency_rows = [{
-        "agency_id": agency_id,
-        "agency_name": agency["name"],
-        "agency_url": agency["url"],
-        "agency_timezone": agency["timezone"],
-        "agency_lang": agency.get("lang", ""),
-        "agency_phone": agency.get("phone", ""),
-        "agency_email": agency.get("email", ""),
-    }]
+        "agency_id": a["id"],
+        "agency_name": a["name"],
+        "agency_url": a["url"],
+        "agency_timezone": a["timezone"],
+        "agency_lang": a.get("lang", ""),
+        "agency_phone": a.get("phone", ""),
+        "agency_email": a.get("email", ""),
+    } for a in agencies]
 
     feed_info_rows = [{
         "feed_publisher_name": params["publisher_name"],

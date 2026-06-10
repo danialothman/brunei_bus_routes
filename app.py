@@ -440,6 +440,7 @@ def gather_gtfs_routes(year):
             "short_name": meta.get("short_name") or short,
             "long_name": meta.get("long_name") or geom.get("name") or long_name,
             "color": meta.get("color", ""),
+            "agency_id": meta.get("agency_id", ""),
             "schedule": meta.get("schedule") or None,
             "segments": geom.get("segments", []),
             "stops": geom.get("stops", []),
@@ -504,6 +505,12 @@ def _validate_gtfs_route_meta(payload):
         ):
             return None, "color must be a 6-digit hex value"
         meta["color"] = color.strip().lstrip("#").upper()
+    agency_id = payload.get("agency_id")
+    if agency_id:
+        if not isinstance(agency_id, str):
+            return None, "agency_id must be a string"
+        if agency_id.strip():
+            meta["agency_id"] = agency_id.strip()[:30]
     sched_in = payload.get("schedule")
     if sched_in:
         if not isinstance(sched_in, dict):
@@ -555,10 +562,45 @@ def _validate_gtfs_route_meta(payload):
 
 
 def _validate_gtfs_feed_config(payload):
-    """Validate feed-level config (agency + fare). Returns (config, error)."""
+    """Validate feed-level config (operators + fare). Returns (config, error)."""
     if not isinstance(payload, dict):
         return None, "config must be a JSON object"
     config = {}
+    # Operators: a list of agencies; the first is the default for routes
+    # without an explicit assignment.
+    agencies_in = payload.get("agencies")
+    if agencies_in is not None:
+        if not isinstance(agencies_in, list) or len(agencies_in) > 20:
+            return None, "agencies must be a list (max 20)"
+        agencies = []
+        seen = set()
+        for a in agencies_in:
+            if not isinstance(a, dict):
+                return None, "each operator must be an object"
+            name = a.get("name")
+            if not isinstance(name, str) or not name.strip():
+                continue  # blank rows are dropped silently
+            name = name.strip()[:200]
+            aid = a.get("id")
+            if aid is not None and not isinstance(aid, str):
+                return None, "operator id must be a string"
+            aid = (aid or "").strip()[:30]
+            if not aid:
+                aid = re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-").upper()[:30] or "OP"
+            if aid in seen:
+                return None, f"duplicate operator id: {aid}"
+            seen.add(aid)
+            entry = {"id": aid, "name": name}
+            for field in ("url", "phone", "email"):
+                v = a.get(field)
+                if v is not None:
+                    if not isinstance(v, str):
+                        return None, f"operator {field} must be a string"
+                    if v.strip():
+                        entry[field] = v.strip()[:300]
+            agencies.append(entry)
+        if agencies:
+            config["agencies"] = agencies
     agency_in = payload.get("agency")
     if agency_in:
         if not isinstance(agency_in, dict):
@@ -626,12 +668,18 @@ def save_gtfs_meta():
 
 @app.route("/data/gtfs-config")
 def get_gtfs_config():
-    """Feed-level GTFS settings (agency + fare), plus the built-in defaults so
-    the editor can show placeholders."""
+    """Feed-level GTFS settings (operators + fare), the resolved operator list
+    (saved or default — what the export will actually use), and the built-in
+    defaults so the editor can show placeholders."""
     year = _resolve_year(request.args.get("year"))
     return jsonify({
         "year": year,
         "config": db.get_gtfs_meta(year, "_feed"),
+        "agencies": [
+            {"id": a["id"], "name": a["name"], "url": a.get("url", ""),
+             "phone": a.get("phone", "")}
+            for a in resolved_agencies(year)
+        ],
         "defaults": {
             "agency": {"name": GTFS_AGENCY["name"], "url": GTFS_AGENCY["url"],
                        "phone": GTFS_AGENCY["phone"], "email": GTFS_AGENCY["email"]},
@@ -697,21 +745,45 @@ def timing_image(year, filename):
     return send_from_directory(os.path.dirname(path), os.path.basename(path))
 
 
-def gtfs_feed_inputs(year):
-    """(routes, agency, params) for gtfs.build_feed, with the year's saved
-    feed-level settings (agency, fare) merged over the built-in defaults.
-    Shared by the /data/gtfs.zip endpoint and scripts/build_gtfs.py."""
-    routes = gather_gtfs_routes(year)
+def resolved_agencies(year):
+    """The year's operator list for the feed, ready for gtfs.build_feed.
+    Saved operators (config.agencies) win; else the legacy single-agency
+    override; else the built-in default. First entry = default operator."""
     config = db.get_gtfs_meta(year, "_feed")
+    saved = config.get("agencies")
+    if saved:
+        return [
+            {
+                "id": a.get("id") or "AGENCY",
+                "name": a.get("name") or GTFS_AGENCY["name"],
+                # agency_url is required by the GTFS spec — fall back rather
+                # than emit a blank.
+                "url": a.get("url") or GTFS_AGENCY["url"],
+                "timezone": GTFS_AGENCY["timezone"],
+                "lang": GTFS_AGENCY["lang"],
+                "phone": a.get("phone", ""),
+                "email": a.get("email", ""),
+            }
+            for a in saved
+        ]
     agency = dict(GTFS_AGENCY)
     for field in ("name", "url", "phone", "email"):
         v = (config.get("agency") or {}).get(field)
         if v:
             agency[field] = v
+    return [agency]
+
+
+def gtfs_feed_inputs(year):
+    """(routes, agencies, params) for gtfs.build_feed, with the year's saved
+    feed-level settings (operators, fare) merged over the built-in defaults.
+    Shared by the /data/gtfs.zip endpoint and scripts/build_gtfs.py."""
+    routes = gather_gtfs_routes(year)
+    config = db.get_gtfs_meta(year, "_feed")
     params = dict(GTFS_PARAMS, feed_version=f"{year}.1")
     if config.get("fare"):
         params["fare"] = config["fare"]
-    return routes, agency, params
+    return routes, resolved_agencies(year), params
 
 
 @app.route("/data/gtfs.zip")
@@ -719,10 +791,10 @@ def gtfs_feed():
     # On-demand GTFS feed for the year, reflecting DB edits (via gather) and
     # any feed-level settings saved through the GTFS editor.
     year = _resolve_year(request.args.get("year"))
-    routes, agency, params = gtfs_feed_inputs(year)
+    routes, agencies, params = gtfs_feed_inputs(year)
     if not routes:
         return jsonify({"error": "no routes to export"}), 404
-    data, _stats = gtfs.build_feed(routes, agency, params)
+    data, _stats = gtfs.build_feed(routes, agencies, params)
     return Response(
         data,
         mimetype="application/zip",
