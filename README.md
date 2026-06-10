@@ -155,12 +155,14 @@ operator-per-route mapping is known.
 ### GTFS workbench
 
 The **🕐 GTFS** button in the navbar opens a dedicated page at
-[`/gtfs`](http://localhost:8000/gtfs): a three-column workbench with the route
-list, the map with the full geometry editor (draw the line, place/rename stops,
-undo/history — the same editor as the main page), and a docked GTFS pane.
-Toggling a route shows it on the map *and* loads it into the GTFS form.
-User-drawn routes are exported too, so the full flow is draw → schedule →
-download. The GTFS pane covers:
+[`/gtfs`](http://localhost:8000/gtfs) where **one selected route drives
+everything**: click a route in the list and it shows on the map, becomes the
+editing target, and fills the GTFS pane. **✎ Edit route** on the map opens the
+full geometry editor (line/stop tools, undo, version history) — official routes
+are edited as an automatically created copy, reused on later edits. Feed-wide
+agency and fare settings live under **⚙ Feed settings** in the top bar, and
+**⬇ Download GTFS** grabs the zip. User-drawn routes are exported too, so the
+full flow is draw → schedule → download. The GTFS pane covers:
 
 - **Per-route schedule** — headway, first/last bus, operating days (becomes
   `frequencies.txt` and per-pattern `calendar.txt` services), or **exact

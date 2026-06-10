@@ -35,12 +35,6 @@ APP.BusMap = class {
     this.infoManager.init();
     this.editorManager.init();
     this.stopImageManager.init();
-
-    // The GTFS editor lives on the /gtfs page only (docked panel).
-    if (APP.GtfsEditorManager && document.getElementById("gtfsPanel")) {
-      this.gtfsEditorManager = new APP.GtfsEditorManager();
-      this.gtfsEditorManager.init();
-    }
   }
 
   /**

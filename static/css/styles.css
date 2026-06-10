@@ -375,190 +375,149 @@ body.editing #sidebar {
   background: linear-gradient(135deg, transparent 50%, #b0b0b0 50%);
 }
 
-/* --- GTFS editor panel (mirrors the stop-image panel patterns) --- */
-#gtfsPanel {
-  position: absolute;
-  top: 120px;
-  right: 320px;
-  width: 380px;
-  height: 540px;
-  min-width: 280px;
-  min-height: 260px;
-  max-width: calc(100% - 24px);
-  max-height: calc(100% - 80px);
-  z-index: 1100;
-  display: flex;
-  flex-direction: column;
-  background: #fff;
-  border: 1px solid #aaa;
-  border-radius: 6px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
-  overflow: hidden;
-}
-#gtfsHeader {
-  flex: 0 0 auto;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  padding: 5px 6px;
-  background: #2c3e50;
-  color: #fff;
-  cursor: move;
-  user-select: none;
-}
-#gtfsHeader .gep-title {
-  font-weight: 600;
-  font-size: 12px;
-  margin-right: 2px;
-}
-#gtfsHeader select {
-  width: auto;
-  max-width: 160px;
-  height: 24px;
-  padding: 1px 4px;
-  font-size: 12px;
-  color: #333;
-}
-#gtfsHeader .gep-tools {
-  margin-left: auto;
-  white-space: nowrap;
-}
-#gtfsBody {
-  flex: 1 1 auto;
-  overflow: auto;
-  padding: 6px 8px;
-}
-.gep-section {
-  margin-bottom: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 6px 8px;
-}
-.gep-section-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #444;
-  margin-bottom: 4px;
-}
-.gep-section-head .gep-tools select {
-  display: inline-block;
-  width: auto;
-  max-width: 150px;
-  height: 22px;
-  padding: 1px 4px;
-  font-size: 11px;
-}
-details.gep-section summary {
-  cursor: pointer;
-  outline: none;
-}
-.gep-status {
-  font-weight: 400;
-  font-size: 11px;
-  color: #2e7d32;
-}
-.gep-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
-  font-size: 12px;
-}
-.gep-row label {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  margin: 0;
-  font-weight: 400;
-}
-.gep-row input[type="number"] {
-  width: 54px;
-}
-.gep-row input[type="text"],
-.gep-row input[type="number"],
-.gep-row input[type="time"] {
-  font-size: 12px;
-  padding: 2px 4px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-  height: 24px;
-}
-.gep-row #gepLong {
-  flex: 1 1 120px;
-}
-.gep-days label {
-  gap: 2px;
-}
-.gep-row .gep-block {
-  display: block;
-  flex: 1 1 100%;
-  font-size: 11px;
-  color: #666;
-}
-.gep-row .gep-block textarea {
-  display: block;
-  width: 100%;
-  margin-top: 2px;
-  resize: vertical;
-  font-size: 12px;
-  color: #333;
-  padding: 3px 5px;
-  border: 1px solid #ccc;
-  border-radius: 3px;
-}
-#gtfsTimingBody {
-  max-height: 220px;
-  overflow: auto;
-  background: #f2f2f2;
-  text-align: center;
-  border-radius: 3px;
-}
-#gtfsTimingImg {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.gep-empty {
-  padding: 16px;
-  color: #888;
-  font-size: 12px;
-}
-#gtfsResize {
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 16px;
-  height: 16px;
-  cursor: nwse-resize;
-  background: linear-gradient(135deg, transparent 50%, #b0b0b0 50%);
-}
-
-/* --- GTFS workbench page (/gtfs): routes | map+editor | docked GTFS pane --- */
+/* ====================================================================
+   GTFS workbench (/gtfs) — transit-signage design language.
+   Ink slate + warm paper surfaces, one signage-yellow accent, Barlow
+   Condensed display type and IBM Plex Mono for anything that is a time
+   or a route code. The departures field reads like a departure board.
+   ==================================================================== */
 body.gtfs-page {
+  --gtfs-ink: #1d2a33;        /* dark slate, like the signboard frames */
+  --gtfs-ink-soft: #46555f;
+  --gtfs-paper: #f6f4ee;      /* warm paper */
+  --gtfs-card: #ffffff;
+  --gtfs-line: #ddd6c8;
+  --gtfs-accent: #ffd166;     /* signage yellow (matches the stop markers) */
+  --gtfs-accent-ink: #6b5200;
+  --gtfs-go: #2e7d32;
+  --gtfs-display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --gtfs-mono: "IBM Plex Mono", Consolas, monospace;
   height: 100%;
   overflow: hidden;
+  background: var(--gtfs-paper);
 }
+body.gtfs-page .navbar-inverse {
+  background: var(--gtfs-ink);
+  border-color: var(--gtfs-ink);
+}
+body.gtfs-page .navbar-brand {
+  font-family: var(--gtfs-display);
+  font-weight: 700;
+  font-size: 20px;
+  letter-spacing: 0.02em;
+}
+.gtfs-brand-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 8px 2px;
+  background: var(--gtfs-accent);
+  color: var(--gtfs-accent-ink);
+  border-radius: 3px;
+  font-family: var(--gtfs-display);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  vertical-align: 2px;
+}
+.gtfs-download-btn {
+  background: var(--gtfs-accent);
+  border: 1px solid #e6b94f;
+  color: var(--gtfs-accent-ink);
+  font-weight: 600;
+}
+.gtfs-download-btn:hover {
+  background: #ffdd85;
+  color: var(--gtfs-accent-ink);
+}
+body.gtfs-page .navbar .navbar-btn {
+  margin-left: 6px;
+}
+
 .gtfs-layout {
   display: flex;
   height: calc(100vh - 50px); /* below the fixed navbar */
 }
+
+/* --- Route list ------------------------------------------------------ */
 .gtfs-routes-col {
-  flex: 0 0 280px;
+  flex: 0 0 264px;
   overflow-y: auto;
-  padding: 8px;
-  background: #fafafa;
-  border-right: 1px solid #ddd;
+  padding: 10px 0 10px 10px;
+  background: var(--gtfs-paper);
+  border-right: 1px solid var(--gtfs-line);
 }
-.gtfs-routes-col .sidebar-title {
+.gtfs-list-head {
+  font-family: var(--gtfs-display);
   font-weight: 600;
-  margin-bottom: 6px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--gtfs-ink-soft);
+  margin: 14px 10px 4px 2px;
+  padding-bottom: 3px;
+  border-bottom: 2px solid var(--gtfs-line);
 }
+.gtfs-list-head:first-child {
+  margin-top: 0;
+}
+.gtfs-route-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px 5px 6px;
+  margin: 1px 10px 1px 0;
+  border-left: 3px solid transparent;
+  border-radius: 0 4px 4px 0;
+  cursor: pointer;
+  user-select: none;
+}
+.gtfs-route-row:hover {
+  background: rgba(255, 209, 102, 0.18);
+}
+.gtfs-route-row.selected {
+  background: var(--gtfs-card);
+  border-left-color: var(--gtfs-accent);
+  box-shadow: 0 1px 4px rgba(29, 42, 51, 0.12);
+}
+.gtfs-route-chip {
+  flex: 0 0 34px;
+  text-align: center;
+  padding: 1px 0 2px;
+  background: var(--gtfs-ink);
+  color: var(--gtfs-accent);
+  border-radius: 4px;
+  font-family: var(--gtfs-mono);
+  font-weight: 600;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.gtfs-route-row.selected .gtfs-route-chip {
+  background: var(--gtfs-accent);
+  color: var(--gtfs-ink);
+}
+.gtfs-route-label {
+  flex: 1 1 auto;
+  font-size: 13px;
+  color: var(--gtfs-ink);
+  word-break: break-word;
+}
+.gtfs-route-row.user .gtfs-route-label {
+  font-style: italic;
+}
+.gtfs-route-del {
+  flex: 0 0 auto;
+  color: #c0392b;
+  opacity: 0.45;
+  text-decoration: none;
+  font-size: 13px;
+}
+.gtfs-route-del:hover {
+  opacity: 1;
+  color: #c0392b;
+  text-decoration: none;
+}
+
+/* --- Map column ------------------------------------------------------- */
 .gtfs-map-col {
   flex: 1 1 auto;
   position: relative;
@@ -568,32 +527,244 @@ body.gtfs-page #map {
   width: 100%;
   height: 100%;
 }
-body.gtfs-page #routes {
-  max-height: none;
-}
-/* Docked variant of the GTFS editor: a permanent right column, not a
-   floating window. */
-#gtfsPanel.docked {
-  position: static;
-  flex: 0 0 400px;
-  width: 400px;
-  height: auto;
-  max-width: none;
-  max-height: none;
+#gtfsEditBtn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 900;
+  padding: 7px 16px 8px;
+  background: var(--gtfs-ink);
+  color: #fff;
   border: none;
-  border-left: 1px solid #ddd;
-  border-radius: 0;
-  box-shadow: none;
+  border-radius: 999px;
+  font-family: var(--gtfs-display);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: 0.04em;
+  box-shadow: 0 2px 10px rgba(29, 42, 51, 0.4);
+  transition: transform 0.12s ease, background 0.12s ease;
 }
-#gtfsPanel.docked #gtfsHeader {
-  cursor: default;
+#gtfsEditBtn:hover {
+  background: #2d4250;
+  transform: translateY(-1px);
 }
+body.editing #gtfsEditBtn {
+  display: none !important; /* the editor toolbar takes over */
+}
+
+/* --- GTFS pane --------------------------------------------------------- */
+#gtfsPanel {
+  flex: 0 0 400px;
+  display: flex;
+  flex-direction: column;
+  background: var(--gtfs-paper);
+  border-left: 1px solid var(--gtfs-line);
+  overflow: hidden;
+}
+#gtfsHeader {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  background: var(--gtfs-ink);
+  color: #fff;
+}
+#gtfsHeader .gep-title {
+  font-family: var(--gtfs-display);
+  font-weight: 600;
+  font-size: 19px;
+  letter-spacing: 0.03em;
+}
+#gtfsBody {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 10px;
+  gap: 10px;
+}
+.gep-section {
+  background: var(--gtfs-card);
+  border: 1px solid var(--gtfs-line);
+  border-radius: 6px;
+  padding: 8px 10px 10px;
+}
+.gep-section-grow {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 180px;
+}
+.gep-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  font-family: var(--gtfs-display);
+  font-weight: 600;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--gtfs-ink);
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 2px solid var(--gtfs-accent);
+}
+.gep-section-head .gep-tools {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.gep-section-head .gep-tools select {
+  width: auto;
+  max-width: 150px;
+  height: 22px;
+  padding: 1px 4px;
+  font-size: 11px;
+  font-family: inherit;
+  letter-spacing: normal;
+  text-transform: none;
+  font-weight: 400;
+}
+.gep-status {
+  font-family: var(--gtfs-mono);
+  font-weight: 400;
+  font-size: 11px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--gtfs-go);
+}
+.gep-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--gtfs-ink-soft);
+}
+.gep-row:last-child {
+  margin-bottom: 0;
+}
+.gep-row label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-weight: 400;
+}
+.gep-row input[type="text"],
+.gep-row input[type="number"],
+.gep-row input[type="time"] {
+  font-size: 12px;
+  padding: 2px 5px;
+  border: 1px solid #cfc8b8;
+  border-radius: 3px;
+  height: 24px;
+  background: #fffdf8;
+  color: var(--gtfs-ink);
+}
+.gep-row input[type="number"] {
+  width: 56px;
+}
+.gep-row input[type="time"],
+.gep-row input[type="number"] {
+  font-family: var(--gtfs-mono);
+}
+.gep-row #gepLong {
+  flex: 1 1 120px;
+}
+.gep-row input:focus,
+.gep-row textarea:focus {
+  outline: none;
+  border-color: var(--gtfs-accent);
+  box-shadow: 0 0 0 2px rgba(255, 209, 102, 0.35);
+}
+.gep-days label {
+  gap: 3px;
+  font-family: var(--gtfs-mono);
+  font-size: 11px;
+}
+.gep-row .gep-block {
+  display: block;
+  flex: 1 1 100%;
+  font-size: 11px;
+  color: var(--gtfs-ink-soft);
+}
+.gep-row .gep-block input {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid #cfc8b8;
+  border-radius: 3px;
+  height: 26px;
+}
+/* The departures field is the heart of the transcription job — style it as
+   a departure board: dark, mono, signage yellow. */
+.gep-row .gep-block textarea {
+  display: block;
+  width: 100%;
+  margin-top: 3px;
+  resize: vertical;
+  font-family: var(--gtfs-mono);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  line-height: 1.7;
+  color: var(--gtfs-accent);
+  background: #14191d;
+  caret-color: var(--gtfs-accent);
+  padding: 6px 9px;
+  border: 1px solid #000;
+  border-radius: 4px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+.gep-row .gep-block textarea::placeholder {
+  color: rgba(255, 209, 102, 0.35);
+}
+.gep-row .gep-block textarea:disabled,
+.gep-row input:disabled {
+  opacity: 0.45;
+}
+#gtfsTimingBody {
+  flex: 1 1 auto;
+  min-height: 140px;
+  overflow: auto;
+  background: #e9e5da;
+  text-align: center;
+  border-radius: 4px;
+}
+#gtfsTimingImg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.gep-empty {
+  padding: 18px;
+  color: #97917f;
+  font-size: 12px;
+}
+/* Feed settings modal */
+.gep-feed-form .gep-row {
+  margin-bottom: 8px;
+}
+.gep-feed-form .gep-block {
+  flex: 1 1 40%;
+}
+.gep-hint {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: #97917f;
+}
+#feedSettingsModal .modal-title .gep-status {
+  margin-left: 8px;
+}
+
 @media (max-width: 991px) {
   .gtfs-routes-col {
-    flex-basis: 200px;
+    flex-basis: 190px;
   }
-  #gtfsPanel.docked {
+  #gtfsPanel {
     flex-basis: 320px;
-    width: 320px;
   }
 }
+

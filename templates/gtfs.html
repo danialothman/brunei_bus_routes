@@ -17,6 +17,12 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/ol@v8.1.0/ol.css"
     />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap"
+    />
     <link
       rel="stylesheet"
       href="{{ url_for('static', filename='css/styles.css') }}"
@@ -26,9 +32,9 @@
   </head>
   <body class="gtfs-page">
     <nav class="navbar navbar-fixed-top navbar-inverse">
-      <div class="container">
+      <div class="container-fluid">
         <div class="navbar-header">
-          <a class="navbar-brand" href="/">Brunei Bus Routes · GTFS</a>
+          <a class="navbar-brand" href="/">Brunei Bus Routes <span class="gtfs-brand-tag">GTFS</span></a>
         </div>
         <ul class="nav navbar-nav">
           <li>
@@ -40,13 +46,23 @@
             </select>
           </li>
         </ul>
-        <a
-          href="/"
-          class="btn btn-default btn-sm navbar-btn navbar-right"
-          title="Back to the route map"
+        <button
+          type="button"
+          class="btn btn-sm navbar-btn navbar-right gtfs-download-btn"
+          id="gepDownload"
+          title="Download GTFS for the selected route's year"
         >
-          🗺 Map
-        </a>
+          ⬇ Download GTFS
+        </button>
+        <button
+          type="button"
+          class="btn btn-default btn-sm navbar-btn navbar-right"
+          data-toggle="modal"
+          data-target="#feedSettingsModal"
+          title="Feed-wide settings: agency details and flat fare"
+        >
+          ⚙ Feed settings
+        </button>
         <button
           id="stopImageToggle"
           type="button"
@@ -55,32 +71,39 @@
         >
           🚏 Official stops
         </button>
+        <a
+          href="/"
+          class="btn btn-default btn-sm navbar-btn navbar-right"
+          title="Back to the route map"
+        >
+          🗺 Map
+        </a>
       </div>
     </nav>
 
     <div class="gtfs-layout">
-      <!-- Route list: same machinery as the map page — toggle to show on the
-           map and load into the GTFS form; ✎/📋/✕ edit per route. -->
+      <!-- One route is selected at a time: it shows on the map, is the editing
+           target, and fills the GTFS pane. -->
       <div class="gtfs-routes-col">
-        <div class="sidebar-title">Routes</div>
         <button
           id="newRouteBtn"
           type="button"
           class="btn btn-success btn-sm btn-block"
-          style="display: none; margin-bottom: 6px"
+          style="display: none; margin-bottom: 8px"
         >
           + New route
         </button>
-        <div class="btn-group btn-group-justified" id="routeBulkControls">
-          <a class="btn btn-default btn-sm" id="showAll">Show all</a>
-          <a class="btn btn-default btn-sm" id="clearAll">Clear all</a>
-        </div>
-        <div class="list-group" id="routes"></div>
+        <div id="gtfsRouteList"></div>
       </div>
 
-      <!-- Map with the full geometry editor (line/stops tools, undo, history). -->
+      <!-- Map: shows the selected route; ✎ enters the full geometry editor
+           (line/stops tools, undo, history). Shipped routes edit a copy. -->
       <div class="gtfs-map-col">
         <div id="map"></div>
+        <button id="gtfsEditBtn" type="button" style="display: none"
+          title="Edit this route's line and stops (official routes are edited as a copy)">
+          ✎ Edit route
+        </button>
         <div id="info">
           <a class="btn btn-danger dismiss">X</a>
           <h3 class="name"></h3>
@@ -103,7 +126,7 @@
               title="Rename: click a stop to rename it">Rename</button>
           </div>
           <button type="button" class="btn btn-default btn-sm" id="edReverse"
-            title="Reverse route direction (flips the 3D ride travel direction)">⇄ Reverse</button>
+            title="Reverse route direction">⇄ Reverse</button>
           <div class="btn-group btn-group-sm" role="group">
             <button type="button" class="btn btn-default" id="edUndo" title="Undo">↶</button>
             <button type="button" class="btn btn-default" id="edRedo" title="Redo">↷</button>
@@ -116,22 +139,17 @@
           </div>
           <span id="edStatus" class="ed-status"></span>
         </div>
-        <div id="loading">Loading... <a class="btn btn-danger">X</a></div>
       </div>
 
-      <!-- GTFS editor, docked as a permanent column on this page. -->
-      <div id="gtfsPanel" class="docked">
+      <!-- GTFS pane for the selected route. -->
+      <div id="gtfsPanel">
         <div id="gtfsHeader">
-          <span class="gep-title">🕐 GTFS</span>
-          <select id="gtfsRouteSelect" class="form-control input-sm" title="Pick a route to edit"></select>
-          <span class="gep-tools">
-            <button type="button" class="btn btn-primary btn-xs" id="gepDownload" title="Download GTFS for this year">⬇ Download</button>
-          </span>
+          <span class="gep-title">🕐 <span id="gepRouteLabel">—</span></span>
         </div>
         <div id="gtfsBody">
           <div class="gep-section">
             <div class="gep-section-head">
-              <span>🗓 Schedule — <span id="gepRouteLabel">—</span></span>
+              <span>Schedule</span>
               <span id="gepStatus" class="gep-status"></span>
             </div>
             <div class="gep-row">
@@ -139,13 +157,6 @@
               <label>first <input type="time" id="gepStart" /></label>
               <label>last <input type="time" id="gepEnd" /></label>
               <label>run <input type="number" id="gepRun" min="1" max="360" placeholder="auto" /> min</label>
-            </div>
-            <div class="gep-row">
-              <label class="gep-block">Exact departures — transcribe from the timing signboard
-                (comma or newline separated). When filled, real trips are
-                exported instead of the headway estimate.
-                <textarea id="gepDepartures" rows="2" placeholder="06:30, 07:00, 07:45, …"></textarea>
-              </label>
             </div>
             <div class="gep-row gep-days">
               <label><input type="checkbox" class="gep-day" checked />Mo</label>
@@ -157,14 +168,21 @@
               <label><input type="checkbox" class="gep-day" checked />Su</label>
             </div>
             <div class="gep-row">
+              <label class="gep-block">Exact departures — when filled, real trips are exported
+                instead of the headway estimate.
+                <textarea id="gepDepartures" rows="3" spellcheck="false"
+                  placeholder="06:30, 07:00, 07:45, …"></textarea>
+              </label>
+            </div>
+            <div class="gep-row">
               <label>No. <input type="text" id="gepShort" size="5" placeholder="e.g. 01A" /></label>
               <label>Name <input type="text" id="gepLong" placeholder="route long name" /></label>
               <label>Color <input type="text" id="gepColor" size="7" placeholder="#RRGGBB" /></label>
             </div>
           </div>
-          <div class="gep-section">
+          <div class="gep-section gep-section-grow">
             <div class="gep-section-head">
-              <span>🕐 Timing signboard</span>
+              <span>Timing signboard</span>
               <span class="gep-tools">
                 <select id="gtfsTimingSelect" class="form-control input-sm" title="Pick a timing signboard"></select>
                 <button type="button" class="btn btn-default btn-xs" id="gepZoomOut" title="Zoom out">−</button>
@@ -177,24 +195,43 @@
               <div id="gtfsTimingEmpty" class="gep-empty">No timing signboard for this route.</div>
             </div>
           </div>
-          <details class="gep-section" id="gepFeedSection">
-            <summary class="gep-section-head">
-              <span>🏢 Feed settings (agency &amp; fare)</span>
-              <span id="gepFeedStatus" class="gep-status"></span>
-            </summary>
+        </div>
+      </div>
+    </div>
+
+    <!-- Feed-wide settings: agency + flat fare (applies to the whole export). -->
+    <div class="modal fade" id="feedSettingsModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h4 class="modal-title">⚙ Feed settings
+              <small id="gepFeedStatus" class="gep-status"></small>
+            </h4>
+          </div>
+          <div class="modal-body gep-feed-form">
             <div class="gep-row">
-              <label>Agency <input type="text" id="gepAgencyName" placeholder="ADBS Sdn Bhd" /></label>
-              <label>URL <input type="text" id="gepAgencyUrl" placeholder="https://…" /></label>
+              <label class="gep-block">Agency name
+                <input type="text" id="gepAgencyName" placeholder="ADBS Sdn Bhd" /></label>
             </div>
             <div class="gep-row">
-              <label>Phone <input type="text" id="gepAgencyPhone" placeholder="+673 …" /></label>
-              <label>Email <input type="text" id="gepAgencyEmail" placeholder="ops@…" /></label>
+              <label class="gep-block">Agency URL
+                <input type="text" id="gepAgencyUrl" placeholder="https://…" /></label>
             </div>
             <div class="gep-row">
-              <label>Flat fare <input type="number" id="gepFarePrice" min="0" step="0.10" placeholder="1.00" /></label>
-              <label>Currency <input type="text" id="gepFareCurrency" size="4" placeholder="BND" /></label>
+              <label class="gep-block">Phone
+                <input type="text" id="gepAgencyPhone" placeholder="+673 …" /></label>
+              <label class="gep-block">Email
+                <input type="text" id="gepAgencyEmail" placeholder="ops@…" /></label>
             </div>
-          </details>
+            <div class="gep-row">
+              <label class="gep-block">Flat fare
+                <input type="number" id="gepFarePrice" min="0" step="0.10" placeholder="1.00" /></label>
+              <label class="gep-block">Currency
+                <input type="text" id="gepFareCurrency" size="4" placeholder="BND" /></label>
+            </div>
+            <p class="gep-hint">Saved automatically; applied to every download.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -231,31 +268,6 @@
       <div id="stopImageResize" title="Drag to resize"></div>
     </div>
 
-    <!-- Per-route ride engine chooser -->
-    <div class="modal fade" id="engineModal" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-sm" role="document">
-        <div class="modal-content">
-          <div class="modal-header">
-            <button type="button" class="close" data-dismiss="modal">
-              &times;
-            </button>
-            <h4 class="modal-title">🚌 Ride <span id="engineRouteName"></span></h4>
-          </div>
-          <div class="modal-body">
-            <p>Choose a 3D engine:</p>
-          </div>
-          <div class="modal-footer">
-            <button type="button" class="btn btn-primary" id="engineThree" data-dismiss="modal">
-              Three.js
-            </button>
-            <button type="button" class="btn btn-info" id="engineMaplibre" data-dismiss="modal">
-              MapLibre
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Route edit version history -->
     <div class="modal fade" id="editHistoryModal" tabindex="-1" role="dialog">
       <div class="modal-dialog" role="document">
@@ -276,13 +288,10 @@
     <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/config.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/location-tracker.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/route-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/info-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/editor-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/stop-image-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/gtfs-editor-manager.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/launcher.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/gtfs-page.js') }}"></script>
   </body>
 </html>
