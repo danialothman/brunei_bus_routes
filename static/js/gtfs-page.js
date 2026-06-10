@@ -8,9 +8,10 @@ APP.GtfsPage = class {
   constructor() {
     this.map = null;
     this.baseLayer = null;
-    this.selected = null; // { id, year, file, isUser }
+    this.selected = null; // { id, year, file, kind, isUser }
     this.layer = null; // vector layer for the selected route
     this.names = {}; // id -> display name
+    this.kinds = {}; // id -> "kml" | "geojson"
     this.userIds = new Set();
     this.init();
   }
@@ -69,20 +70,23 @@ APP.GtfsPage = class {
         const out = $("#gtfsRouteList").empty();
         this.userIds.clear();
         this.names = {};
+        this.kinds = {};
         const years = cat.years || [];
         let first = null;
         const head = (t) =>
           out.append($('<div class="gtfs-list-head"></div>').text(t));
-        const add = (year, file, isUser, names) => {
+        const add = (year, file, isUser, names, kind) => {
           const id = this._id(year, file);
-          this.names[id] = names[file] || file.replace(/\.kml$/, "");
+          this.names[id] = names[file] || file.replace(/\.(kml|geojson)$/, "");
+          this.kinds[id] = kind || "kml";
           if (isUser) this.userIds.add(id);
-          out.append(this._row(id, year, file, this.names[id], isUser));
+          out.append(this._row(id, year, file, this.names[id], isUser, kind));
           if (!first) first = { year, file };
         };
-        // The user's own routes first, then shipped KML routes per year.
-        // GeoJSON paths and "Points - " overlays carry no stops, so they're
-        // not part of the GTFS picture and stay on the main map page.
+        // The user's own routes first, then shipped KML routes per year, then
+        // the GeoJSON path tracings (line-only alternates — editable via copy,
+        // which is also how they gain stops and join the feed). "Points - "
+        // marker overlays aren't routes and stay on the main map page.
         years.forEach((y) => {
           const d = cat[y] || {};
           if (d.user && d.user.length) {
@@ -97,6 +101,10 @@ APP.GtfsPage = class {
             head(`${y} routes`);
             shipped.forEach((f) => add(y, f, false, d.names || {}));
           }
+          if (d.geojson && d.geojson.length) {
+            head(`${y} paths`);
+            d.geojson.forEach((f) => add(y, f, false, d.names || {}, "geojson"));
+          }
         });
         $("#newRouteBtn").toggle(years.indexOf(APP.USER_ROUTE_YEAR) >= 0);
         if (first) this.select(first.year, first.file);
@@ -104,7 +112,7 @@ APP.GtfsPage = class {
       .catch((e) => APP.MapUtils.handleError(e, "Loading catalog"));
   }
 
-  _row(id, year, file, display, isUser) {
+  _row(id, year, file, display, isUser, kind) {
     // Signage-style chip with the route code, where the name carries one.
     const code = (display.match(/(\d+[A-Za-z]?)\s*$/) || [])[1] || "•";
     const row = $('<div class="gtfs-route-row"></div>').attr({
@@ -113,6 +121,7 @@ APP.GtfsPage = class {
       "data-file": file,
     });
     if (isUser) row.addClass("user");
+    if (kind === "geojson") row.addClass("path");
     row.append($('<span class="gtfs-route-chip"></span>').text(code));
     row.append($('<span class="gtfs-route-label"></span>').text(display));
     if (isUser) {
@@ -144,12 +153,13 @@ APP.GtfsPage = class {
   /** Selection state + map + GTFS pane, without touching the editor. */
   _setSelected(year, file) {
     const id = this._id(year, file);
-    this.selected = { id, year, file, isUser: this.userIds.has(id) };
+    const kind = this.kinds[id] || "kml";
+    this.selected = { id, year, file, kind, isUser: this.userIds.has(id) };
     $("#gtfsRouteList .gtfs-route-row").removeClass("selected");
     const row = this._rowFor(id).addClass("selected");
     if (row.length) row[0].scrollIntoView({ block: "nearest" });
     this._loadLayer();
-    this.gtfsEditor.setRoute(year, file, this.names[id]);
+    this.gtfsEditor.setRoute(year, file, this.names[id], kind);
     $("#gtfsEditBtn").show();
   }
 
@@ -158,18 +168,28 @@ APP.GtfsPage = class {
       this.map.removeLayer(this.layer);
       this.layer = null;
     }
-    const { year, file } = this.selected;
-    const source = new ol.source.Vector({
-      url: `/data/kml/${encodeURIComponent(file)}?year=${encodeURIComponent(year)}`,
-      format: new ol.format.KML({
-        extractStyles: false,
-        dataProjection: "EPSG:4326",
-        featureProjection: "EPSG:3857",
-      }),
-    });
+    const { year, file, kind } = this.selected;
+    const q = `?year=${encodeURIComponent(year)}`;
+    const source =
+      kind === "geojson"
+        ? new ol.source.Vector({
+            url: `/data/geojson/${encodeURIComponent(file)}${q}`,
+            format: new ol.format.GeoJSON({
+              dataProjection: "EPSG:4326",
+              featureProjection: "EPSG:3857",
+            }),
+          })
+        : new ol.source.Vector({
+            url: `/data/kml/${encodeURIComponent(file)}${q}`,
+            format: new ol.format.KML({
+              extractStyles: false,
+              dataProjection: "EPSG:4326",
+              featureProjection: "EPSG:3857",
+            }),
+          });
     const layer = new ol.layer.Vector({
       source,
-      style: (feat) => this._routeStyle(feat),
+      style: (feat) => this._routeStyle(feat, kind),
     });
     source.on("change", () => {
       if (source.getState() === "ready" && source.getFeatures().length) {
@@ -187,8 +207,9 @@ APP.GtfsPage = class {
     this.map.addLayer(layer);
   }
 
-  _routeStyle(feature) {
+  _routeStyle(feature, kind) {
     // Same language as the editor: blue line, yellow labelled stops.
+    // GeoJSON path tracings draw dashed, like on the main map.
     if (feature.getGeometry() instanceof ol.geom.Point) {
       return new ol.style.Style({
         image: new ol.style.Circle({
@@ -206,7 +227,11 @@ APP.GtfsPage = class {
       });
     }
     return new ol.style.Style({
-      stroke: new ol.style.Stroke({ color: "#0074d9", width: 3 }),
+      stroke: new ol.style.Stroke({
+        color: "#0074d9",
+        width: 3,
+        lineDash: kind === "geojson" ? [6, 6] : undefined,
+      }),
     });
   }
 
@@ -214,12 +239,13 @@ APP.GtfsPage = class {
 
   editSelected() {
     if (!this.selected || this.editorManager.active) return;
-    const { id, year, file, isUser } = this.selected;
+    const { id, year, file, kind, isUser } = this.selected;
     if (isUser) {
       this.editorManager.enter(file, "kml", year);
       return;
     }
     // Shipped routes are read-only — edit a copy, reusing an existing one.
+    // Copies are always KML, so a copied GeoJSON path can gain stops.
     const copyName = `${this.names[id]} (copy)`;
     const existing = Array.from(this.userIds).find(
       (uid) => this.names[uid] === copyName
@@ -233,7 +259,7 @@ APP.GtfsPage = class {
       return;
     }
     // Creates the copy, adds its row (via addUserRouteRow) and opens it.
-    this.editorManager.copyToUserRoute(file, "kml", year);
+    this.editorManager.copyToUserRoute(file, kind, year);
   }
 
   deleteUserRoute(year, file) {
@@ -284,6 +310,7 @@ APP.GtfsPage = class {
       return;
     }
     this.names[id] = displayName || file.replace(/\.kml$/, "");
+    this.kinds[id] = "kml"; // user routes (incl. copies of geojson paths)
     this.userIds.add(id);
     let head = $("#gtfsRouteList .gtfs-list-head").filter(
       (_, el) => $(el).text() === "My routes"
@@ -303,6 +330,7 @@ APP.GtfsPage = class {
     this._rowFor(id).remove();
     this.userIds.delete(id);
     delete this.names[id];
+    delete this.kinds[id];
     if (this.selected && this.selected.id === id) {
       if (this.layer) {
         this.map.removeLayer(this.layer);

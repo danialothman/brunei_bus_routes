@@ -31,15 +31,30 @@ APP.GtfsEditorManager = class {
   // --- Selected route ----------------------------------------------------------
 
   /** Load a route into the pane (called by GtfsPage on selection). */
-  setRoute(year, file, label) {
+  setRoute(year, file, label, kind) {
     // Flush a pending save for the route we're leaving.
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
       this._saveTimer = null;
       this._saveMeta();
     }
+    this.year = year; // for downloads, even when no schedulable route is current
+    if (kind === "geojson") {
+      // Path tracings have no stops, so they can't be scheduled or exported
+      // directly. Editing copies them to a KML route where stops can be added.
+      this.current = null;
+      this.routeLabel.textContent = label || file.replace(/\.geojson$/, "");
+      this.status.classList.add("hint");
+      this.status.textContent = "path only — ✎ Edit copies it, then add stops";
+      this._fillForm({});
+      this._setFormEnabled(false);
+      this.timingSelect.val("");
+      this._showTiming();
+      return;
+    }
     this.current = { year, file, label: label || file.replace(/\.kml$/, "") };
     this.routeLabel.textContent = this.current.label;
+    this.status.classList.remove("hint");
     this.status.textContent = "Loading…";
     this._setFormEnabled(false);
     const q = `?year=${encodeURIComponent(year)}&route=${encodeURIComponent(file)}`;
@@ -314,7 +329,7 @@ APP.GtfsEditorManager = class {
       this._feedTimer = null;
       this._saveFeedConfig();
     }
-    const year = this.current ? this.current.year : "";
+    const year = this.year || (this.current ? this.current.year : "");
     window.open(`/data/gtfs.zip${year ? "?year=" + encodeURIComponent(year) : ""}`);
   }
 

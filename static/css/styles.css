@@ -504,6 +504,20 @@ body.gtfs-page .navbar .navbar-btn {
 .gtfs-route-row.user .gtfs-route-label {
   font-style: italic;
 }
+/* GeoJSON path tracings: outlined chip, echoing their dashed map line. */
+.gtfs-route-row.path .gtfs-route-chip {
+  background: transparent;
+  color: var(--gtfs-ink-soft);
+  border: 1px dashed var(--gtfs-ink-soft);
+  padding-top: 0;
+  padding-bottom: 1px;
+}
+.gtfs-route-row.path.selected .gtfs-route-chip {
+  background: var(--gtfs-accent);
+  color: var(--gtfs-ink);
+  border-style: solid;
+  border-color: var(--gtfs-accent);
+}
 .gtfs-route-del {
   flex: 0 0 auto;
   color: #c0392b;
@@ -631,6 +645,9 @@ body.editing #gtfsEditBtn {
   letter-spacing: normal;
   text-transform: none;
   color: var(--gtfs-go);
+}
+.gep-status.hint {
+  color: #97917f;
 }
 .gep-row {
   display: flex;
