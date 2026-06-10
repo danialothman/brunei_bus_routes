@@ -1070,6 +1070,62 @@ body.editing #gtfsEditBtn {
   margin-left: 8px;
 }
 
+/* Validation results */
+.gep-validate-summary {
+  font-family: var(--gtfs-mono);
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background: #f0ede5;
+  color: var(--gtfs-ink);
+}
+.gep-validate-summary.ok {
+  background: #e6f2e6;
+  color: var(--gtfs-go);
+}
+.gep-validate-summary.warn {
+  background: #fdf3d7;
+  color: #8a6d00;
+}
+.gep-validate-summary.err {
+  background: #fae3e0;
+  color: #c0392b;
+}
+.gep-validate-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dotted var(--gtfs-line);
+  font-size: 12px;
+}
+.gep-validate-badge {
+  flex: 0 0 50px;
+  text-align: center;
+  font-family: var(--gtfs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 3px;
+  padding: 1px 0;
+}
+.gep-validate-badge.error {
+  background: #c0392b;
+  color: #fff;
+}
+.gep-validate-badge.warning {
+  background: var(--gtfs-accent);
+  color: var(--gtfs-accent-ink);
+}
+.gep-validate-msg {
+  color: var(--gtfs-ink);
+}
+.gep-validate-ex {
+  font-family: var(--gtfs-mono);
+  font-size: 11px;
+  color: var(--gtfs-ink-soft);
+}
+
 @media (max-width: 991px) {
   .gtfs-routes-col {
     flex-basis: 190px;

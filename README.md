@@ -189,6 +189,12 @@ full flow is draw → schedule → download. The GTFS pane covers:
 - **Timing signboard reference** — the official JPD timing photo for the route
   (`docs/<year>/images/timings/`) is shown beside the form so departure times
   can be transcribed directly
+- **✔ Validate** — builds the feed in memory and runs structural checks
+  (required files/columns, duplicate ids, referential integrity, time/date
+  formats, per-trip monotonicity, unused entities) with results in a modal;
+  also available as `scripts/build_gtfs.py --validate`. For publish-grade
+  conformance, additionally run [MobilityData's canonical
+  validator](https://gtfs-validator.mobilitydata.org/)
 
 Edits auto-save to the local SQLite store (`instance/edits.db`) and are merged
 into every subsequent export from both the endpoint and the CLI.

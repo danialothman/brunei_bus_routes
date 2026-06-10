@@ -437,8 +437,8 @@ def gather_gtfs_routes(year):
     routes = []
 
     def add(filename, geom):
-        if not geom or not geom.get("stops"):
-            return  # no stops -> nothing to time against
+        if not geom or len(geom.get("stops") or []) < 2:
+            return  # a valid trip needs at least 2 stops to time against
         route_id, short, long_name = _gtfs_route_meta(filename)
         meta = meta_by_file.get(filename, {})
         routes.append({
@@ -829,6 +829,26 @@ def gtfs_feed_inputs(year):
     if config.get("fare"):
         params["fare"] = config["fare"]
     return routes, resolved_agencies(year), params
+
+
+@app.route("/data/gtfs-validate")
+def gtfs_validate():
+    """Build the year's feed in memory and run the structural validator."""
+    year = _resolve_year(request.args.get("year"))
+    routes, agencies, params = gtfs_feed_inputs(year)
+    if not routes:
+        return jsonify({"error": "no routes to export"}), 404
+    data, stats = gtfs.build_feed(routes, agencies, params)
+    findings = gtfs.validate_feed(data)
+    errors = sum(1 for f in findings if f["severity"] == "error")
+    return jsonify({
+        "year": year,
+        "size": len(data),
+        "stats": stats,
+        "errors": errors,
+        "warnings": len(findings) - errors,
+        "findings": findings,
+    })
 
 
 @app.route("/data/gtfs.zip")

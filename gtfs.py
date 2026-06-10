@@ -150,6 +150,225 @@ class _StopPool:
         } for e in self._entries]
 
 
+# --- validation ----------------------------------------------------------------
+# Required files and the columns each must carry (a subset of the spec
+# sufficient for this feed's structure).
+_REQUIRED = {
+    "agency.txt": ["agency_id", "agency_name", "agency_url", "agency_timezone"],
+    "stops.txt": ["stop_id", "stop_name", "stop_lat", "stop_lon"],
+    "routes.txt": ["route_id", "agency_id", "route_long_name", "route_type"],
+    "trips.txt": ["route_id", "service_id", "trip_id"],
+    "stop_times.txt": ["trip_id", "arrival_time", "departure_time", "stop_id",
+                       "stop_sequence"],
+    "calendar.txt": ["service_id", "monday", "tuesday", "wednesday", "thursday",
+                     "friday", "saturday", "sunday", "start_date", "end_date"],
+}
+
+_TIME_OK = re.compile(r"^\d{1,2}:[0-5]\d:[0-5]\d$")
+_DATE_OK = re.compile(r"^\d{8}$")
+
+
+def validate_feed(data):
+    """Structural validation of a GTFS zip (bytes). Returns a list of
+    findings, errors first: [{severity, code, message, count, examples[<=5]}].
+    Covers file/column presence, duplicate ids, referential integrity,
+    time/date/coordinate formats, per-trip sequence and time monotonicity,
+    and unused-entity warnings — the checks that break consumers. For
+    publish-grade conformance, run MobilityData's canonical gtfs-validator."""
+    agg = {}
+
+    def add(severity, code, message, example=None):
+        f = agg.setdefault(code, {
+            "severity": severity, "code": code, "message": message,
+            "count": 0, "examples": [],
+        })
+        f["count"] += 1
+        if example is not None and len(f["examples"]) < 5:
+            f["examples"].append(str(example)[:120])
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile:
+        return [{"severity": "error", "code": "bad_zip",
+                 "message": "not a readable zip archive", "count": 1,
+                 "examples": []}]
+    names = set(zf.namelist())
+
+    def table(fname):
+        if fname not in names:
+            return None
+        with zf.open(fname) as fh:
+            return list(csv.DictReader(io.TextIOWrapper(fh, "utf-8-sig")))
+
+    tables = {}
+    for fname, cols in _REQUIRED.items():
+        if fname not in names:
+            add("error", "missing_file", f"required file absent: {fname}", fname)
+            tables[fname] = []
+            continue
+        rows = table(fname)
+        tables[fname] = rows
+        have = set(rows[0].keys()) if rows else set()
+        if rows:
+            for c in cols:
+                if c not in have:
+                    add("error", "missing_column",
+                        f"required column absent", f"{fname}: {c}")
+    for opt in ("shapes.txt", "frequencies.txt", "feed_info.txt",
+                "fare_attributes.txt"):
+        tables[opt] = table(opt) or []
+    if "feed_info.txt" not in names:
+        add("warning", "no_feed_info", "feed_info.txt is recommended")
+
+    def ids(fname, col):
+        out = set()
+        for row in tables[fname]:
+            v = row.get(col, "")
+            if v in out:
+                add("error", "duplicate_id", f"duplicate {col}", f"{fname}: {v}")
+            if v:
+                out.add(v)
+        return out
+
+    agency_ids = ids("agency.txt", "agency_id")
+    stop_ids = ids("stops.txt", "stop_id")
+    route_ids = ids("routes.txt", "route_id")
+    trip_ids = ids("trips.txt", "trip_id")
+    service_ids = ids("calendar.txt", "service_id")
+    shape_ids = {s.get("shape_id", "") for s in tables["shapes.txt"]}
+
+    for a in tables["agency.txt"]:
+        if not a.get("agency_timezone"):
+            add("error", "no_timezone", "agency_timezone is required",
+                a.get("agency_id"))
+
+    for s in tables["stops.txt"]:
+        try:
+            lat, lon = float(s.get("stop_lat", "")), float(s.get("stop_lon", ""))
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+                raise ValueError
+            if lat == 0 and lon == 0:
+                add("warning", "null_island", "stop at coordinates 0,0",
+                    s.get("stop_id"))
+        except ValueError:
+            add("error", "bad_coords", "unparseable/out-of-range stop coords",
+                s.get("stop_id"))
+
+    for r in tables["routes.txt"]:
+        if r.get("agency_id") and r["agency_id"] not in agency_ids:
+            add("error", "bad_reference", "routes.agency_id not in agency.txt",
+                r.get("route_id"))
+        if not (r.get("route_type") or "").isdigit():
+            add("error", "bad_route_type", "route_type must be an integer",
+                r.get("route_id"))
+        color = r.get("route_color", "")
+        if color and not re.fullmatch(r"[0-9A-Fa-f]{6}", color):
+            add("warning", "bad_color", "route_color is not 6-digit hex",
+                f"{r.get('route_id')}: {color}")
+
+    used_routes, used_services = set(), set()
+    for t in tables["trips.txt"]:
+        if t.get("route_id") not in route_ids:
+            add("error", "bad_reference", "trips.route_id not in routes.txt",
+                t.get("trip_id"))
+        if t.get("service_id") not in service_ids:
+            add("error", "bad_reference", "trips.service_id not in calendar.txt",
+                t.get("trip_id"))
+        if t.get("shape_id") and t["shape_id"] not in shape_ids:
+            add("error", "bad_reference", "trips.shape_id not in shapes.txt",
+                t.get("trip_id"))
+        used_routes.add(t.get("route_id"))
+        used_services.add(t.get("service_id"))
+    for rid in route_ids - used_routes:
+        add("warning", "route_without_trips", "route has no trips", rid)
+    for sid in service_ids - used_services:
+        add("warning", "service_without_trips", "calendar service unused", sid)
+
+    by_trip = {}
+    used_stops = set()
+    for st in tables["stop_times.txt"]:
+        tid = st.get("trip_id", "")
+        if tid not in trip_ids:
+            add("error", "bad_reference", "stop_times.trip_id not in trips.txt", tid)
+        if st.get("stop_id") not in stop_ids:
+            add("error", "bad_reference", "stop_times.stop_id not in stops.txt",
+                st.get("stop_id"))
+        used_stops.add(st.get("stop_id"))
+        for col in ("arrival_time", "departure_time"):
+            if st.get(col) and not _TIME_OK.match(st[col]):
+                add("error", "bad_time", "stop time is not HH:MM:SS",
+                    f"{tid}: {st[col]}")
+        try:
+            seq = int(st.get("stop_sequence", ""))
+        except ValueError:
+            add("error", "bad_sequence", "stop_sequence must be an integer", tid)
+            continue
+        by_trip.setdefault(tid, []).append((seq, st.get("departure_time", "")))
+    for tid in trip_ids:
+        rows = by_trip.get(tid, [])
+        if len(rows) < 2:
+            add("error", "trip_too_short", "trip has fewer than 2 stop_times", tid)
+            continue
+        rows.sort()
+        seqs = [r[0] for r in rows]
+        if len(set(seqs)) != len(seqs):
+            add("error", "bad_sequence", "duplicate stop_sequence in trip", tid)
+        times = [r[1] for r in rows if r[1]]
+        if times != sorted(times):
+            add("error", "nonmonotonic_times", "stop times go backwards", tid)
+    for sid in stop_ids - used_stops:
+        add("warning", "stop_unused", "stop is never visited", sid)
+
+    for c in tables["calendar.txt"]:
+        for col in ("start_date", "end_date"):
+            if not _DATE_OK.match(c.get(col, "")):
+                add("error", "bad_date", "calendar date is not YYYYMMDD",
+                    f"{c.get('service_id')}: {c.get(col)}")
+        if (c.get("start_date", "") and c.get("end_date", "")
+                and c["start_date"] > c["end_date"]):
+            add("error", "bad_date", "calendar start_date after end_date",
+                c.get("service_id"))
+        if not any(c.get(d) == "1" for d in (
+                "monday", "tuesday", "wednesday", "thursday", "friday",
+                "saturday", "sunday")):
+            add("warning", "service_no_days", "service runs on no days",
+                c.get("service_id"))
+
+    for f in tables["frequencies.txt"]:
+        if f.get("trip_id") not in trip_ids:
+            add("error", "bad_reference", "frequencies.trip_id not in trips.txt",
+                f.get("trip_id"))
+        try:
+            if int(f.get("headway_secs", "")) <= 0:
+                raise ValueError
+        except ValueError:
+            add("error", "bad_headway", "headway_secs must be a positive integer",
+                f.get("trip_id"))
+        if (f.get("start_time", "") and f.get("end_time", "")
+                and _hhmmss_to_secs(f["start_time"]) >= _hhmmss_to_secs(f["end_time"])):
+            add("error", "bad_window", "frequency start_time not before end_time",
+                f.get("trip_id"))
+
+    prev = {}
+    for s in tables["shapes.txt"]:
+        sid = s.get("shape_id", "")
+        try:
+            seq = int(s.get("shape_pt_sequence", ""))
+            dist = float(s.get("shape_dist_traveled") or 0)
+        except ValueError:
+            add("error", "bad_shape", "unparseable shape sequence/distance", sid)
+            continue
+        if sid in prev and (seq <= prev[sid][0] or dist < prev[sid][1]):
+            add("warning", "shape_disorder",
+                "shape sequence/distance not increasing", sid)
+        prev[sid] = (seq, dist)
+
+    findings = sorted(
+        agg.values(), key=lambda f: (f["severity"] != "error", f["code"])
+    )
+    return findings
+
+
 # --- csv / zip helpers -------------------------------------------------------
 def _csv(header, rows):
     """Render rows (list of dicts) as a CSV string with the given header order."""

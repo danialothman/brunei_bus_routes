@@ -758,10 +758,79 @@ APP.GtfsEditorManager = class {
     window.open(`/data/gtfs.zip${year ? "?year=" + encodeURIComponent(year) : ""}`);
   }
 
+  // --- Validation ----------------------------------------------------------------------
+
+  _validate() {
+    this._flushStopsSave();
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+      this._saveMeta();
+    }
+    if (this._feedTimer) {
+      clearTimeout(this._feedTimer);
+      this._feedTimer = null;
+      this._saveFeedConfig();
+    }
+    const year = this.year || "";
+    $("#validateYear").text(year || "default");
+    $("#validateSummary").attr("class", "gep-validate-summary").text("Validating…");
+    $("#validateList").empty();
+    $("#validateModal").modal("show");
+    fetch(`/data/gtfs-validate${year ? "?year=" + encodeURIComponent(year) : ""}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) {
+          $("#validateSummary").addClass("err").text(d.error);
+          return;
+        }
+        const s = d.stats || {};
+        const summary = $("#validateSummary");
+        summary
+          .addClass(d.errors ? "err" : d.warnings ? "warn" : "ok")
+          .text(
+            `${d.errors} error${d.errors === 1 ? "" : "s"}, ` +
+              `${d.warnings} warning${d.warnings === 1 ? "" : "s"} — ` +
+              `${s.routes} routes, ${s.trips} trips, ${s.stops} stops, ` +
+              `${Math.round(d.size / 1024)} KB` +
+              (d.errors ? "" : " · feed is structurally sound")
+          );
+        const list = $("#validateList");
+        (d.findings || []).forEach((f) => {
+          const row = $('<div class="gep-validate-row"></div>');
+          row.append(
+            $('<span class="gep-validate-badge"></span>')
+              .addClass(f.severity)
+              .text(f.severity === "error" ? "ERROR" : "WARN")
+          );
+          const body = $('<span class="gep-validate-msg"></span>').text(
+            `${f.message} (×${f.count})`
+          );
+          if (f.examples && f.examples.length) {
+            body.append(
+              $('<span class="gep-validate-ex"></span>').text(
+                " — " + f.examples.join(", ") + (f.count > f.examples.length ? ", …" : "")
+              )
+            );
+          }
+          row.append(body);
+          list.append(row);
+        });
+        if (!(d.findings || []).length) {
+          list.append('<div class="gep-empty">No findings — all checks passed.</div>');
+        }
+      })
+      .catch((err) => {
+        $("#validateSummary").addClass("err").text("Validation request failed");
+        console.error("gtfs-validate failed", err);
+      });
+  }
+
   // --- Events --------------------------------------------------------------------------
 
   _bind() {
     $("#gepDownload").on("click", () => this._download());
+    $("#gepValidate").on("click", () => this._validate());
     this.timingSelect.on("change", () => this._showTiming());
     $("#gepZoomIn").on("click", () => this._setZoom(this.zoom * 1.25));
     $("#gepZoomOut").on("click", () => this._setZoom(this.zoom / 1.25));

@@ -23,6 +23,8 @@ def main():
     ap.add_argument("--headway", type=int, help="headway seconds (overrides default)")
     ap.add_argument("--start-time", help="service window start HH:MM:SS")
     ap.add_argument("--end-time", help="service window end HH:MM:SS")
+    ap.add_argument("--validate", action="store_true",
+                    help="run the structural validator on the built feed")
     args = ap.parse_args()
 
     year = appmod._resolve_year(args.year)
@@ -48,6 +50,16 @@ def main():
     print(f"  stops:       {stats['stops']} ({stats['merged_stops']} merges)")
     print(f"  stop_times:  {stats['stop_times']}")
     print(f"  shape_points:{stats['shape_points']}")
+
+    if args.validate:
+        findings = gtfs.validate_feed(data)
+        errors = sum(1 for f in findings if f["severity"] == "error")
+        print(f"\nValidation: {errors} errors, {len(findings) - errors} warnings")
+        for f in findings:
+            ex = f" — {', '.join(f['examples'])}" if f["examples"] else ""
+            print(f"  [{f['severity'].upper():7}] {f['message']} (x{f['count']}){ex}")
+        if errors:
+            sys.exit(1)
 
 
 if __name__ == "__main__":
