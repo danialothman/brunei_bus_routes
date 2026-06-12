@@ -305,6 +305,10 @@ APP.GtfsEditorManager = class {
     }
     hint.text(note).toggle(!!note);
     const editable = this._stopsEditable();
+    // Reorder/remove only inside the editor session, where they go through
+    // its undo stack and explicit Save. Outside it the list still allows
+    // name/code/coord edits (autosaved as versions), but not structure.
+    const showTools = live;
     // Column titles, sticky atop the scrolling list. Reuses the rows' column
     // classes (flex bases) so the labels line up with the inputs; the hidden
     // tools clone keeps Lat/Lon aligned when rows carry ↑↓✕.
@@ -314,7 +318,7 @@ APP.GtfsEditorManager = class {
     head.append($('<span class="gep-stop-name">Name</span>'));
     head.append($('<span class="gep-stop-coord">Lat</span>'));
     head.append($('<span class="gep-stop-coord">Lon</span>'));
-    if (editable) {
+    if (showTools) {
       head.append(
         $('<span class="gep-stop-tools" aria-hidden="true"><a>↑</a><a>↓</a><a>✕</a></span>')
       );
@@ -345,7 +349,7 @@ APP.GtfsEditorManager = class {
           .val(s.lon.toFixed(6))
           .prop("disabled", !editable)
       );
-      if (editable) {
+      if (showTools) {
         const tools = $('<span class="gep-stop-tools"></span>');
         tools.append($('<a class="gep-stop-up" title="Move earlier">↑</a>'));
         tools.append($('<a class="gep-stop-down" title="Move later">↓</a>'));
@@ -1284,34 +1288,24 @@ APP.GtfsEditorManager = class {
       else this.geom.stops[i].lon = v;
       this._queueStopsSave();
     });
+    // Structural changes only inside the editor session (undo + explicit
+    // Save); the tools don't render otherwise, this guards stale DOM.
     stopsList.on("click", ".gep-stop-up, .gep-stop-down", (e) => {
+      if (!this._liveSource) return;
       const i = this._stopAt(e.currentTarget);
       if (i == null) return;
       const j = $(e.currentTarget).hasClass("gep-stop-up") ? i - 1 : i + 1;
-      if (this._liveSource) {
-        this._liveReorder(i, j);
-        return;
-      }
-      const stops = this.geom.stops;
-      if (j < 0 || j >= stops.length) return;
-      [stops[i], stops[j]] = [stops[j], stops[i]];
-      this._renderStops();
-      this._queueStopsSave();
+      this._liveReorder(i, j);
     });
     stopsList.on("click", ".gep-stop-del", (e) => {
+      if (!this._liveSource) return;
       const i = this._stopAt(e.currentTarget);
       if (i == null) return;
-      if (this._liveSource) {
-        const f = this._liveStopFeatures()[i];
-        if (f) {
-          this._liveSource.removeFeature(f);
-          this.page.editorManager._snapshot();
-        }
-        return;
+      const f = this._liveStopFeatures()[i];
+      if (f) {
+        this._liveSource.removeFeature(f);
+        this.page.editorManager._snapshot();
       }
-      this.geom.stops.splice(i, 1);
-      this._renderStops();
-      this._queueStopsSave();
     });
   }
 };
