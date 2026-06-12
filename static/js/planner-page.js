@@ -368,50 +368,86 @@ APP.PlannerPage = class {
    * walks along their routed road path when available — with the ride legs'
    * stops as the stop markers. `phases` marks which stretches of the path are
    * walked vs ridden, as fractions of total length, so the 3D engines can
-   * swap the bus for a pedestrian. */
+   * swap the bus for a pedestrian.
+   *
+   * Leg junctions don't meet exactly (ride lines pin to the stop, routed
+   * walks end at the nearest road point), which would leave short
+   * out-and-back spurs that flip the 3D heading — so tight reversals are
+   * dropped as the path is assembled. */
   ridePayload(j) {
+    const M_PER_DEG = 111320;
+    const kx = Math.cos((j.legs[0].from.lat * Math.PI) / 180);
+    const dist = (a, b) =>
+      Math.hypot((b[0] - a[0]) * kx, b[1] - a[1]) * M_PER_DEG;
+
     const path = [];
-    const stops = [];
-    const ranges = []; // {mode, start, end} index spans into path
-    const push = (lon, lat) => {
+    const legOf = []; // owning leg index per path point (for phase spans)
+    const add = (c, li) => {
+      const p = [c[0], c[1]];
       const last = path[path.length - 1];
-      if (!last || last[0] !== lon || last[1] !== lat) path.push([lon, lat]);
-    };
-    j.legs.forEach((leg) => {
-      const start = Math.max(0, path.length - 1);
-      if (leg.type === "walk") {
-        if (leg.geometry && leg.geometry.length >= 2) {
-          leg.geometry.forEach((c) => push(c[0], c[1]));
+      if (last && last[0] === p[0] && last[1] === p[1]) return;
+      path.push(p);
+      legOf.push(li);
+      // De-spike: while the last three points double back within a short
+      // hop (turn sharper than ~120° with a side under 300 m), drop the
+      // middle one — these are junction artifacts, not the route.
+      while (path.length >= 3) {
+        const a = path[path.length - 3];
+        const b = path[path.length - 2];
+        const c2 = path[path.length - 1];
+        const v1 = [(b[0] - a[0]) * kx, b[1] - a[1]];
+        const v2 = [(c2[0] - b[0]) * kx, c2[1] - b[1]];
+        const l1 = Math.hypot(v1[0], v1[1]);
+        const l2 = Math.hypot(v2[0], v2[1]);
+        if (!l1 || !l2) break;
+        const cos = (v1[0] * v2[0] + v1[1] * v2[1]) / (l1 * l2);
+        if (cos < -0.5 && Math.min(l1, l2) * M_PER_DEG < 300) {
+          path.splice(path.length - 2, 1);
+          legOf.splice(legOf.length - 2, 1);
         } else {
-          push(leg.from.lon, leg.from.lat);
-          push(leg.to.lon, leg.to.lat);
+          break;
         }
+      }
+    };
+
+    const stops = [];
+    j.legs.forEach((leg, li) => {
+      if (leg.type === "walk") {
+        // True endpoints around the routed road path, so walks connect to
+        // the A/B markers and the stops they serve.
+        add([leg.from.lon, leg.from.lat], li);
+        (leg.geometry || []).forEach((c) => add(c, li));
+        add([leg.to.lon, leg.to.lat], li);
       } else {
-        leg.geometry.forEach((c) => push(c[0], c[1]));
+        leg.geometry.forEach((c) => add(c, li));
         leg.stops.forEach((s) =>
           stops.push({ name: s.name, lon: s.lon, lat: s.lat })
         );
       }
-      ranges.push({
-        mode: leg.type === "walk" ? "walk" : "ride",
-        start,
-        end: path.length - 1,
-      });
     });
-    // Index spans -> fractions of path length (planar, cos-scaled — the same
-    // approximation the ride HUD uses; only relative position matters).
-    const kx = Math.cos((path[0][1] * Math.PI) / 180);
+
+    // Surviving per-leg spans -> fractions of total path length.
     const cum = [0];
     for (let i = 1; i < path.length; i++) {
-      cum.push(
-        cum[i - 1] +
-          Math.hypot((path[i][0] - path[i - 1][0]) * kx, path[i][1] - path[i - 1][1])
-      );
+      cum.push(cum[i - 1] + dist(path[i - 1], path[i]));
     }
     const total = cum[cum.length - 1] || 1;
-    const phases = ranges
-      .filter((r) => r.end > r.start)
-      .map((r) => ({ mode: r.mode, t0: cum[r.start] / total, t1: cum[r.end] / total }));
+    const first = {};
+    const last = {};
+    legOf.forEach((li, i) => {
+      if (first[li] == null) first[li] = i;
+      last[li] = i;
+    });
+    const phases = [];
+    j.legs.forEach((leg, li) => {
+      if (first[li] == null || last[li] <= first[li]) return; // leg despiked away
+      phases.push({
+        mode: leg.type === "walk" ? "walk" : "ride",
+        t0: cum[first[li]] / total,
+        t1: cum[last[li]] / total,
+      });
+    });
+
     const lons = path.map((p) => p[0]);
     const lats = path.map((p) => p[1]);
     return {
@@ -475,14 +511,13 @@ APP.PlannerPage = class {
     let rideIdx = 0;
     j.legs.forEach((leg) => {
       if (leg.type === "walk") {
-        // Road-following path when the foot router supplied one.
-        const pts =
-          leg.geometry && leg.geometry.length >= 2
-            ? leg.geometry
-            : [
-                [leg.from.lon, leg.from.lat],
-                [leg.to.lon, leg.to.lat],
-              ];
+        // Road-following path when the foot router supplied one, tied to the
+        // leg's true endpoints (the router snaps to the nearest road).
+        const pts = [
+          [leg.from.lon, leg.from.lat],
+          ...(leg.geometry || []),
+          [leg.to.lon, leg.to.lat],
+        ];
         const line = new ol.Feature(
           new ol.geom.LineString(pts.map((c) => APP.MapUtils.toOL(c)))
         );
