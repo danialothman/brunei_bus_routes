@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/ride.css') }}"
+      href="{{ url_for('static', filename='css/ride.css', v=asset_v) }}"
     />
   </head>
   <body>
@@ -62,10 +62,10 @@
     </div>
 
     <!-- Shared config (ROUTE_COLORS) + geometry helper, then the ES module -->
-    <script src="{{ url_for('static', filename='js/config.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/route-path.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/minimap.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/ride-music.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/config.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/route-path.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/minimap.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/ride-music.js', v=asset_v) }}"></script>
     <script type="importmap">
       {
         "imports": {
@@ -75,7 +75,7 @@
     </script>
     <script
       type="module"
-      src="{{ url_for('static', filename='js/ride/three-ride.js') }}"
+      src="{{ url_for('static', filename='js/ride/three-ride.js', v=asset_v) }}"
     ></script>
   </body>
 </html>

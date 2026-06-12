@@ -201,7 +201,9 @@ APP.RideMusic = class {
     const t0 = performance.now();
     const step = (t) => {
       if (token !== this._fadeToken) return; // superseded by a manual change
-      const k = Math.min(1, (t - t0) / 800);
+      // The first rAF timestamp can predate t0 (it's stamped at frame start),
+      // so clamp both ends or volume goes negative and throws.
+      const k = Math.min(1, Math.max(0, (t - t0) / 800));
       this.audio.volume = target * k;
       if (k < 1) requestAnimationFrame(step);
     };

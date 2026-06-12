@@ -219,6 +219,37 @@ and a field-to-GTFS reference.
 Edits auto-save to the local SQLite store (`instance/edits.db`) and are merged
 into every subsequent export from both the endpoint and the CLI.
 
+## Trip Planner
+
+The trip planner (`/planner`, 🧭 Planner in the navbar) answers point-to-point
+journey queries — where to board, which routes to ride, where to transfer —
+using the [RAPTOR](https://www.microsoft.com/en-us/research/publication/round-based-public-transit-routing/)
+algorithm over the same in-memory GTFS feed the export emits, so planned
+journeys always match what a GTFS consumer of the feed would compute.
+
+- **Two data sources**, switchable in the sidebar: the **2016 official** dataset
+  or **My routes** (the routes you drew and scheduled in the GTFS workbench).
+- Set start (A) and destination (B) by clicking the map or typing a stop name;
+  pick a departure time and day of travel.
+- Every planned search lands in a **Recent trips** list (persisted in the
+  browser, deduped, newest first) — click one to make it the active trip
+  again, ✕ to remove it, or clear them all. One trip is active at a time;
+  the ✕ next to Plan trip clears the current search.
+- Results are the Pareto set over arrival time vs. transfers: each extra
+  transfer is only offered when it strictly arrives earlier. Walking covers
+  access/egress (up to ~1 km), transfers between nearby stops, and an
+  end-to-end walk when the two points are close.
+- Selecting a journey draws it on the map — colored ride legs along the real
+  route shapes, dashed walk legs that follow real roads (via the public OSM
+  foot router, falling back to straight lines offline) — and **🚌 3D preview**
+  rides the whole journey end-to-end in either 3D engine. Walked stretches
+  swap the bus for a pedestrian: an animated 3D person in Three.js, a 🚶
+  marker in MapLibre.
+
+Routes without transcribed departures plan against their synthetic headway
+(default: every 30 min, 06:00–20:00), so waits and arrival times are nominal
+until real timetables are transcribed in the workbench.
+
 ## Technologies Used
 
 - [Flask](https://flask.palletsprojects.com/) — Python web server
@@ -232,9 +263,8 @@ into every subsequent export from both the endpoint and the CLI.
 Recommended features that would enhance the app, in rough order of impact and
 feasibility:
 
-1. **Journey Planner** (highest impact) — route planning between any two points,
-   multiple route options with transfer points, walking directions to/from
-   stops, and journey time and fare estimates.
+1. ~~**Journey Planner**~~ — done: see [Trip Planner](#trip-planner). Remaining
+   ideas: fare estimates and richer alternatives (e.g. depart-later options).
 2. **Enhanced Bus Stop Information** — comprehensive stop database,
    arrival/departure schedules, stop amenities, and photos and accessibility
    details. (A frequency-based [GTFS export](#gtfs-export) already exists; real
@@ -246,9 +276,9 @@ feasibility:
 5. **Community Features** — user reviews/ratings, issue reporting, service
    feedback, and crowdsourced updates.
 
-The journey planner would be the most valuable addition: it would transform the
-app from an informational tool into a practical trip-planning solution,
-significantly improving its utility for daily commuters and tourists alike.
+With the journey planner in place, transcribing real timetables (item 2) is now
+the highest-value work: planned waits and arrival times are only as good as the
+schedules behind them.
 
 ## Credits
 

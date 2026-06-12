@@ -11,7 +11,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/ride.css') }}"
+      href="{{ url_for('static', filename='css/ride.css', v=asset_v) }}"
     />
     <style>
       /* simple top-down bus marker (map rotates so travel dir is "up") */
@@ -32,6 +32,23 @@
         height: 6px;
         background: rgba(255, 255, 255, 0.7);
         border-radius: 2px;
+      }
+      /* Walked stretches of a planned-trip preview: pedestrian, not bus.
+         Size stays fixed — MapLibre markers aren't shrink-wrapped, so
+         width:auto would stretch the element across the whole map. */
+      .bus-marker.walking {
+        width: 28px;
+        height: 30px;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        font-size: 24px;
+        line-height: 30px;
+        text-align: center;
+        text-shadow: 0 0 4px #fff, 0 1px 3px rgba(0, 0, 0, 0.6);
+      }
+      .bus-marker.walking::after {
+        display: none;
       }
     </style>
   </head>
@@ -88,10 +105,10 @@
 
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
-    <script src="{{ url_for('static', filename='js/config.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/route-path.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/minimap.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/ride-music.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/maplibre-ride.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/config.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/route-path.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/minimap.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/ride-music.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/maplibre-ride.js', v=asset_v) }}"></script>
   </body>
 </html>

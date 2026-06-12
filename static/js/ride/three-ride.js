@@ -217,6 +217,40 @@ function buildBus(color) {
   return bus;
 }
 
+// Low-poly pedestrian for the walked stretches of a planned-trip preview.
+// Slightly larger than life so it reads from the chase camera; limbs pivot
+// at hip/shoulder so the walk cycle can swing them.
+function buildPerson() {
+  const g = new THREE.Group();
+  const skin = new THREE.MeshLambertMaterial({ color: 0xf1c27d });
+  const shirt = new THREE.MeshLambertMaterial({ color: 0x2e86c1 });
+  const pants = new THREE.MeshLambertMaterial({ color: 0x34495e });
+  const torso = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.5, 0.42, 1.4, 10),
+    shirt
+  );
+  torso.position.y = 2.1;
+  g.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 10), skin);
+  head.position.y = 3.15;
+  g.add(head);
+  const legGeo = new THREE.CylinderGeometry(0.15, 0.13, 1.4, 8);
+  legGeo.translate(0, -0.7, 0); // pivot at the hip
+  const armGeo = new THREE.CylinderGeometry(0.11, 0.1, 1.1, 8);
+  armGeo.translate(0, -0.55, 0); // pivot at the shoulder
+  const legL = new THREE.Mesh(legGeo, pants);
+  legL.position.set(-0.22, 1.4, 0);
+  const legR = new THREE.Mesh(legGeo, pants);
+  legR.position.set(0.22, 1.4, 0);
+  const armL = new THREE.Mesh(armGeo, skin);
+  armL.position.set(-0.62, 2.7, 0);
+  const armR = new THREE.Mesh(armGeo, skin);
+  armR.position.set(0.62, 2.7, 0);
+  g.add(legL, legR, armL, armR);
+  g.userData.limbs = { legL, legR, armL, armR };
+  return g;
+}
+
 function buildStops(stops, origin) {
   const group = new THREE.Group();
   const positions = [];
@@ -238,6 +272,11 @@ async function main() {
   if (!routeFile) {
     showError("No route selected.");
     return;
+  }
+
+  // A planned-trip preview returns to the planner, not the route map.
+  if (routeFile === RP.TRIP_PREVIEW) {
+    document.getElementById("exit").href = "/planner";
   }
 
   let geo;
@@ -300,6 +339,15 @@ async function main() {
   scene.add(buildRoad(pts, color));
   const bus = buildBus(color);
   scene.add(bus);
+  // Planned-trip previews carry walk/ride phases: walked stretches swap the
+  // bus for a pedestrian.
+  const person = (geo.phases || []).some((p) => p.mode === "walk")
+    ? buildPerson()
+    : null;
+  if (person) {
+    person.visible = false;
+    scene.add(person);
+  }
   const { group: stopGroup, positions: stopPositions } = buildStops(
     geo.stops,
     origin
@@ -331,6 +379,22 @@ async function main() {
     const tan = curve.getTangentAt(clamped).normalize();
     bus.position.set(p.x, 0, p.z);
     bus.rotation.y = Math.atan2(tan.x, tan.z);
+    if (person) {
+      const walking = RP.modeAt(geo.phases, clamped) === "walk";
+      person.visible = walking;
+      bus.visible = !walking;
+      person.position.copy(bus.position);
+      person.rotation.y = bus.rotation.y;
+      // Walk cycle keyed to distance, so the stride tracks ground speed.
+      const swing = walking
+        ? Math.sin(clamped * totalLength * 2.0) * 0.55
+        : 0;
+      const { legL, legR, armL, armR } = person.userData.limbs;
+      legL.rotation.x = swing;
+      legR.rotation.x = -swing;
+      armL.rotation.x = -swing * 0.7;
+      armR.rotation.x = swing * 0.7;
+    }
     const desired = new THREE.Vector3(
       p.x - tan.x * 17,
       9,
