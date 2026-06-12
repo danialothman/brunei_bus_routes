@@ -28,13 +28,11 @@ APP.BusMap = class {
       this.routeManager,
       this.infoManager
     );
-    this.stopImageManager = new APP.StopImageManager(this.editorManager);
 
     this.locationTracker.init();
     this.routeManager.init();
     this.infoManager.init();
     this.editorManager.init();
-    this.stopImageManager.init();
   }
 
   /**
