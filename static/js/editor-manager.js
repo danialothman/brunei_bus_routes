@@ -35,6 +35,7 @@ APP.EditorManager = class {
     this.undoStack = [];
     this.redoStack = [];
     this._suppressSnapshot = false;
+    this._seq = 0; // feature creation counter (stable ordering)
   }
 
   init() {
@@ -234,7 +235,10 @@ APP.EditorManager = class {
         this.routeManager.setRouteDisplayName(this.year, this.file, this.routeName, this.kind);
         const ext = this.source.getExtent();
         if (ext && isFinite(ext[0])) {
-          this.map.getView().fit(ext, { padding: [60, 60, 60, 60], maxZoom: 17, duration: 400 });
+          // On /gtfs the timing panel may dock over the map's right edge.
+          const timing = $("#timingPanel");
+          const padRight = timing.is(":visible") ? timing.outerWidth() + 40 : 60;
+          this.map.getView().fit(ext, { padding: [60, padRight, 60, 60], maxZoom: 17, duration: 400 });
         }
         this.undoStack = [this._serialize()];
         this.redoStack = [];
@@ -244,11 +248,16 @@ APP.EditorManager = class {
   }
 
   _buildFeatures(geom) {
+    // Stamp creation order: the vector source's own iteration order is its
+    // R-tree (spatial index), which shuffles as features move — serializing
+    // or listing in that order scrambles the stop sequence.
     this.source.clear();
+    this._seq = 0;
     geom.segments.forEach((seg) => {
       const coords = seg.map((p) => APP.MapUtils.toOL(p));
       const f = new ol.Feature(new ol.geom.LineString(coords));
       f.set("kind", "line");
+      f.set("seq", this._seq++);
       this.source.addFeature(f);
     });
     if (this.kind !== "geojson") {
@@ -257,15 +266,24 @@ APP.EditorManager = class {
         f.set("kind", "stop");
         f.set("name", s.name || "");
         f.set("code", s.code || ""); // public stop number (GTFS stop_code)
+        f.set("seq", this._seq++);
         this.source.addFeature(f);
       });
     }
   }
 
+  /** Source features in creation order (see _buildFeatures). */
+  orderedFeatures() {
+    return this.source
+      .getFeatures()
+      .slice()
+      .sort((a, b) => (a.get("seq") || 0) - (b.get("seq") || 0));
+  }
+
   _serialize() {
     const segments = [];
     const stops = [];
-    this.source.forEachFeature((f) => {
+    this.orderedFeatures().forEach((f) => {
       const geom = f.getGeometry();
       if (f.get("kind") === "line") {
         segments.push(
@@ -287,13 +305,42 @@ APP.EditorManager = class {
   // --- Tools / interactions --------------------------------------------------
 
   _addInteractions() {
-    this.modify = new ol.interaction.Modify({ source: this.source });
+    // A stop snapped onto the line sits exactly on a vertex/segment, and one
+    // Modify over the whole source would drag both together. Split: Translate
+    // moves stops (whole points), Modify handles the line but stands down
+    // whenever the pointer is over a stop.
+    const stopAtPixel = (e) => {
+      let hit = false;
+      this.map.forEachFeatureAtPixel(
+        e.pixel,
+        (f) => {
+          if (f.get("kind") === "stop") {
+            hit = true;
+            return true;
+          }
+        },
+        { hitTolerance: 8, layerFilter: (l) => l === this.layer }
+      );
+      return hit;
+    };
+    this.modify = new ol.interaction.Modify({
+      source: this.source,
+      condition: (e) => !stopAtPixel(e),
+    });
     this.modify.on("modifyend", () => this._snapshot());
+
+    this.translate = new ol.interaction.Translate({
+      layers: [this.layer],
+      filter: (f) => f.get("kind") === "stop",
+      hitTolerance: 8,
+    });
+    this.translate.on("translateend", () => this._snapshot());
 
     this.draw = new ol.interaction.Draw({ source: this.source, type: "Point" });
     this.draw.on("drawend", (e) => {
       const f = e.feature;
       f.set("kind", "stop");
+      f.set("seq", this._seq++); // new stops join the end of the sequence
       const name = window.prompt("Stop name:", "");
       f.set("name", name == null ? "" : name);
       // snapshot after the feature is committed to the source
@@ -303,12 +350,15 @@ APP.EditorManager = class {
     this.drawLine = new ol.interaction.Draw({ source: this.source, type: "LineString" });
     this.drawLine.on("drawend", (e) => {
       e.feature.set("kind", "line");
+      e.feature.set("seq", this._seq++);
       setTimeout(() => this._snapshot(), 0);
     });
 
     this.snap = new ol.interaction.Snap({ source: this.source }); // add last
-    [this.modify, this.draw, this.drawLine, this.snap].forEach((i) =>
-      this.map.addInteraction(i)
+    // Translate after Modify: later interactions see events first, so a
+    // grabbed stop never reaches the line editor.
+    [this.modify, this.translate, this.draw, this.drawLine, this.snap].forEach(
+      (i) => this.map.addInteraction(i)
     );
 
     // Rename/Delete act directly on the stop clicked — more reliable than a
@@ -318,12 +368,14 @@ APP.EditorManager = class {
   }
 
   _removeInteractions() {
-    [this.modify, this.draw, this.drawLine, this.snap].forEach((i) => {
-      if (i) this.map.removeInteraction(i);
-    });
+    [this.modify, this.translate, this.draw, this.drawLine, this.snap].forEach(
+      (i) => {
+        if (i) this.map.removeInteraction(i);
+      }
+    );
     if (this._onClick) this.map.un("singleclick", this._onClick);
     this._onClick = null;
-    this.modify = this.draw = this.drawLine = this.snap = null;
+    this.modify = this.translate = this.draw = this.drawLine = this.snap = null;
   }
 
   setTool(tool) {
@@ -331,6 +383,7 @@ APP.EditorManager = class {
     if (this.kind === "geojson" && tool === "addstop") tool = "move";
     this.tool = tool;
     if (this.modify) this.modify.setActive(tool === "move");
+    if (this.translate) this.translate.setActive(tool === "move");
     if (this.draw) this.draw.setActive(tool === "addstop");
     if (this.drawLine) this.drawLine.setActive(tool === "drawline");
     $(".ed-tool").removeClass("active");
@@ -340,7 +393,13 @@ APP.EditorManager = class {
   /** In rename/delete tools, act on the stop under the click. */
   _handleClick(e) {
     if (!this.active) return;
-    if (this.tool !== "rename" && this.tool !== "delete") return;
+    if (
+      this.tool !== "rename" &&
+      this.tool !== "delete" &&
+      this.tool !== "move"
+    ) {
+      return; // drawline/addstop: a click means "draw here", not "inspect"
+    }
     let stop = null;
     let line = null;
     this.map.forEachFeatureAtPixel(
@@ -352,6 +411,13 @@ APP.EditorManager = class {
       },
       { hitTolerance: 6, layerFilter: (l) => l === this.layer }
     );
+    // Surface the clicked stop in the workbench's stops list (no-op on the
+    // main map page, whose route manager has no such hook). Not for delete —
+    // the row is about to disappear.
+    if (stop && this.tool !== "delete" && this.routeManager.highlightStop) {
+      this.routeManager.highlightStop(stop);
+    }
+    if (this.tool === "move") return;
     if (this.tool === "rename") {
       if (!stop) return;
       const name = window.prompt("Rename stop:", stop.get("name") || "");

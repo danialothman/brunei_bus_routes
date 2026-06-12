@@ -16,6 +16,7 @@ APP.GtfsEditorManager = class {
     this._feedTimer = null;
     this._stopsTimer = null;
     this._populating = false; // suppress autosave while filling the form
+    this._timingDismissed = false; // user closed the timing panel this session
   }
 
   init() {
@@ -143,7 +144,13 @@ APP.GtfsEditorManager = class {
 
   _liveStopFeatures() {
     if (!this._liveSource) return [];
-    return this._liveSource.getFeatures().filter((f) => f.get("kind") === "stop");
+    // getFeatures() iterates the source's R-tree, whose order shuffles as
+    // features move — sort by the editor's creation stamp so the list matches
+    // the saved stop sequence (and row indexes are stable across drags).
+    return this._liveSource
+      .getFeatures()
+      .filter((f) => f.get("kind") === "stop")
+      .sort((a, b) => (a.get("seq") || 0) - (b.get("seq") || 0));
   }
 
   /** Update one row's inputs in place during a drag (no re-render, no focus loss). */
@@ -162,6 +169,23 @@ APP.GtfsEditorManager = class {
     set(".gep-stop-lon", ll[0].toFixed(6));
     set(".gep-stop-name", feature.get("name") || "");
     set(".gep-stop-code", feature.get("code") || "");
+  }
+
+  /** Map → list: flash and scroll to the row of a stop clicked in the editor
+   * (the counterpart of the row's ① chip, which pans the map to the stop). */
+  highlightStopFeature(feature) {
+    const i = this._liveStopFeatures().indexOf(feature);
+    if (i < 0) return;
+    const rows = $("#gepStopsList .gep-stop-row");
+    rows.removeClass("flash");
+    const row = rows.eq(i);
+    if (!row.length) return;
+    row[0].scrollIntoView({ block: "nearest" });
+    // Force a reflow so re-clicking the same stop restarts the fade.
+    void row[0].offsetWidth;
+    row.addClass("flash");
+    clearTimeout(this._flashTimer);
+    this._flashTimer = setTimeout(() => row.removeClass("flash"), 1600);
   }
 
   /** Stops as plain data, from the live editor session or saved geometry. */
@@ -185,6 +209,22 @@ APP.GtfsEditorManager = class {
     if (!this.current) return;
     this.current.label = label;
     this.routeLabel.textContent = label;
+  }
+
+  /** Pane state for a brand-new route being drawn (no file, no meta yet —
+   * the form attaches once the editor Save creates the route). */
+  beginNewRoute(name) {
+    // Flush pending saves so they land on the route we're leaving.
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+      this._saveMeta();
+    }
+    this._flushStopsSave();
+    this.clearRoute();
+    this.routeLabel.textContent = name || "New route";
+    this.status.classList.add("hint");
+    this.status.textContent = "new route — draw line & stops, Save to keep";
   }
 
   clearRoute() {
@@ -281,6 +321,23 @@ APP.GtfsEditorManager = class {
     }
     hint.text(note).toggle(!!note);
     const editable = this._stopsEditable();
+    // Reorder/remove only inside the editor session, where they go through
+    // its undo stack and explicit Save. Outside it the list still allows
+    // name/code/coord edits (autosaved as versions), but not structure.
+    const showTools = live;
+    // Head and rows are grids on one shared template (--gep-stop-cols in the
+    // CSS); this class picks the edit-mode template with the extra ↑↓✕ track,
+    // and the head simply leaves that last cell empty.
+    list.toggleClass("gep-has-tools", showTools);
+    // Column titles, sticky atop the scrolling list. Reuses the rows' column
+    // classes so each label sits in the same grid track as its inputs.
+    const head = $('<div class="gep-stops-head"></div>');
+    head.append($('<span class="gep-stops-head-seq">#</span>'));
+    head.append($('<span class="gep-stop-code">Code</span>'));
+    head.append($('<span class="gep-stop-name">Name</span>'));
+    head.append($('<span class="gep-stop-coord">Lat</span>'));
+    head.append($('<span class="gep-stop-coord">Lon</span>'));
+    list.append(head);
     stops.forEach((s, i) => {
       const row = $('<div class="gep-stop-row"></div>').attr("data-i", i);
       row.append(
@@ -306,7 +363,7 @@ APP.GtfsEditorManager = class {
           .val(s.lon.toFixed(6))
           .prop("disabled", !editable)
       );
-      if (editable) {
+      if (showTools) {
         const tools = $('<span class="gep-stop-tools"></span>');
         tools.append($('<a class="gep-stop-up" title="Move earlier">↑</a>'));
         tools.append($('<a class="gep-stop-down" title="Move later">↓</a>'));
@@ -826,6 +883,8 @@ APP.GtfsEditorManager = class {
     if (!year || !file) {
       this.timingImg.style.display = "none";
       this.timingEmpty.style.display = "";
+      // No signboard — an empty floating window is just clutter.
+      this._setTimingPanelVisible(false);
       return;
     }
     this.timingEmpty.style.display = "none";
@@ -836,6 +895,30 @@ APP.GtfsEditorManager = class {
       "/" +
       encodeURIComponent(file);
     this._setZoom(1);
+    if (!this._timingDismissed) this._setTimingPanelVisible(true);
+  }
+
+  /** The timing panel floats over the map (see gtfs.html). Auto-shown when a
+   * route has a signboard, auto-hidden when not; ✕ dismisses for the session
+   * and the navbar 🕐 toggle brings it back. */
+  _setTimingPanelVisible(show) {
+    const panel = document.getElementById("timingPanel");
+    if (!panel) return;
+    // Phones: the panel would overlay everything — only the toggle opens it.
+    if (show && window.matchMedia("(max-width: 820px)").matches) return;
+    panel.style.display = show ? "flex" : "none";
+  }
+
+  _toggleTimingPanel() {
+    const panel = document.getElementById("timingPanel");
+    if (!panel) return;
+    if (panel.style.display === "flex") {
+      this._timingDismissed = true;
+      panel.style.display = "none";
+    } else {
+      this._timingDismissed = false;
+      panel.style.display = "flex"; // explicit open bypasses the phone guard
+    }
   }
 
   _setZoom(z) {
@@ -877,7 +960,7 @@ APP.GtfsEditorManager = class {
     $("#validateList").empty();
     $("#validateModal").modal("show");
     fetch(`/data/gtfs-validate${year ? "?year=" + encodeURIComponent(year) : ""}`)
-      .then((r) => r.json())
+      .then((r) => r.json().catch(() => ({ error: `request failed (HTTP ${r.status})` })))
       .then((d) => {
         if (d.error) {
           $("#validateSummary").addClass("err").text(d.error);
@@ -983,7 +1066,9 @@ APP.GtfsEditorManager = class {
     $("#previewSummary").text("Building feed…");
     $("#previewModal").modal("show");
     fetch(`/data/gtfs-preview${year ? "?year=" + encodeURIComponent(year) : ""}`)
-      .then((r) => r.json())
+      // Error statuses normally carry a JSON {error}; if the body isn't JSON
+      // (e.g. an HTML 404 page), report the status instead of a parse throw.
+      .then((r) => r.json().catch(() => ({ error: `request failed (HTTP ${r.status})` })))
       .then((d) => {
         if (d.error) {
           $("#previewSummary").text(d.error);
@@ -1080,6 +1165,19 @@ APP.GtfsEditorManager = class {
     $("#gepDownload").on("click", () => this._download());
     $("#gepValidate").on("click", () => this._validate());
     $("#gepPreview").on("click", () => this._preview());
+    $("#timingToggle").on("click", () => this._toggleTimingPanel());
+    $("#timingClose").on("click", () => {
+      this._timingDismissed = true;
+      this._setTimingPanelVisible(false);
+    });
+    const timingPanel = document.getElementById("timingPanel");
+    if (timingPanel) {
+      APP.MapUtils.makeFloatingPanel(
+        timingPanel,
+        document.getElementById("timingPanelHeader"),
+        document.getElementById("timingResize")
+      );
+    }
     $("#previewRefresh").on("click", () => this._preview());
     $("#previewTabs").on("click", ".gep-preview-tab", (e) => {
       this._showPreviewFile($(e.currentTarget).attr("data-file"));
@@ -1206,34 +1304,24 @@ APP.GtfsEditorManager = class {
       else this.geom.stops[i].lon = v;
       this._queueStopsSave();
     });
+    // Structural changes only inside the editor session (undo + explicit
+    // Save); the tools don't render otherwise, this guards stale DOM.
     stopsList.on("click", ".gep-stop-up, .gep-stop-down", (e) => {
+      if (!this._liveSource) return;
       const i = this._stopAt(e.currentTarget);
       if (i == null) return;
       const j = $(e.currentTarget).hasClass("gep-stop-up") ? i - 1 : i + 1;
-      if (this._liveSource) {
-        this._liveReorder(i, j);
-        return;
-      }
-      const stops = this.geom.stops;
-      if (j < 0 || j >= stops.length) return;
-      [stops[i], stops[j]] = [stops[j], stops[i]];
-      this._renderStops();
-      this._queueStopsSave();
+      this._liveReorder(i, j);
     });
     stopsList.on("click", ".gep-stop-del", (e) => {
+      if (!this._liveSource) return;
       const i = this._stopAt(e.currentTarget);
       if (i == null) return;
-      if (this._liveSource) {
-        const f = this._liveStopFeatures()[i];
-        if (f) {
-          this._liveSource.removeFeature(f);
-          this.page.editorManager._snapshot();
-        }
-        return;
+      const f = this._liveStopFeatures()[i];
+      if (f) {
+        this._liveSource.removeFeature(f);
+        this.page.editorManager._snapshot();
       }
-      this.geom.stops.splice(i, 1);
-      this._renderStops();
-      this._queueStopsSave();
     });
   }
 };

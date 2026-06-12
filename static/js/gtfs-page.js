@@ -43,10 +43,24 @@ APP.GtfsPage = class {
 
     $("#gtfsEditBtn").on("click", () => this.editSelected());
     // Brand-new routes enter the editor without hideRouteForEdit firing
-    // (no file yet) — engage the live stops list after the editor opens.
-    // (EditorManager bound these first, so it runs before us.)
+    // (no file yet). The pane must stop showing — and saving meta for — the
+    // previously selected route: clear the selection, mark the pane as "new
+    // route", then engage the live stops list against the fresh session.
+    // (EditorManager bound these first, so it runs before us; the guard
+    // covers a cancelled name prompt.)
     $("#newRouteBtn, #sipCreate").on("click", () =>
-      setTimeout(() => this.gtfsEditor.enterLive(), 0)
+      setTimeout(() => {
+        const em = this.editorManager;
+        if (!em.active || !em.creating) return;
+        this.clearSelection();
+        this.gtfsEditor.beginNewRoute(em.routeName);
+        this.gtfsEditor.enterLive();
+      }, 0)
+    );
+    // The route list shares the sidebar with the GTFS pane — collapsible so
+    // the pane can take the full height (forced shut while editing, via CSS).
+    $("#gtfsRoutesHead").on("click", () =>
+      $(".gtfs-routes-col").toggleClass("collapsed")
     );
     const list = $("#gtfsRouteList");
     list.on("click", ".gtfs-route-row", (e) => {
@@ -139,12 +153,11 @@ APP.GtfsPage = class {
     const row = this._rowFor(this._id(year, file));
     if (!row.length) return;
     let meter = row.find(".gtfs-route-meter");
-    const flags = ["schedule", "departures", "operator", "headsign"];
     if (!meter.length) {
-      meter = $('<span class="gtfs-route-meter"></span>');
-      flags.forEach(() => meter.append("<i></i>"));
+      meter = this._meterEl();
       row.find(".gtfs-route-label").after(meter);
     }
+    const flags = ["schedule", "departures", "operator", "headsign"];
     meter.children().each((i, el) => {
       $(el).toggleClass("on", !!(st && st[flags[i]]));
     });
@@ -153,6 +166,16 @@ APP.GtfsPage = class {
       "transcribed: " +
         flags.map((f) => `${f} ${st && st[f] ? "✓" : "—"}`).join(" · ")
     );
+  }
+
+  /** A fresh all-off transcription meter (4 segments). */
+  _meterEl() {
+    const meter = $('<span class="gtfs-route-meter"></span>').attr(
+      "title",
+      "transcribed: schedule — · departures — · operator — · headsign —"
+    );
+    for (let i = 0; i < 4; i++) meter.append("<i></i>");
+    return meter;
   }
 
   _row(id, year, file, display, isUser, kind) {
@@ -167,6 +190,9 @@ APP.GtfsPage = class {
     if (kind === "geojson") row.addClass("path");
     row.append($('<span class="gtfs-route-chip"></span>').text(code));
     row.append($('<span class="gtfs-route-label"></span>').text(display));
+    // Every schedulable route shows its transcription meter up front (all-off
+    // until the meta summary fills it in). Paths can't carry GTFS meta.
+    if (kind !== "geojson") row.append(this._meterEl());
     if (isUser) {
       row.append($('<a class="gtfs-route-del" title="Delete route">✕</a>'));
     }
@@ -201,9 +227,24 @@ APP.GtfsPage = class {
     $("#gtfsRouteList .gtfs-route-row").removeClass("selected");
     const row = this._rowFor(id).addClass("selected");
     if (row.length) row[0].scrollIntoView({ block: "nearest" });
+    // Collapsed-list header carries the selection.
+    $("#gtfsRoutesCurrent").text(this.names[id] || "");
     this._loadLayer();
     this.gtfsEditor.setRoute(year, file, this.names[id], kind, this.userIds.has(id));
     $("#gtfsEditBtn").show();
+  }
+
+  /** Drop the current selection (e.g. a brand-new route is being drawn):
+   * no row highlighted, no layer on the map, no edit target. */
+  clearSelection() {
+    if (this.layer) {
+      this.map.removeLayer(this.layer);
+      this.layer = null;
+    }
+    this.selected = null;
+    $("#gtfsRouteList .gtfs-route-row").removeClass("selected");
+    $("#gtfsRoutesCurrent").text("");
+    $("#gtfsEditBtn").hide();
   }
 
   /** Pan/zoom to a stop and flash a marker over it (from the stops list). */
@@ -259,8 +300,13 @@ APP.GtfsPage = class {
       if (source.getState() === "ready" && source.getFeatures().length) {
         const ext = source.getExtent();
         if (ext && isFinite(ext[0])) {
+          // Keep the fitted route clear of the timing panel docked on the
+          // map's right edge.
+          const timing = $("#timingPanel");
+          const padRight =
+            timing.is(":visible") ? timing.outerWidth() + 40 : 60;
           this.map.getView().fit(ext, {
-            padding: [60, 60, 60, 60],
+            padding: [60, padRight, 60, 60],
             maxZoom: 16,
             duration: 400,
           });
@@ -347,7 +393,13 @@ APP.GtfsPage = class {
     // Editor is taking over: the stops list goes live against its session.
     // Deferred, because EditorManager.enter() calls this BEFORE it creates
     // its editing source — binding now would find nothing to mirror.
-    setTimeout(() => this.gtfsEditor.enterLive(), 0);
+    setTimeout(() => {
+      this.gtfsEditor.enterLive();
+      // The route list collapses while editing (CSS) — bring the live stops
+      // list into view, since it's the map editor's mirror.
+      const stops = document.getElementById("gepStopsSection");
+      if (stops) stops.scrollIntoView({ block: "start" });
+    }, 0);
   }
 
   showRouteAfterEdit(year, file) {
@@ -364,12 +416,18 @@ APP.GtfsPage = class {
     }
   }
 
+  /** Map → list: a stop clicked in the editor flashes its row in the pane. */
+  highlightStop(feature) {
+    this.gtfsEditor.highlightStopFeature(feature);
+  }
+
   setRouteDisplayName(year, file, name) {
     const id = this._id(year, file);
     this.names[id] = name || file.replace(/\.kml$/, "");
     this._rowFor(id).find(".gtfs-route-label").text(this.names[id]);
     if (this.selected && this.selected.id === id) {
       this.gtfsEditor.setLabel(this.names[id]);
+      $("#gtfsRoutesCurrent").text(this.names[id]);
     }
   }
 
