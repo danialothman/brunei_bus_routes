@@ -1297,6 +1297,43 @@ body.editing #gtfsEditBtn {
   color: var(--gtfs-ink-soft);
   margin-bottom: 4px;
 }
+.gep-preview-source {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--gtfs-ink);
+  padding: 5px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background: #f0ede5;
+}
+.gep-preview-source:empty {
+  display: none;
+}
+.gep-preview-source.edit {
+  background: #e6f2e6;
+}
+.gep-preview-source.partial {
+  background: #fdf3d7;
+}
+.gep-preview-source.auto {
+  background: #ece9e2;
+  color: var(--gtfs-ink-soft);
+}
+.gep-preview-source-badge {
+  flex: 0 0 auto;
+  font-family: var(--gtfs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.gep-preview-source.edit .gep-preview-source-badge {
+  color: var(--gtfs-go);
+}
+.gep-preview-source.partial .gep-preview-source-badge {
+  color: #8a6d00;
+}
 .gep-preview-table-wrap {
   max-height: 60vh;
   overflow: auto;

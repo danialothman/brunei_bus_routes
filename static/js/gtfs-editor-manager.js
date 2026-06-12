@@ -929,6 +929,53 @@ APP.GtfsEditorManager = class {
   // The actual files the export emits, rebuilt on demand so the transcriber can
   // watch routes.txt / stop_times.txt / … take shape as they fill in the forms.
 
+  /** Where each GTFS file is shaped in-app. kind: "edit" = fully driven by a
+   * form/map control, "partial" = some columns computed, "auto" = derived,
+   * nothing to edit. Shown as a banner on the file's preview tab. */
+  static FILE_SOURCES = {
+    "agency.txt": { kind: "edit", where: "⚙ Feed settings → Operators" },
+    "routes.txt": {
+      kind: "edit",
+      where: "Route pane — No., Name, Color, Description, Operator",
+    },
+    "stops.txt": {
+      kind: "edit",
+      where:
+        "Map editor (✎ Edit route — add / move / rename stops) + stop codes in the Stops list",
+    },
+    "shapes.txt": {
+      kind: "edit",
+      where: "Map editor — the drawn route line is the shape",
+    },
+    "trips.txt": {
+      kind: "edit",
+      where: "Route pane — Headsign, Type (out & back), day-type schedule blocks",
+    },
+    "stop_times.txt": {
+      kind: "partial",
+      where:
+        "Departure times & timepoint flags in schedule blocks; in-between stop times are computed by projecting stops along the route geometry",
+    },
+    "frequencies.txt": {
+      kind: "edit",
+      where: "Time-of-day frequency bands in the route's schedule blocks",
+    },
+    "calendar.txt": {
+      kind: "edit",
+      where: "Day-type schedule blocks (weekday / weekend / …)",
+    },
+    "calendar_dates.txt": { kind: "edit", where: "⚙ Feed settings → Holidays" },
+    "fare_attributes.txt": { kind: "edit", where: "⚙ Feed settings → Fare" },
+    "transfers.txt": {
+      kind: "auto",
+      where: "Auto-generated from stop proximity (walking-distance pairs)",
+    },
+    "feed_info.txt": {
+      kind: "auto",
+      where: "Auto-generated — version is stamped with the export date",
+    },
+  };
+
   _preview() {
     this._flushPending();
     const year = this.year || "";
@@ -987,7 +1034,16 @@ APP.GtfsEditorManager = class {
     const f = (this._previewFiles || []).find((x) => x.name === this._previewTab);
     const wrap = $("#previewTableWrap").empty();
     const meta = $("#previewMeta").empty();
+    const src = $("#previewSource").empty().attr("class", "gep-preview-source");
     if (!f) return;
+    const info = APP.GtfsEditorManager.FILE_SOURCES[f.name];
+    if (info) {
+      const badge = { edit: "✎ editable", partial: "◐ partly editable", auto: "🔒 derived" };
+      src
+        .addClass(info.kind)
+        .append($('<span class="gep-preview-source-badge"></span>').text(badge[info.kind]))
+        .append($("<span></span>").text(info.where));
+    }
     const q = ($("#previewFilter").val() || "").trim().toLowerCase();
     const rows = q
       ? f.rows.filter((r) => r.some((c) => c.toLowerCase().indexOf(q) >= 0))
