@@ -501,6 +501,7 @@ class Network:
                 trip = None
                 trip_i = -1
                 bpos = -1
+                t_board = _INF  # tau at the chosen boarding stop
                 for pos in range(pos0, len(sidx)):
                     s = sidx[pos]
                     if trip is not None:
@@ -511,7 +512,10 @@ class Network:
                             parent_k[s] = ("ride", pi, trip_i, bpos, pos)
                             improved.add(s)
                     # Could we board an earlier trip here, having arrived
-                    # with one ride fewer?
+                    # with one ride fewer? The SAME trip also re-boards at a
+                    # stop reached sooner (less walking, typically the stop
+                    # nearest the origin/transfer): arrival is unchanged but
+                    # the journey boards where it's easiest to get to.
                     t_here = tau_prev[s]
                     if t_here < _INF and (
                         trip is None or t_here <= trip["times"][pos][1]
@@ -520,8 +524,11 @@ class Network:
                             if tr["days"][day] and tr["times"][pos][1] >= t_here:
                                 if (trip is None
                                         or tr["times"][pos][1]
-                                        < trip["times"][pos][1]):
+                                        < trip["times"][pos][1]
+                                        or (ti == trip_i
+                                            and t_here < t_board)):
                                     trip, trip_i, bpos = tr, ti, pos
+                                    t_board = t_here
                                 break
 
             # One walking hop from each stop a ride just improved.
@@ -681,6 +688,20 @@ class Network:
             "arrive": int(t + w),
             "dist_m": int(egress_dist),
         })
+        # Chained walks (origin -> stop -> stop, from round-0 footpaths)
+        # display as one walk: the intermediate stop means nothing to the
+        # rider, and the road router draws the direct path anyway.
+        merged = []
+        for leg in legs:
+            prev = merged[-1] if merged else None
+            if (leg["type"] == "walk" and prev
+                    and prev["type"] == "walk"):
+                prev["to"] = leg["to"]
+                prev["arrive"] = leg["arrive"]
+                prev["dist_m"] += leg["dist_m"]
+            else:
+                merged.append(leg)
+        legs = merged
         departure = legs[0]["depart"]
         arrival = legs[-1]["arrive"]
         return {
