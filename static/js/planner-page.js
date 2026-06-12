@@ -92,7 +92,59 @@ APP.PlannerPage = class {
     );
     $("#tpDay").val(String((now.getDay() + 6) % 7)); // JS Sun=0 -> Mon=0
 
+    // Coming back (e.g. from a 3D trip preview): restore the previous
+    // search and re-plan it, so A/B and the results survive the round trip.
+    const restored = this.restoreState();
     this.loadStops();
+    if (restored) this.plan();
+  }
+
+  // --- Session state (survives navigating to the 3D preview and back) ---------
+
+  saveState(selected) {
+    if (!this.from || !this.to) return;
+    try {
+      sessionStorage.setItem(
+        "tp-state",
+        JSON.stringify({
+          year: this.year,
+          from: this.from,
+          to: this.to,
+          time: $("#tpTime").val(),
+          day: $("#tpDay").val(),
+          selected:
+            selected != null
+              ? selected
+              : Math.max(0, $("#tpResults .tp-journey.selected").index()),
+        })
+      );
+    } catch (e) {
+      /* storage full/disabled — state just won't survive navigation */
+    }
+  }
+
+  restoreState() {
+    let s = null;
+    try {
+      s = JSON.parse(sessionStorage.getItem("tp-state"));
+    } catch (e) {
+      return false;
+    }
+    if (!s || !s.from || !s.to) return false;
+    this.year = s.year === APP.USER_ROUTE_YEAR ? s.year : "2016";
+    $(".tp-source .btn")
+      .removeClass("active")
+      .filter((_, el) => $(el).attr("data-year") === this.year)
+      .addClass("active");
+    this.from = s.from;
+    this.to = s.to;
+    $("#tpFrom").val(s.from.label || "");
+    $("#tpTo").val(s.to.label || "");
+    if (s.time) $("#tpTime").val(s.time);
+    if (s.day != null) $("#tpDay").val(s.day);
+    this.drawMarkers();
+    this._restoreSelected = s.selected;
+    return true;
   }
 
   // --- Points ----------------------------------------------------------------
@@ -219,7 +271,14 @@ APP.PlannerPage = class {
         }
         this.setStatus(notes);
         this.renderResults();
-        this.selectJourney(0);
+        // Restoring a previous session re-selects the journey it had open.
+        const sel =
+          this._restoreSelected != null
+            ? Math.min(this._restoreSelected, this.journeys.length - 1)
+            : 0;
+        this._restoreSelected = null;
+        this.selectJourney(sel);
+        this.saveState(sel);
         this.routeWalkLegs(this._planSeq);
       })
       .catch((e) => this.setStatus(e.message, "warn"));
@@ -538,6 +597,7 @@ APP.PlannerPage = class {
     const j = this.journeys[i];
     if (!j) return;
     $("#tpResults .tp-journey").removeClass("selected").eq(i).addClass("selected");
+    this.saveState(i);
     this.journeySource.clear();
 
     let rideIdx = 0;
@@ -616,4 +676,4 @@ APP.PlannerPage = class {
   }
 };
 
-$(document).ready(() => new APP.PlannerPage());
+$(document).ready(() => (APP.plannerPage = new APP.PlannerPage()));
