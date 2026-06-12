@@ -2,6 +2,7 @@ from flask import (
     Flask, render_template, send_from_directory, jsonify, json, request, Response,
     url_for,
 )
+import datetime
 import os
 import re
 import math
@@ -343,7 +344,13 @@ def _validate_geometry(payload):
         name = s.get("name", "")
         if not isinstance(name, str):
             return None, "stop name must be a string"
-        stops.append({"name": name[:200], "lon": round(lon, 7), "lat": round(lat, 7)})
+        stop = {"name": name[:200], "lon": round(lon, 7), "lat": round(lat, 7)}
+        code = s.get("code", "")
+        if not isinstance(code, str):
+            return None, "stop code must be a string"
+        if code.strip():  # public stop number (GTFS stop_code)
+            stop["code"] = code.strip()[:30]
+        stops.append(stop)
 
     label = payload.get("label")
     if label is not None and not isinstance(label, str):
@@ -418,14 +425,40 @@ def _gtfs_route_meta(filename):
 def gather_gtfs_routes(year):
     """Collect this year's KML routes as gtfs.build_feed inputs, preferring an
     edited geometry from the DB over the shipped file. Skips marker-only layers
-    and routes with no stops (a frequency-based feed needs stops to time)."""
+    and routes with no stops (a frequency-based feed needs stops to time).
+    Per-route GTFS metadata saved via the editor (names, color, schedule)
+    overrides the derived defaults."""
     rp = os.path.join(app.static_folder, "data", year, "routes.json")
     if not os.path.exists(rp):
         return []
     with open(rp, "r") as f:
         filenames = json.load(f)
 
+    meta_by_file = db.all_gtfs_meta(year)
     routes = []
+
+    def add(filename, geom):
+        if not geom or len(geom.get("stops") or []) < 2:
+            return  # a valid trip needs at least 2 stops to time against
+        route_id, short, long_name = _gtfs_route_meta(filename)
+        meta = meta_by_file.get(filename, {})
+        routes.append({
+            "route_id": route_id,
+            "short_name": meta.get("short_name") or short,
+            "long_name": meta.get("long_name") or geom.get("name") or long_name,
+            "color": meta.get("color", ""),
+            "agency_id": meta.get("agency_id", ""),
+            "direction": meta.get("direction", ""),
+            "headsign": meta.get("headsign", ""),
+            "return_headsign": meta.get("return_headsign", ""),
+            "desc": meta.get("desc", ""),
+            "hail": bool(meta.get("hail")),
+            "schedules": meta.get("schedules")
+                or ([meta["schedule"]] if meta.get("schedule") else None),
+            "segments": geom.get("segments", []),
+            "stops": geom.get("stops", []),
+        })
+
     for filename in filenames:
         if _GTFS_SKIP.match(os.path.basename(filename)):
             continue
@@ -438,28 +471,491 @@ def gather_gtfs_routes(year):
                 geom = parse_route_geometry(path)
             except (ValueError, ET.ParseError):
                 continue
-        if not geom.get("stops"):
-            continue  # no stops -> nothing to time against
-        route_id, short, long_name = _gtfs_route_meta(filename)
-        routes.append({
-            "route_id": route_id,
-            "short_name": short,
-            "long_name": geom.get("name") or long_name,
-            "segments": geom.get("segments", []),
-            "stops": geom.get("stops", []),
-        })
+        add(filename, geom)
+
+    # User-created routes (DB-only, no shipped file) belong in the feed too —
+    # the workbench flow is draw -> schedule -> export.
+    user_files = sorted(
+        f for f in db.distinct_files(year)
+        if not _find_kml(f, year) and not _find_geojson(f, year)
+    )
+    for filename in user_files:
+        add(filename, db.latest_geometry(year, filename))
     return routes
+
+
+_TIME_RE = re.compile(r"^(\d{1,2}):([0-5]\d)(?::([0-5]\d))?$")
+
+
+def _norm_time(t):
+    """Normalize 'H:MM[:SS]' to 'HH:MM:SS', or None if invalid. GTFS allows
+    hours past 24 for service spanning midnight."""
+    m = _TIME_RE.match((t or "").strip())
+    if not m:
+        return None
+    h, mi, s = int(m.group(1)), m.group(2), m.group(3) or "00"
+    if h > 47:
+        return None
+    return f"{h:02d}:{mi}:{s}"
+
+
+def _validate_gtfs_route_meta(payload):
+    """Validate a per-route GTFS metadata payload. Returns (meta, error)."""
+    if not isinstance(payload, dict):
+        return None, "meta must be a JSON object"
+    meta = {}
+    for field in ("short_name", "long_name"):
+        v = payload.get(field)
+        if v is not None:
+            if not isinstance(v, str):
+                return None, f"{field} must be a string"
+            if v.strip():
+                meta[field] = v.strip()[:200]
+    color = payload.get("color")
+    if color:
+        if not isinstance(color, str) or not re.fullmatch(
+            r"#?[0-9A-Fa-f]{6}", color.strip()
+        ):
+            return None, "color must be a 6-digit hex value"
+        meta["color"] = color.strip().lstrip("#").upper()
+    agency_id = payload.get("agency_id")
+    if agency_id:
+        if not isinstance(agency_id, str):
+            return None, "agency_id must be a string"
+        if agency_id.strip():
+            meta["agency_id"] = agency_id.strip()[:30]
+    direction = payload.get("direction")
+    if direction:
+        if direction != "outback":
+            return None, "direction must be 'outback' or omitted (loop/one-way)"
+        meta["direction"] = "outback"
+    for field in ("headsign", "return_headsign"):
+        v = payload.get(field)
+        if v is not None:
+            if not isinstance(v, str):
+                return None, f"{field} must be a string"
+            if v.strip():
+                meta[field] = v.strip()[:120]
+    desc = payload.get("desc")
+    if desc is not None:
+        if not isinstance(desc, str):
+            return None, "desc must be a string"
+        if desc.strip():
+            meta["desc"] = desc.strip()[:500]
+    if payload.get("hail"):
+        meta["hail"] = True  # hail & ride: continuous pickup/drop-off
+    # Schedules: a list of day-type blocks (weekday/weekend…). The legacy
+    # single `schedule` key is accepted as one block.
+    sched_in = payload.get("schedule")
+    if sched_in:
+        sched, err = _validate_schedule_block(sched_in)
+        if err:
+            return None, err
+        if sched:
+            meta["schedule"] = sched
+    scheds_in = payload.get("schedules")
+    if scheds_in is not None:
+        if not isinstance(scheds_in, list) or len(scheds_in) > 7:
+            return None, "schedules must be a list of blocks (max 7)"
+        blocks = []
+        for b in scheds_in:
+            sched, err = _validate_schedule_block(b)
+            if err:
+                return None, err
+            if sched:
+                blocks.append(sched)
+        if blocks:
+            meta["schedules"] = blocks
+    return meta, None
+
+
+def _validate_schedule_block(sched_in):
+    """Validate one schedule block. Returns (sched_dict, error)."""
+    if not isinstance(sched_in, dict):
+        return None, "schedule must be an object"
+    sched = {}
+    hw = sched_in.get("headway_secs")
+    if hw is not None:
+        if not isinstance(hw, (int, float)) or isinstance(hw, bool) \
+                or not (60 <= hw <= 24 * 3600):
+            return None, "headway_secs must be 60..86400"
+        sched["headway_secs"] = int(hw)
+    for field in ("start_time", "end_time"):
+        v = sched_in.get(field)
+        if v:
+            t = _norm_time(v)
+            if t is None:
+                return None, f"{field} must be HH:MM or HH:MM:SS"
+            sched[field] = t
+    # Time-of-day frequency bands (peak/off-peak): each becomes its own
+    # frequencies.txt row. The legacy top-level fields above act as band one.
+    bands_in = sched_in.get("bands")
+    if bands_in is not None:
+        if not isinstance(bands_in, list) or len(bands_in) > 10:
+            return None, "bands must be a list (max 10)"
+        bands = []
+        for b in bands_in:
+            if not isinstance(b, dict):
+                return None, "each band must be an object"
+            band = {}
+            bh = b.get("headway_secs")
+            if bh is not None:
+                if not isinstance(bh, (int, float)) or isinstance(bh, bool) \
+                        or not (60 <= bh <= 24 * 3600):
+                    return None, "band headway_secs must be 60..86400"
+                band["headway_secs"] = int(bh)
+            for field in ("start_time", "end_time"):
+                v = b.get(field)
+                if v:
+                    t = _norm_time(v)
+                    if t is None:
+                        return None, f"band {field} must be HH:MM or HH:MM:SS"
+                    band[field] = t
+            if band:
+                bands.append(band)
+        if bands:
+            sched["bands"] = bands
+    days = sched_in.get("days")
+    if days is not None:
+        if (not isinstance(days, list) or len(days) != 7
+                or any(d not in (0, 1, True, False) for d in days)):
+            return None, "days must be 7 values of 0/1"
+        sched["days"] = [int(bool(d)) for d in days]
+    # Exact departure times transcribed from the timing signboard. When
+    # present the export emits one real trip per departure for this route
+    # instead of a synthetic frequency entry.
+    for field in ("departures", "return_departures"):
+        deps = sched_in.get(field)
+        if deps is not None:
+            if not isinstance(deps, list) or len(deps) > 300:
+                return None, f"{field} must be a list of times (max 300)"
+            norm = []
+            for d in deps:
+                t = _norm_time(d) if isinstance(d, str) else None
+                if t is None:
+                    return None, f"bad departure time: {str(d)[:20]!r}"
+                norm.append(t)
+            if norm:
+                sched[field] = sorted(set(norm))
+    run = sched_in.get("run_secs")
+    if run is not None:
+        if not isinstance(run, (int, float)) or isinstance(run, bool) \
+                or not (60 <= run <= 6 * 3600):
+            return None, "run_secs must be 60..21600"
+        sched["run_secs"] = int(run)
+    return sched, None
+
+
+def _validate_gtfs_feed_config(payload):
+    """Validate feed-level config (operators + fare). Returns (config, error)."""
+    if not isinstance(payload, dict):
+        return None, "config must be a JSON object"
+    config = {}
+    # Operators: a list of agencies; the first is the default for routes
+    # without an explicit assignment.
+    agencies_in = payload.get("agencies")
+    if agencies_in is not None:
+        if not isinstance(agencies_in, list) or len(agencies_in) > 20:
+            return None, "agencies must be a list (max 20)"
+        agencies = []
+        seen = set()
+        for a in agencies_in:
+            if not isinstance(a, dict):
+                return None, "each operator must be an object"
+            name = a.get("name")
+            if not isinstance(name, str) or not name.strip():
+                continue  # blank rows are dropped silently
+            name = name.strip()[:200]
+            aid = a.get("id")
+            if aid is not None and not isinstance(aid, str):
+                return None, "operator id must be a string"
+            aid = (aid or "").strip()[:30]
+            if not aid:
+                aid = re.sub(r"[^A-Za-z0-9]+", "-", name).strip("-").upper()[:30] or "OP"
+            if aid in seen:
+                return None, f"duplicate operator id: {aid}"
+            seen.add(aid)
+            entry = {"id": aid, "name": name}
+            for field in ("url", "phone", "email"):
+                v = a.get(field)
+                if v is not None:
+                    if not isinstance(v, str):
+                        return None, f"operator {field} must be a string"
+                    if v.strip():
+                        entry[field] = v.strip()[:300]
+            agencies.append(entry)
+        if agencies:
+            config["agencies"] = agencies
+    agency_in = payload.get("agency")
+    if agency_in:
+        if not isinstance(agency_in, dict):
+            return None, "agency must be an object"
+        agency = {}
+        for field in ("name", "url", "phone", "email"):
+            v = agency_in.get(field)
+            if v is not None:
+                if not isinstance(v, str):
+                    return None, f"agency.{field} must be a string"
+                if v.strip():
+                    agency[field] = v.strip()[:300]
+        if agency:
+            config["agency"] = agency
+    # Holiday exceptions -> calendar_dates.txt.
+    holidays_in = payload.get("holidays")
+    if holidays_in is not None:
+        if not isinstance(holidays_in, list) or len(holidays_in) > 50:
+            return None, "holidays must be a list (max 50)"
+        holidays = []
+        for h in holidays_in:
+            if not isinstance(h, dict):
+                return None, "each holiday must be an object"
+            date = h.get("date", "")
+            if not isinstance(date, str):
+                return None, "holiday date must be a string"
+            date = date.replace("-", "").strip()
+            try:
+                datetime.datetime.strptime(date, "%Y%m%d")
+            except ValueError:
+                return None, f"bad holiday date: {date[:12]!r}"
+            mode = h.get("mode", "none")
+            if mode not in ("none", "sunday"):
+                return None, "holiday mode must be 'none' or 'sunday'"
+            entry = {"date": date, "mode": mode}
+            name = h.get("name")
+            if name is not None:
+                if not isinstance(name, str):
+                    return None, "holiday name must be a string"
+                if name.strip():
+                    entry["name"] = name.strip()[:100]
+            holidays.append(entry)
+        if holidays:
+            config["holidays"] = sorted(holidays, key=lambda x: x["date"])
+    fare_in = payload.get("fare")
+    if fare_in:
+        if not isinstance(fare_in, dict):
+            return None, "fare must be an object"
+        fare = {}
+        price = fare_in.get("price")
+        if price is not None and price != "":
+            try:
+                price = float(price)
+            except (TypeError, ValueError):
+                return None, "fare.price must be a number"
+            if not (0 <= price <= 1000):
+                return None, "fare.price out of range"
+            fare["price"] = price
+        currency = fare_in.get("currency")
+        if currency:
+            if not isinstance(currency, str) or not re.fullmatch(
+                r"[A-Za-z]{3}", currency.strip()
+            ):
+                return None, "fare.currency must be a 3-letter code"
+            fare["currency"] = currency.strip().upper()
+        if fare:
+            config["fare"] = fare
+    return config, None
+
+
+@app.route("/data/gtfs-meta")
+def get_gtfs_meta():
+    """Per-route GTFS metadata overrides (names, color, schedule)."""
+    year = _resolve_year(request.args.get("year"))
+    route = (request.args.get("route") or "").strip()[:200]
+    if not route or route.startswith("_"):
+        return jsonify({"error": "route required"}), 400
+    return jsonify({"year": year, "route": route,
+                    "meta": db.get_gtfs_meta(year, route)})
+
+
+@app.route("/data/gtfs-meta", methods=["POST"])
+def save_gtfs_meta():
+    payload = request.get_json(silent=True) or {}
+    year = _resolve_year(payload.get("year"))
+    route = (payload.get("route") or "").strip()[:200]
+    if not route or route.startswith("_"):
+        return jsonify({"error": "route required"}), 400
+    meta, err = _validate_gtfs_route_meta(payload.get("meta"))
+    if err:
+        return jsonify({"error": err}), 400
+    saved = db.set_gtfs_meta(year, route, meta)
+    return jsonify({"ok": True, "year": year, "route": route, "meta": saved})
+
+
+@app.route("/data/gtfs-meta-summary")
+def gtfs_meta_summary():
+    """Per-route transcription status for the workbench list badges:
+    {filename: {schedule, departures, operator, headsign}} for every route
+    with saved GTFS metadata."""
+    year = _resolve_year(request.args.get("year"))
+    out = {}
+    for key, m in db.all_gtfs_meta(year).items():
+        if key.startswith("_"):
+            continue
+        blocks = m.get("schedules") or ([m["schedule"]] if m.get("schedule") else [])
+        out[key] = {
+            "schedule": bool(blocks),
+            "departures": any(
+                b.get("departures") or b.get("return_departures") for b in blocks
+            ),
+            "operator": bool(m.get("agency_id")),
+            "headsign": bool(m.get("headsign")),
+        }
+    return jsonify({"year": year, "routes": out})
+
+
+@app.route("/data/gtfs-config")
+def get_gtfs_config():
+    """Feed-level GTFS settings (operators + fare), the resolved operator list
+    (saved or default — what the export will actually use), and the built-in
+    defaults so the editor can show placeholders."""
+    year = _resolve_year(request.args.get("year"))
+    return jsonify({
+        "year": year,
+        "config": db.get_gtfs_meta(year, "_feed"),
+        "agencies": [
+            {"id": a["id"], "name": a["name"], "url": a.get("url", ""),
+             "phone": a.get("phone", "")}
+            for a in resolved_agencies(year)
+        ],
+        "defaults": {
+            "agency": {"name": GTFS_AGENCY["name"], "url": GTFS_AGENCY["url"],
+                       "phone": GTFS_AGENCY["phone"], "email": GTFS_AGENCY["email"]},
+            "headway_secs": GTFS_PARAMS["headway_secs"],
+            "start_time": GTFS_PARAMS["start_time"],
+            "end_time": GTFS_PARAMS["end_time"],
+        },
+    })
+
+
+@app.route("/data/gtfs-config", methods=["POST"])
+def save_gtfs_config():
+    payload = request.get_json(silent=True) or {}
+    year = _resolve_year(payload.get("year"))
+    config, err = _validate_gtfs_feed_config(payload.get("config"))
+    if err:
+        return jsonify({"error": err}), 400
+    saved = db.set_gtfs_meta(year, "_feed", config)
+    return jsonify({"ok": True, "year": year, "config": saved})
+
+
+def _timing_images_dir(year):
+    return os.path.join(DOCS_DIR, year, "images", "timings")
+
+
+@app.route("/data/timing-images")
+def timing_images():
+    """Official JPD timing signboard photos, grouped by year (newest first).
+    Shown beside the GTFS schedule form so real times can be transcribed."""
+    out = {}
+    years = []
+    if os.path.isdir(DOCS_DIR):
+        year_dirs = (n for n in os.listdir(DOCS_DIR) if re.fullmatch(r"\d{4}", n))
+        for y in sorted(year_dirs, reverse=True):
+            d = _timing_images_dir(y)
+            if not os.path.isdir(d):
+                continue
+            imgs = sorted(
+                f for f in os.listdir(d)
+                if f.lower().endswith((".jpg", ".jpeg", ".png"))
+            )
+            if not imgs:
+                continue
+            years.append(y)
+            # Route code is the leading token: '01 seri timing.jpg' -> '01',
+            # '20 time details [20160402].jpg' -> '20'.
+            out[y] = [
+                {"file": f, "route": os.path.splitext(f)[0].split()[0]}
+                for f in imgs
+            ]
+    return jsonify({"years": years, "images": out})
+
+
+@app.route("/data/timing-image/<year>/<path:filename>")
+def timing_image(year, filename):
+    if not re.fullmatch(r"\d{4}", year or ""):
+        return "Timing image not found", 404
+    if os.path.isabs(filename) or ".." in filename.replace("\\", "/").split("/"):
+        return "Timing image not found", 404
+    path = os.path.join(_timing_images_dir(year), filename)
+    if not os.path.isfile(path):
+        return "Timing image not found", 404
+    return send_from_directory(os.path.dirname(path), os.path.basename(path))
+
+
+def resolved_agencies(year):
+    """The year's operator list for the feed, ready for gtfs.build_feed.
+    Saved operators (config.agencies) win; else the legacy single-agency
+    override; else the built-in default. First entry = default operator."""
+    config = db.get_gtfs_meta(year, "_feed")
+    saved = config.get("agencies")
+    if saved:
+        return [
+            {
+                "id": a.get("id") or "AGENCY",
+                "name": a.get("name") or GTFS_AGENCY["name"],
+                # agency_url is required by the GTFS spec — fall back rather
+                # than emit a blank.
+                "url": a.get("url") or GTFS_AGENCY["url"],
+                "timezone": GTFS_AGENCY["timezone"],
+                "lang": GTFS_AGENCY["lang"],
+                "phone": a.get("phone", ""),
+                "email": a.get("email", ""),
+            }
+            for a in saved
+        ]
+    agency = dict(GTFS_AGENCY)
+    for field in ("name", "url", "phone", "email"):
+        v = (config.get("agency") or {}).get(field)
+        if v:
+            agency[field] = v
+    return [agency]
+
+
+def gtfs_feed_inputs(year):
+    """(routes, agencies, params) for gtfs.build_feed, with the year's saved
+    feed-level settings (operators, fare) merged over the built-in defaults.
+    Shared by the /data/gtfs.zip endpoint and scripts/build_gtfs.py."""
+    routes = gather_gtfs_routes(year)
+    config = db.get_gtfs_meta(year, "_feed")
+    # Version stamps the export date so consumers can tell feeds apart.
+    today = datetime.date.today().strftime("%Y%m%d")
+    params = dict(GTFS_PARAMS, feed_version=f"{year}.{today}")
+    if config.get("fare"):
+        params["fare"] = config["fare"]
+    if config.get("holidays"):
+        params["holidays"] = config["holidays"]
+    return routes, resolved_agencies(year), params
+
+
+@app.route("/data/gtfs-validate")
+def gtfs_validate():
+    """Build the year's feed in memory and run the structural validator."""
+    year = _resolve_year(request.args.get("year"))
+    routes, agencies, params = gtfs_feed_inputs(year)
+    if not routes:
+        return jsonify({"error": "no routes to export"}), 404
+    data, stats = gtfs.build_feed(routes, agencies, params)
+    findings = gtfs.validate_feed(data)
+    errors = sum(1 for f in findings if f["severity"] == "error")
+    return jsonify({
+        "year": year,
+        "size": len(data),
+        "stats": stats,
+        "errors": errors,
+        "warnings": len(findings) - errors,
+        "findings": findings,
+    })
 
 
 @app.route("/data/gtfs.zip")
 def gtfs_feed():
-    # On-demand GTFS feed for the year, reflecting DB edits (via gather).
+    # On-demand GTFS feed for the year, reflecting DB edits (via gather) and
+    # any feed-level settings saved through the GTFS editor.
     year = _resolve_year(request.args.get("year"))
-    routes = gather_gtfs_routes(year)
+    routes, agencies, params = gtfs_feed_inputs(year)
     if not routes:
         return jsonify({"error": "no routes to export"}), 404
-    params = dict(GTFS_PARAMS, feed_version=f"{year}.1")
-    data, _stats = gtfs.build_feed(routes, GTFS_AGENCY, params)
+    data, _stats = gtfs.build_feed(routes, agencies, params)
     return Response(
         data,
         mimetype="application/zip",
@@ -470,6 +966,18 @@ def gtfs_feed():
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/gtfs")
+def gtfs_page():
+    # Dedicated GTFS workbench: route list + geometry editor + schedule forms.
+    return render_template("gtfs.html")
+
+
+@app.route("/gtfs/guide")
+def gtfs_guide_page():
+    # Data-entry guide for transcription personnel.
+    return render_template("gtfs_guide.html")
 
 
 @app.route("/ride/three")

@@ -152,6 +152,73 @@ These are placeholders to be replaced with real values transcribed from the JPD
 timing signboards. A single placeholder agency (ADBS) is used until the real
 operator-per-route mapping is known.
 
+### GTFS workbench
+
+The **🕐 GTFS** button in the navbar opens a dedicated page at
+[`/gtfs`](http://localhost:8000/gtfs) where **one selected route drives
+everything**: click a route in the list and it shows on the map, becomes the
+editing target, and fills the GTFS pane. **✎ Edit route** on the map opens the
+full geometry editor (line/stop tools, undo, version history) — official routes
+are edited as an automatically created copy, reused on later edits. Feed-wide
+agency and fare settings live under **⚙ Feed settings** in the top bar, and
+**⬇ Download GTFS** grabs the zip. User-drawn routes are exported too, so the
+full flow is draw → schedule → download. The GTFS pane covers:
+
+- **Per-route schedules in day-type blocks** — each block has its own
+  operating days, run time, optional **exact departure times** transcribed
+  from the signboard, and **time-of-day frequency bands** (peak/off-peak:
+  "every 10 min 06:00–08:30, every 30 min 08:30–16:00…" → one
+  `frequencies.txt` row per band). A route can carry e.g. a weekday and a
+  different weekend timetable (each block becomes its own `calendar.txt`
+  service). Routes with departures export one real trip per departure (pure
+  schedule-based GTFS, no synthetic frequency entry), with intermediate stop
+  times spread over the run time (entered, or estimated from shape length at
+  ~18 km/h)
+- **Route metadata** — route number, long name, color, and the operator
+  running the route (`routes.txt`, including per-route `agency_id`)
+- **Directions & headsigns** — mark a route *out & back* to export both
+  directions (`direction_id` 0/1 with reversed shape and stop order) and set
+  the bus's destination signs (`trip_headsign`); return departures can be
+  transcribed exactly per block, or are derived (outbound + run time) when
+  left empty. Loops/one-ways stay single-direction
+- **Description & hail-and-ride** — per-route `route_desc`, and a *hail &
+  ride* flag for Brunei's flag-down culture (`continuous_pickup`/
+  `continuous_drop_off`)
+- **Transcription progress** — each route in the list carries a 4-segment
+  meter (schedule · departures · operator · headsign) showing what's left
+  to transcribe
+- **Stops list** — every stop of the selected route in sequence order, with
+  editable public stop codes (`stop_code`, à la Singapore's numbered stops),
+  names and coordinates, reorder/remove, and click-to-locate on the map;
+  edits save as new geometry versions (official routes become editable via
+  the ✎ copy flow)
+- **Feed settings** — the operator list (multiple companies supported; the
+  first is the default for unassigned routes), holiday exceptions ("no
+  service" or "Sunday timetable" per date → weekday-aware
+  `calendar_dates.txt` rows), and flat fare (`agency.txt`,
+  `fare_attributes.txt`)
+- **Timing signboard reference** — the official JPD timing photo for the route
+  (`docs/<year>/images/timings/`) is shown beside the form so departure times
+  can be transcribed directly
+- **✔ Validate** — builds the feed in memory and runs structural checks
+  (required files/columns, duplicate ids, referential integrity, time/date
+  formats, per-trip monotonicity, frequency-window overlap, stops far off
+  their route's line, unused entities) with results in a modal; also
+  available as `scripts/build_gtfs.py --validate`. For publish-grade
+  conformance, additionally run [MobilityData's canonical
+  validator](https://gtfs-validator.mobilitydata.org/)
+
+Exports also include auto-generated walking **`transfers.txt`** (distinct
+stops within 100 m), and `feed_version` is stamped with the export date.
+
+A **data entry guide** for transcription personnel lives at
+[`/gtfs/guide`](http://localhost:8000/gtfs/guide) (the **？ Guide** button in
+the workbench): what goes where, the per-route checklist, signboard usage,
+and a field-to-GTFS reference.
+
+Edits auto-save to the local SQLite store (`instance/edits.db`) and are merged
+into every subsequent export from both the endpoint and the CLI.
+
 ## Technologies Used
 
 - [Flask](https://flask.palletsprojects.com/) — Python web server

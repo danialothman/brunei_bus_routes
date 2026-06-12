@@ -23,14 +23,15 @@ def main():
     ap.add_argument("--headway", type=int, help="headway seconds (overrides default)")
     ap.add_argument("--start-time", help="service window start HH:MM:SS")
     ap.add_argument("--end-time", help="service window end HH:MM:SS")
+    ap.add_argument("--validate", action="store_true",
+                    help="run the structural validator on the built feed")
     args = ap.parse_args()
 
     year = appmod._resolve_year(args.year)
-    routes = appmod.gather_gtfs_routes(year)
+    routes, agency, params = appmod.gtfs_feed_inputs(year)
     if not routes:
         sys.exit(f"No exportable routes found for year {year}.")
 
-    params = dict(appmod.GTFS_PARAMS, feed_version=f"{year}.1")
     if args.headway:
         params["headway_secs"] = args.headway
     if args.start_time:
@@ -38,15 +39,27 @@ def main():
     if args.end_time:
         params["end_time"] = args.end_time
 
-    data, stats = gtfs.build_feed(routes, appmod.GTFS_AGENCY, params)
+    data, stats = gtfs.build_feed(routes, agency, params)
     with open(args.out, "wb") as f:
         f.write(data)
 
     print(f"Wrote {args.out} ({len(data):,} bytes)")
-    print(f"  routes:      {stats['routes']}")
+    print(f"  routes:      {stats['routes']} "
+          f"({stats['scheduled_routes']} with transcribed departures)")
+    print(f"  trips:       {stats['trips']}")
     print(f"  stops:       {stats['stops']} ({stats['merged_stops']} merges)")
     print(f"  stop_times:  {stats['stop_times']}")
     print(f"  shape_points:{stats['shape_points']}")
+
+    if args.validate:
+        findings = gtfs.validate_feed(data)
+        errors = sum(1 for f in findings if f["severity"] == "error")
+        print(f"\nValidation: {errors} errors, {len(findings) - errors} warnings")
+        for f in findings:
+            ex = f" — {', '.join(f['examples'])}" if f["examples"] else ""
+            print(f"  [{f['severity'].upper():7}] {f['message']} (x{f['count']}){ex}")
+        if errors:
+            sys.exit(1)
 
 
 if __name__ == "__main__":

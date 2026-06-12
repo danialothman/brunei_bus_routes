@@ -50,6 +50,33 @@ def init_db(db_path):
             )
             """
         )
+        # GTFS metadata overrides as JSON blobs. `key` is a route filename for
+        # per-route data (schedule, names, color) or '_feed' for feed-level
+        # settings (agency, fare). Upsert-only, like route_notes.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gtfs_meta (
+                year       TEXT NOT NULL,
+                key        TEXT NOT NULL,
+                data       TEXT NOT NULL DEFAULT '{}',
+                updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+                PRIMARY KEY (year, key)
+            )
+            """
+        )
+        # Every overwritten gtfs_meta value is archived here, so a bad
+        # autosave is recoverable (via SQL; no UI). Append-only.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS gtfs_meta_history (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                year        TEXT NOT NULL,
+                key         TEXT NOT NULL,
+                data        TEXT NOT NULL,
+                replaced_at TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+            """
+        )
 
 
 def _connect():
@@ -194,6 +221,65 @@ def set_note(year, route, note):
         )
         conn.commit()
     return note
+
+
+def get_gtfs_meta(year, key):
+    """GTFS metadata dict for a route filename (or '_feed'), or {} if none."""
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT data FROM gtfs_meta WHERE year=? AND key=?",
+            (year, key),
+        ).fetchone()
+    if not row:
+        return {}
+    try:
+        data = json.loads(row["data"])
+    except (ValueError, TypeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def set_gtfs_meta(year, key, data):
+    """Upsert GTFS metadata for a route (or '_feed'), archiving the value
+    being replaced into gtfs_meta_history. Returns the saved dict."""
+    payload = json.dumps(data, ensure_ascii=False)
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT data FROM gtfs_meta WHERE year=? AND key=?", (year, key)
+        ).fetchone()
+        if row and row["data"] != payload:
+            conn.execute(
+                "INSERT INTO gtfs_meta_history (year, key, data) VALUES (?, ?, ?)",
+                (year, key, row["data"]),
+            )
+        conn.execute(
+            """
+            INSERT INTO gtfs_meta (year, key, data, updated_at)
+            VALUES (?, ?, ?, datetime('now'))
+            ON CONFLICT(year, key) DO UPDATE SET
+                data = excluded.data, updated_at = excluded.updated_at
+            """,
+            (year, key, payload),
+        )
+        conn.commit()
+    return data
+
+
+def all_gtfs_meta(year):
+    """All GTFS metadata for a year: {key: dict} (includes '_feed' if set)."""
+    out = {}
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT key, data FROM gtfs_meta WHERE year=?", (year,)
+        ).fetchall()
+    for r in rows:
+        try:
+            data = json.loads(r["data"])
+        except (ValueError, TypeError):
+            continue
+        if isinstance(data, dict):
+            out[r["key"]] = data
+    return out
 
 
 def delete_all(year, filename):
