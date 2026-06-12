@@ -580,7 +580,7 @@ body.gtfs-page .navbar-fixed-top {
   background: #ffdd85;
   color: var(--gtfs-accent-ink);
 }
-body.gtfs-page .navbar .navbar-btn {
+.navbar .navbar-btn {
   margin-left: 6px;
 }
 
