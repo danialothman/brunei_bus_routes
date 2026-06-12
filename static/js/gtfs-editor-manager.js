@@ -305,6 +305,21 @@ APP.GtfsEditorManager = class {
     }
     hint.text(note).toggle(!!note);
     const editable = this._stopsEditable();
+    // Column titles, sticky atop the scrolling list. Reuses the rows' column
+    // classes (flex bases) so the labels line up with the inputs; the hidden
+    // tools clone keeps Lat/Lon aligned when rows carry ↑↓✕.
+    const head = $('<div class="gep-stops-head"></div>');
+    head.append($('<span class="gep-stops-head-seq">#</span>'));
+    head.append($('<span class="gep-stop-code">Code</span>'));
+    head.append($('<span class="gep-stop-name">Name</span>'));
+    head.append($('<span class="gep-stop-coord">Lat</span>'));
+    head.append($('<span class="gep-stop-coord">Lon</span>'));
+    if (editable) {
+      head.append(
+        $('<span class="gep-stop-tools" aria-hidden="true"><a>↑</a><a>↓</a><a>✕</a></span>')
+      );
+    }
+    list.append(head);
     stops.forEach((s, i) => {
       const row = $('<div class="gep-stop-row"></div>').attr("data-i", i);
       row.append(

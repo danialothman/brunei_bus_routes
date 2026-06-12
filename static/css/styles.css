@@ -967,6 +967,37 @@ body.editing #gtfsEditBtn {
   scrollbar-width: thin;
   padding-right: 18px;
 }
+/* Column titles for the stops list, sticky while the list scrolls. */
+.gep-stops-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 0 2px;
+  background: var(--gtfs-card);
+  border-bottom: 1px solid var(--gtfs-line);
+  font-family: var(--gtfs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gtfs-ink-soft);
+}
+.gep-stops-head span {
+  padding: 1px 4px; /* match the rows' input padding so labels line up */
+}
+.gep-stops-head-seq {
+  flex: 0 0 26px;
+  text-align: center;
+}
+.gep-stops-head .gep-stop-coord {
+  min-width: 56px;
+}
+.gep-stops-head .gep-stop-tools {
+  visibility: hidden; /* width-matching spacer only */
+}
 .gep-stop-row {
   display: flex;
   align-items: center;
