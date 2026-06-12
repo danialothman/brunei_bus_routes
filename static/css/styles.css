@@ -906,9 +906,12 @@ body.editing #gtfsEditBtn {
 #gepStopsList {
   max-height: 230px;
   overflow-y: auto;
-  /* Keep the scrollbar off the row tools (the delete ✕ is the rightmost item). */
+  /* Keep the scrollbar off the row tools (the delete ✕ is the rightmost item).
+     Firefox/Zen overlay scrollbars ignore scrollbar-gutter (overlay gutter is
+     zero-width), so the padding must clear the bar's own width. */
   scrollbar-gutter: stable;
-  padding-right: 6px;
+  scrollbar-width: thin;
+  padding-right: 12px;
 }
 .gep-stop-row {
   display: flex;
