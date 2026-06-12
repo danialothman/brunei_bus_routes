@@ -222,8 +222,8 @@ nav.navbar {
 .navbar .navbar-btn,
 .navbar a.navbar-btn {
   float: none !important;
-  margin-top: 0;
-  margin-bottom: 0;
+  margin: 0; /* the flex gap spaces buttons; Bootstrap's .navbar-right
+                margin-right: -15px would overlap the first pair */
 }
 .navbar select.form-control {
   width: auto;
@@ -579,9 +579,6 @@ body.gtfs-page .navbar-fixed-top {
 .gtfs-download-btn:hover {
   background: #ffdd85;
   color: var(--gtfs-accent-ink);
-}
-.navbar .navbar-btn {
-  margin-left: 6px;
 }
 
 .gtfs-layout {
