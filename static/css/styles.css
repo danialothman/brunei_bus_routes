@@ -1797,6 +1797,13 @@ body.guide-page {
   flex: 1 1 auto;
   width: auto;
 }
+.tp-plan-row {
+  display: flex;
+  gap: 6px;
+}
+.tp-plan-row #tpPlan {
+  flex: 1 1 auto;
+}
 #tpPlan {
   background: var(--gtfs-accent);
   border-color: #e6b94f;
@@ -1833,6 +1840,62 @@ body.guide-page {
   border-radius: 999px;
   box-shadow: 0 2px 10px rgba(29, 42, 51, 0.4);
   pointer-events: none;
+}
+
+/* Recent trips */
+.tp-trips-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.tp-trips-head a {
+  cursor: pointer;
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--gtfs-danger);
+}
+.tp-trips-head a:hover {
+  color: var(--gtfs-danger);
+  text-decoration: underline;
+}
+.tp-trip {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding: 4px 7px;
+  margin-bottom: 4px;
+  background: var(--gtfs-card);
+  border: 1px solid var(--gtfs-line);
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tp-trip:hover {
+  border-color: var(--gtfs-ink-soft);
+}
+.tp-trip-route {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tp-trip-meta {
+  flex: 0 0 auto;
+  font-family: var(--gtfs-mono);
+  font-size: 11px;
+  color: var(--gtfs-ink-soft);
+  white-space: nowrap;
+}
+.tp-trip-del {
+  flex: 0 0 auto;
+  padding: 0 3px;
+  color: var(--gtfs-danger);
+}
+.tp-trip-del:hover {
+  color: var(--gtfs-danger);
+  text-decoration: none;
 }
 
 /* Journey result cards */

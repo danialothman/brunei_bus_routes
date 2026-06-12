@@ -66,6 +66,24 @@ APP.PlannerPage = class {
     $("#tpPickTo").on("click", () => this.armPick("to"));
     $("#tpSwap").on("click", () => this.swap());
     $("#tpPlan").on("click", () => this.plan());
+    $("#tpClearPlan").on("click", () => this.clearPlan());
+
+    // Recent trips: click to make a saved search the active one; ✕ removes it.
+    $("#tpTripsClear").on("click", () => {
+      this._saveTrips([]);
+      this.renderTrips();
+    });
+    $("#tpTrips").on("click", ".tp-trip", (e) => {
+      if ($(e.target).closest(".tp-trip-del").length) return;
+      this.loadTrip($(e.currentTarget).index());
+    });
+    $("#tpTrips").on("click", ".tp-trip-del", (e) => {
+      e.stopPropagation();
+      const trips = this._loadTrips();
+      trips.splice($(e.currentTarget).closest(".tp-trip").index(), 1);
+      this._saveTrips(trips);
+      this.renderTrips();
+    });
     $("#tpFrom").on("change", () => this.stopTyped("from"));
     $("#tpTo").on("change", () => this.stopTyped("to"));
     $("#tpResults").on("click", ".tp-journey", (e) => {
@@ -96,7 +114,111 @@ APP.PlannerPage = class {
     // search and re-plan it, so A/B and the results survive the round trip.
     const restored = this.restoreState();
     this.loadStops();
+    this.renderTrips();
     if (restored) this.plan();
+  }
+
+  // --- Recent trips (persist across sessions in localStorage) -----------------
+
+  _loadTrips() {
+    try {
+      const a = JSON.parse(localStorage.getItem("tp-trips"));
+      return Array.isArray(a) ? a : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  _saveTrips(trips) {
+    try {
+      localStorage.setItem("tp-trips", JSON.stringify(trips));
+    } catch (e) {
+      /* storage full/disabled — trips just won't persist */
+    }
+  }
+
+  _tripKey(t) {
+    return [t.year, t.from.lon, t.from.lat, t.to.lon, t.to.lat, t.time, t.day]
+      .join("|");
+  }
+
+  /** Put the current search at the top of the recent list (deduped, capped). */
+  addTrip() {
+    if (!this.from || !this.to) return;
+    const t = {
+      year: this.year,
+      from: this.from,
+      to: this.to,
+      time: $("#tpTime").val(),
+      day: $("#tpDay").val(),
+    };
+    const trips = this._loadTrips().filter(
+      (x) => this._tripKey(x) !== this._tripKey(t)
+    );
+    trips.unshift(t);
+    this._saveTrips(trips.slice(0, 8));
+    this.renderTrips();
+  }
+
+  renderTrips() {
+    const trips = this._loadTrips();
+    $("#tpTripsSection").toggle(trips.length > 0);
+    const out = $("#tpTrips").empty();
+    const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    trips.forEach((t) => {
+      out.append(
+        $('<div class="tp-trip" title="Load this trip"></div>').append(
+          $('<span class="tp-trip-route"></span>').text(
+            `${t.from.label || "A"} → ${t.to.label || "B"}`
+          ),
+          $('<span class="tp-trip-meta"></span>').text(
+            `${t.time} ${days[+t.day] || ""} · ` +
+              (t.year === APP.USER_ROUTE_YEAR ? "my routes" : t.year)
+          ),
+          $('<a class="tp-trip-del" title="Remove this trip">✕</a>')
+        )
+      );
+    });
+  }
+
+  /** Make a saved trip the active one: restore its form and re-plan. */
+  loadTrip(i) {
+    const t = this._loadTrips()[i];
+    if (!t) return;
+    const year = t.year === APP.USER_ROUTE_YEAR ? t.year : "2016";
+    if (year !== this.year) {
+      this.year = year;
+      $(".tp-source .btn")
+        .removeClass("active")
+        .filter((_, el) => $(el).attr("data-year") === year)
+        .addClass("active");
+      this.loadStops();
+    }
+    this.from = t.from;
+    this.to = t.to;
+    $("#tpFrom").val(t.from.label || "");
+    $("#tpTo").val(t.to.label || "");
+    if (t.time) $("#tpTime").val(t.time);
+    if (t.day != null) $("#tpDay").val(t.day);
+    this.drawMarkers();
+    this.plan();
+  }
+
+  /** Reset the current plan: points, results, drawn journey, session state.
+   * The recent-trips list is untouched (it has its own remove controls). */
+  clearPlan() {
+    this._planSeq++;
+    this.from = null;
+    this.to = null;
+    $("#tpFrom").val("");
+    $("#tpTo").val("");
+    this.drawMarkers();
+    this.clearResults("");
+    try {
+      sessionStorage.removeItem("tp-state");
+    } catch (e) {
+      /* nothing to clear */
+    }
   }
 
   // --- Session state (survives navigating to the 3D preview and back) ---------
@@ -279,6 +401,7 @@ APP.PlannerPage = class {
         this._restoreSelected = null;
         this.selectJourney(sel);
         this.saveState(sel);
+        this.addTrip();
         this.routeWalkLegs(this._planSeq);
       })
       .catch((e) => this.setStatus(e.message, "warn"));

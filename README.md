@@ -231,6 +231,10 @@ journeys always match what a GTFS consumer of the feed would compute.
   or **My routes** (the routes you drew and scheduled in the GTFS workbench).
 - Set start (A) and destination (B) by clicking the map or typing a stop name;
   pick a departure time and day of travel.
+- Every planned search lands in a **Recent trips** list (persisted in the
+  browser, deduped, newest first) — click one to make it the active trip
+  again, ✕ to remove it, or clear them all. One trip is active at a time;
+  the ✕ next to Plan trip clears the current search.
 - Results are the Pareto set over arrival time vs. transfers: each extra
   transfer is only offered when it strictly arrives earlier. Walking covers
   access/egress (up to ~1 km), transfers between nearby stops, and an

@@ -107,10 +107,23 @@
                 <option value="6">Sunday</option>
               </select>
             </div>
-            <button type="button" class="btn btn-primary btn-block" id="tpPlan">
-              Plan trip
-            </button>
+            <div class="tp-plan-row">
+              <button type="button" class="btn btn-primary" id="tpPlan">
+                Plan trip
+              </button>
+              <button type="button" class="btn btn-default" id="tpClearPlan"
+                title="Clear the current trip — points, results and the drawn journey">✕</button>
+            </div>
             <div id="tpStatus" class="tp-status"></div>
+          </div>
+          <!-- Recent trips: every planned search is kept (newest first, one
+               active at a time) so frequent journeys are one click away. -->
+          <div class="tp-section" id="tpTripsSection" style="display: none">
+            <div class="tp-label tp-trips-head">
+              Recent trips
+              <a id="tpTripsClear" title="Remove all saved trips">clear all</a>
+            </div>
+            <div id="tpTrips"></div>
           </div>
           <div id="tpResults" class="tp-results"></div>
         </div>
