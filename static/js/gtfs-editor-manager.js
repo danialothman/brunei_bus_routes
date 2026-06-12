@@ -845,7 +845,9 @@ APP.GtfsEditorManager = class {
 
   // --- Download ------------------------------------------------------------------------
 
-  _download() {
+  /** Push any debounced route/feed saves now, so feed builds (download,
+   * validate, preview) reflect what's on screen. */
+  _flushPending() {
     this._flushStopsSave();
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
@@ -857,6 +859,10 @@ APP.GtfsEditorManager = class {
       this._feedTimer = null;
       this._saveFeedConfig();
     }
+  }
+
+  _download() {
+    this._flushPending();
     const year = this.year || (this.current ? this.current.year : "");
     window.open(`/data/gtfs.zip${year ? "?year=" + encodeURIComponent(year) : ""}`);
   }
@@ -864,17 +870,7 @@ APP.GtfsEditorManager = class {
   // --- Validation ----------------------------------------------------------------------
 
   _validate() {
-    this._flushStopsSave();
-    if (this._saveTimer) {
-      clearTimeout(this._saveTimer);
-      this._saveTimer = null;
-      this._saveMeta();
-    }
-    if (this._feedTimer) {
-      clearTimeout(this._feedTimer);
-      this._feedTimer = null;
-      this._saveFeedConfig();
-    }
+    this._flushPending();
     const year = this.year || "";
     $("#validateYear").text(year || "default");
     $("#validateSummary").attr("class", "gep-validate-summary").text("Validating…");
@@ -929,11 +925,110 @@ APP.GtfsEditorManager = class {
       });
   }
 
+  // --- Feed preview --------------------------------------------------------------------
+  // The actual files the export emits, rebuilt on demand so the transcriber can
+  // watch routes.txt / stop_times.txt / … take shape as they fill in the forms.
+
+  _preview() {
+    this._flushPending();
+    const year = this.year || "";
+    $("#previewYear").text(year || "default");
+    $("#previewSummary").text("Building feed…");
+    $("#previewModal").modal("show");
+    fetch(`/data/gtfs-preview${year ? "?year=" + encodeURIComponent(year) : ""}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.error) {
+          $("#previewSummary").text(d.error);
+          $("#previewTabs").empty();
+          $("#previewMeta").empty();
+          $("#previewTableWrap").empty();
+          this._previewFiles = null;
+          return;
+        }
+        this._previewFiles = d.files || [];
+        const s = d.stats || {};
+        $("#previewSummary").text(
+          `${this._previewFiles.length} files · ${s.routes} routes, ` +
+            `${s.trips} trips, ${s.stops} stops · ${Math.round(d.size / 1024)} KB`
+        );
+        const tabs = $("#previewTabs").empty();
+        this._previewFiles.forEach((f) => {
+          tabs.append(
+            $('<button type="button" class="gep-preview-tab"></button>')
+              .attr("data-file", f.name)
+              .append($("<span></span>").text(f.name))
+              .append(
+                $('<span class="gep-preview-tab-count"></span>').text(f.total_rows)
+              )
+          );
+        });
+        // Keep the tab the user was on across refreshes, else start at the top.
+        const current =
+          this._previewFiles.find((f) => f.name === this._previewTab) ||
+          this._previewFiles[0];
+        this._showPreviewFile(current ? current.name : null);
+      })
+      .catch((err) => {
+        $("#previewSummary").text("Preview request failed");
+        console.error("gtfs-preview failed", err);
+      });
+  }
+
+  _showPreviewFile(name) {
+    this._previewTab = name;
+    $("#previewTabs .gep-preview-tab").each((_, el) => {
+      $(el).toggleClass("active", $(el).attr("data-file") === name);
+    });
+    this._renderPreviewTable();
+  }
+
+  _renderPreviewTable() {
+    const f = (this._previewFiles || []).find((x) => x.name === this._previewTab);
+    const wrap = $("#previewTableWrap").empty();
+    const meta = $("#previewMeta").empty();
+    if (!f) return;
+    const q = ($("#previewFilter").val() || "").trim().toLowerCase();
+    const rows = q
+      ? f.rows.filter((r) => r.some((c) => c.toLowerCase().indexOf(q) >= 0))
+      : f.rows;
+    const bits = [`${f.total_rows} row${f.total_rows === 1 ? "" : "s"}`];
+    if (f.truncated) bits.push(`showing first ${f.rows.length}`);
+    if (q) bits.push(`${rows.length} match${rows.length === 1 ? "" : "es"}`);
+    bits.push(`${(f.size / 1024).toFixed(1)} KB`);
+    meta.text(`${f.name} — ${bits.join(" · ")}`);
+    if (!rows.length) {
+      wrap.append(
+        $('<div class="gep-empty"></div>').text(
+          q ? "No rows match the filter." : "No data rows."
+        )
+      );
+      return;
+    }
+    const table = $('<table class="gep-preview-table"></table>');
+    const thead = $("<thead></thead>").appendTo(table);
+    const hr = $("<tr></tr>").appendTo(thead);
+    f.header.forEach((h) => hr.append($("<th></th>").text(h)));
+    const tbody = $("<tbody></tbody>").appendTo(table);
+    rows.forEach((r) => {
+      const tr = $("<tr></tr>");
+      r.forEach((c) => tr.append($("<td></td>").text(c)));
+      tbody.append(tr);
+    });
+    wrap.append(table);
+  }
+
   // --- Events --------------------------------------------------------------------------
 
   _bind() {
     $("#gepDownload").on("click", () => this._download());
     $("#gepValidate").on("click", () => this._validate());
+    $("#gepPreview").on("click", () => this._preview());
+    $("#previewRefresh").on("click", () => this._preview());
+    $("#previewTabs").on("click", ".gep-preview-tab", (e) => {
+      this._showPreviewFile($(e.currentTarget).attr("data-file"));
+    });
+    $("#previewFilter").on("input", () => this._renderPreviewTable());
     this.timingSelect.on("change", () => this._showTiming());
     $("#gepZoomIn").on("click", () => this._setZoom(this.zoom * 1.25));
     $("#gepZoomOut").on("click", () => this._setZoom(this.zoom / 1.25));

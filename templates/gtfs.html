@@ -65,6 +65,14 @@
         <button
           type="button"
           class="btn btn-default btn-sm navbar-btn navbar-right"
+          id="gepPreview"
+          title="Inspect the GTFS files the export will produce, with your current edits applied"
+        >
+          📄 Preview
+        </button>
+        <button
+          type="button"
+          class="btn btn-default btn-sm navbar-btn navbar-right"
           data-toggle="modal"
           data-target="#feedSettingsModal"
           title="Feed-wide settings: agency details and flat fare"
@@ -296,6 +304,38 @@
         ></textarea>
       </div>
       <div id="stopImageResize" title="Drag to resize"></div>
+    </div>
+
+    <!-- GTFS feed preview: the actual files the export emits, as tables -->
+    <div class="modal fade" id="previewModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog gep-preview-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h4 class="modal-title">📄 Feed preview — <span id="previewYear"></span>
+              <small id="previewSummary" class="gep-status"></small>
+            </h4>
+          </div>
+          <div class="modal-body gep-preview-body">
+            <div class="gep-preview-toolbar">
+              <div id="previewTabs" class="gep-preview-tabs"></div>
+              <input
+                type="text"
+                id="previewFilter"
+                class="form-control input-sm"
+                placeholder="Filter rows… (e.g. a route or stop id)"
+              />
+              <button type="button" class="btn btn-default btn-xs" id="previewRefresh"
+                title="Rebuild the feed with the latest edits">↻ Refresh</button>
+            </div>
+            <div id="previewMeta" class="gep-preview-meta"></div>
+            <div id="previewTableWrap" class="gep-preview-table-wrap"></div>
+            <p class="gep-hint">This is the feed exactly as ⬇ Download GTFS will
+              emit it, built from your current edits. Long files show the first
+              500 rows.</p>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Feed validation results -->
