@@ -654,6 +654,9 @@ body.editing .gtfs-routes-current {
   min-height: 0;
   padding: 8px 0 8px 10px;
 }
+.gtfs-routes-scroll #newRouteBtn {
+  width: calc(100% - 10px); /* match the rows' 10px right inset */
+}
 /* Collapsed manually, or forced shut while the geometry editor runs — the
    sidebar's full height goes to the GTFS pane and its live stops list. */
 .gtfs-routes-col.collapsed .gtfs-routes-scroll,
