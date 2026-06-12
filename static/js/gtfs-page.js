@@ -144,12 +144,11 @@ APP.GtfsPage = class {
     const row = this._rowFor(this._id(year, file));
     if (!row.length) return;
     let meter = row.find(".gtfs-route-meter");
-    const flags = ["schedule", "departures", "operator", "headsign"];
     if (!meter.length) {
-      meter = $('<span class="gtfs-route-meter"></span>');
-      flags.forEach(() => meter.append("<i></i>"));
+      meter = this._meterEl();
       row.find(".gtfs-route-label").after(meter);
     }
+    const flags = ["schedule", "departures", "operator", "headsign"];
     meter.children().each((i, el) => {
       $(el).toggleClass("on", !!(st && st[flags[i]]));
     });
@@ -158,6 +157,16 @@ APP.GtfsPage = class {
       "transcribed: " +
         flags.map((f) => `${f} ${st && st[f] ? "✓" : "—"}`).join(" · ")
     );
+  }
+
+  /** A fresh all-off transcription meter (4 segments). */
+  _meterEl() {
+    const meter = $('<span class="gtfs-route-meter"></span>').attr(
+      "title",
+      "transcribed: schedule — · departures — · operator — · headsign —"
+    );
+    for (let i = 0; i < 4; i++) meter.append("<i></i>");
+    return meter;
   }
 
   _row(id, year, file, display, isUser, kind) {
@@ -172,6 +181,9 @@ APP.GtfsPage = class {
     if (kind === "geojson") row.addClass("path");
     row.append($('<span class="gtfs-route-chip"></span>').text(code));
     row.append($('<span class="gtfs-route-label"></span>').text(display));
+    // Every schedulable route shows its transcription meter up front (all-off
+    // until the meta summary fills it in). Paths can't carry GTFS meta.
+    if (kind !== "geojson") row.append(this._meterEl());
     if (isUser) {
       row.append($('<a class="gtfs-route-del" title="Delete route">✕</a>'));
     }
