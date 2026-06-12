@@ -290,8 +290,36 @@ APP.EditorManager = class {
   // --- Tools / interactions --------------------------------------------------
 
   _addInteractions() {
-    this.modify = new ol.interaction.Modify({ source: this.source });
+    // A stop snapped onto the line sits exactly on a vertex/segment, and one
+    // Modify over the whole source would drag both together. Split: Translate
+    // moves stops (whole points), Modify handles the line but stands down
+    // whenever the pointer is over a stop.
+    const stopAtPixel = (e) => {
+      let hit = false;
+      this.map.forEachFeatureAtPixel(
+        e.pixel,
+        (f) => {
+          if (f.get("kind") === "stop") {
+            hit = true;
+            return true;
+          }
+        },
+        { hitTolerance: 8, layerFilter: (l) => l === this.layer }
+      );
+      return hit;
+    };
+    this.modify = new ol.interaction.Modify({
+      source: this.source,
+      condition: (e) => !stopAtPixel(e),
+    });
     this.modify.on("modifyend", () => this._snapshot());
+
+    this.translate = new ol.interaction.Translate({
+      layers: [this.layer],
+      filter: (f) => f.get("kind") === "stop",
+      hitTolerance: 8,
+    });
+    this.translate.on("translateend", () => this._snapshot());
 
     this.draw = new ol.interaction.Draw({ source: this.source, type: "Point" });
     this.draw.on("drawend", (e) => {
@@ -310,8 +338,10 @@ APP.EditorManager = class {
     });
 
     this.snap = new ol.interaction.Snap({ source: this.source }); // add last
-    [this.modify, this.draw, this.drawLine, this.snap].forEach((i) =>
-      this.map.addInteraction(i)
+    // Translate after Modify: later interactions see events first, so a
+    // grabbed stop never reaches the line editor.
+    [this.modify, this.translate, this.draw, this.drawLine, this.snap].forEach(
+      (i) => this.map.addInteraction(i)
     );
 
     // Rename/Delete act directly on the stop clicked — more reliable than a
@@ -321,12 +351,14 @@ APP.EditorManager = class {
   }
 
   _removeInteractions() {
-    [this.modify, this.draw, this.drawLine, this.snap].forEach((i) => {
-      if (i) this.map.removeInteraction(i);
-    });
+    [this.modify, this.translate, this.draw, this.drawLine, this.snap].forEach(
+      (i) => {
+        if (i) this.map.removeInteraction(i);
+      }
+    );
     if (this._onClick) this.map.un("singleclick", this._onClick);
     this._onClick = null;
-    this.modify = this.draw = this.drawLine = this.snap = null;
+    this.modify = this.translate = this.draw = this.drawLine = this.snap = null;
   }
 
   setTool(tool) {
@@ -334,6 +366,7 @@ APP.EditorManager = class {
     if (this.kind === "geojson" && tool === "addstop") tool = "move";
     this.tool = tool;
     if (this.modify) this.modify.setActive(tool === "move");
+    if (this.translate) this.translate.setActive(tool === "move");
     if (this.draw) this.draw.setActive(tool === "addstop");
     if (this.drawLine) this.drawLine.setActive(tool === "drawline");
     $(".ed-tool").removeClass("active");
