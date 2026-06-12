@@ -29,6 +29,7 @@ TRANSFER_SLACK_S = 30        # buffer added to every walk between stops
 TRANSFER_MAX_S = 900         # cap on a chained walk between rides (~15 min)
 MAX_DIRECT_WALK_M = 2000.0   # offer a walk-only journey under this
 MAX_ROUNDS = 5               # rides per journey (= 4 transfers)
+SLICE_TOL_M = 250.0          # a ride leg's drawn line must end this close to its stops
 
 _INF = float("inf")
 _DAY_COLS = ("monday", "tuesday", "wednesday", "thursday", "friday",
@@ -280,14 +281,53 @@ class Network:
         hi = bisect_left(cum, d2)
         return [at(d1)] + [list(p) for p in pts[lo:hi]] + [at(d2)]
 
+    def _slice_ok(self, geom, bpt, apt):
+        """A usable ride polyline starts near the board stop and ends near
+        the alight stop."""
+        return (geom is not None and len(geom) >= 2
+                and _haversine(geom[0], bpt) <= SLICE_TOL_M
+                and _haversine(geom[-1], apt) <= SLICE_TOL_M)
+
+    def _reslice_by_stops(self, shape_id, bpt, apt):
+        """Slice between the shape vertices nearest each stop, requiring the
+        alight vertex to come after the board vertex (loop shapes pass a
+        terminal twice). Recovery path for collapsed feed projections."""
+        sh = self.shapes.get(shape_id)
+        if not sh:
+            return None
+        pts, cum = sh
+        bi = min(range(len(pts)), key=lambda i: _haversine(pts[i], bpt))
+        if bi >= len(pts) - 1:
+            return None
+        ai = min(range(bi + 1, len(pts)), key=lambda i: _haversine(pts[i], apt))
+        return self._slice_shape(shape_id, cum[bi], cum[ai])
+
     def _ride_geometry(self, pat, bpos, apos):
-        """Polyline for a ride leg: shape slice, else stop-to-stop lines."""
+        """Polyline for a ride leg, anchored to its board/alight stops.
+
+        The feed's stop->shape projections can collapse on loop routes (a
+        monotonic snap that runs ahead of the stops), leaving a slice that
+        ends kilometres from the alight stop. Validate the slice, re-derive
+        it from the stops' own nearest shape vertices when it's off, and as
+        a last resort draw stop-to-stop lines. Ends are pinned to the exact
+        stop coordinates so consecutive journey legs always connect."""
+        board = self.stops[pat["stop_idxs"][bpos]]
+        alight = self.stops[pat["stop_idxs"][apos]]
+        bpt = [board["lon"], board["lat"]]
+        apt = [alight["lon"], alight["lat"]]
+
         geom = self._slice_shape(
             pat["shape_id"], pat["dists"][bpos], pat["dists"][apos])
-        if geom and len(geom) >= 2:
-            return geom
-        return [[self.stops[i]["lon"], self.stops[i]["lat"]]
-                for i in pat["stop_idxs"][bpos:apos + 1]]
+        if not self._slice_ok(geom, bpt, apt):
+            geom = self._reslice_by_stops(pat["shape_id"], bpt, apt)
+        if not self._slice_ok(geom, bpt, apt):
+            geom = [[self.stops[i]["lon"], self.stops[i]["lat"]]
+                    for i in pat["stop_idxs"][bpos:apos + 1]]
+        if geom[0] != bpt:
+            geom.insert(0, bpt)
+        if geom[-1] != apt:
+            geom.append(apt)
+        return geom
 
     # --- RAPTOR ----------------------------------------------------------------
 

@@ -78,6 +78,22 @@ os.makedirs(app.instance_path, exist_ok=True)
 db.init_db(os.path.join(app.instance_path, "edits.db"))
 
 
+@app.context_processor
+def _asset_version():
+    """Cache-buster for our own static assets: templates append ?v={{ asset_v }}
+    so browsers re-fetch JS/CSS whenever any of it changes on disk."""
+    latest = 0
+    for sub in ("js", "css"):
+        base = os.path.join(app.static_folder, sub)
+        for root, _dirs, files in os.walk(base):
+            for f in files:
+                try:
+                    latest = max(latest, int(os.path.getmtime(os.path.join(root, f))))
+                except OSError:
+                    continue
+    return {"asset_v": latest}
+
+
 def _available_years():
     """Year folders under static/data that hold a routes.json (sorted)."""
     base = os.path.join(app.static_folder, "data")

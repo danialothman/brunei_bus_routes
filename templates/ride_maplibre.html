@@ -11,7 +11,7 @@
     />
     <link
       rel="stylesheet"
-      href="{{ url_for('static', filename='css/ride.css') }}"
+      href="{{ url_for('static', filename='css/ride.css', v=asset_v) }}"
     />
     <style>
       /* simple top-down bus marker (map rotates so travel dir is "up") */
@@ -102,10 +102,10 @@
 
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
     <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
-    <script src="{{ url_for('static', filename='js/config.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/route-path.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/minimap.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/ride-music.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/ride/maplibre-ride.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/config.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/route-path.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/minimap.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/ride-music.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/maplibre-ride.js', v=asset_v) }}"></script>
   </body>
 </html>
