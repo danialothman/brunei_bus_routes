@@ -234,7 +234,10 @@ APP.EditorManager = class {
         this.routeManager.setRouteDisplayName(this.year, this.file, this.routeName, this.kind);
         const ext = this.source.getExtent();
         if (ext && isFinite(ext[0])) {
-          this.map.getView().fit(ext, { padding: [60, 60, 60, 60], maxZoom: 17, duration: 400 });
+          // On /gtfs the timing panel may dock over the map's right edge.
+          const timing = $("#timingPanel");
+          const padRight = timing.is(":visible") ? timing.outerWidth() + 40 : 60;
+          this.map.getView().fit(ext, { padding: [60, padRight, 60, 60], maxZoom: 17, duration: 400 });
         }
         this.undoStack = [this._serialize()];
         this.redoStack = [];

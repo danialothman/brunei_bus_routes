@@ -48,6 +48,11 @@ APP.GtfsPage = class {
     $("#newRouteBtn, #sipCreate").on("click", () =>
       setTimeout(() => this.gtfsEditor.enterLive(), 0)
     );
+    // The route list shares the sidebar with the GTFS pane — collapsible so
+    // the pane can take the full height (forced shut while editing, via CSS).
+    $("#gtfsRoutesHead").on("click", () =>
+      $(".gtfs-routes-col").toggleClass("collapsed")
+    );
     const list = $("#gtfsRouteList");
     list.on("click", ".gtfs-route-row", (e) => {
       if ($(e.target).closest(".gtfs-route-del").length) return;
@@ -201,6 +206,8 @@ APP.GtfsPage = class {
     $("#gtfsRouteList .gtfs-route-row").removeClass("selected");
     const row = this._rowFor(id).addClass("selected");
     if (row.length) row[0].scrollIntoView({ block: "nearest" });
+    // Collapsed-list header carries the selection.
+    $("#gtfsRoutesCurrent").text(this.names[id] || "");
     this._loadLayer();
     this.gtfsEditor.setRoute(year, file, this.names[id], kind, this.userIds.has(id));
     $("#gtfsEditBtn").show();
@@ -259,8 +266,13 @@ APP.GtfsPage = class {
       if (source.getState() === "ready" && source.getFeatures().length) {
         const ext = source.getExtent();
         if (ext && isFinite(ext[0])) {
+          // Keep the fitted route clear of the timing panel docked on the
+          // map's right edge.
+          const timing = $("#timingPanel");
+          const padRight =
+            timing.is(":visible") ? timing.outerWidth() + 40 : 60;
           this.map.getView().fit(ext, {
-            padding: [60, 60, 60, 60],
+            padding: [60, padRight, 60, 60],
             maxZoom: 16,
             duration: 400,
           });
@@ -347,7 +359,13 @@ APP.GtfsPage = class {
     // Editor is taking over: the stops list goes live against its session.
     // Deferred, because EditorManager.enter() calls this BEFORE it creates
     // its editing source — binding now would find nothing to mirror.
-    setTimeout(() => this.gtfsEditor.enterLive(), 0);
+    setTimeout(() => {
+      this.gtfsEditor.enterLive();
+      // The route list collapses while editing (CSS) — bring the live stops
+      // list into view, since it's the map editor's mirror.
+      const stops = document.getElementById("gepStopsSection");
+      if (stops) stops.scrollIntoView({ block: "start" });
+    }, 0);
   }
 
   showRouteAfterEdit(year, file) {
@@ -370,6 +388,7 @@ APP.GtfsPage = class {
     this._rowFor(id).find(".gtfs-route-label").text(this.names[id]);
     if (this.selected && this.selected.id === id) {
       this.gtfsEditor.setLabel(this.names[id]);
+      $("#gtfsRoutesCurrent").text(this.names[id]);
     }
   }
 

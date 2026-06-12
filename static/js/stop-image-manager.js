@@ -213,60 +213,10 @@ APP.StopImageManager = class {
     $("#sipFit").on("click", () => this._setZoom(1));
     $("#sipCreate").on("click", () => this._createRoute());
     $(this.notes).on("input", () => this._queueSave());
-    this._enableDrag();
-    this._enableResize();
-  }
-
-  _enableDrag() {
-    const header = document.getElementById("stopImageHeader");
-    let sx, sy, sl, st, dragging = false;
-    const onMove = (e) => {
-      if (!dragging) return;
-      this.panel.style.left = sl + (e.clientX - sx) + "px";
-      this.panel.style.top = st + (e.clientY - sy) + "px";
-      this.panel.style.right = "auto";
-    };
-    const onUp = () => {
-      dragging = false;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    header.addEventListener("mousedown", (e) => {
-      // Don't start a drag when interacting with the header controls.
-      if (e.target.closest("button, select")) return;
-      const r = this.panel.getBoundingClientRect();
-      sx = e.clientX; sy = e.clientY; sl = r.left; st = r.top;
-      this.panel.style.left = r.left + "px";
-      this.panel.style.top = r.top + "px";
-      this.panel.style.right = "auto";
-      dragging = true;
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-      e.preventDefault();
-    });
-  }
-
-  _enableResize() {
-    const handle = document.getElementById("stopImageResize");
-    let sx, sy, sw, sh, resizing = false;
-    const onMove = (e) => {
-      if (!resizing) return;
-      this.panel.style.width = Math.max(220, sw + (e.clientX - sx)) + "px";
-      this.panel.style.height = Math.max(200, sh + (e.clientY - sy)) + "px";
-    };
-    const onUp = () => {
-      resizing = false;
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-    handle.addEventListener("mousedown", (e) => {
-      const r = this.panel.getBoundingClientRect();
-      sx = e.clientX; sy = e.clientY; sw = r.width; sh = r.height;
-      resizing = true;
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
-      e.preventDefault();
-      e.stopPropagation();
-    });
+    APP.MapUtils.makeFloatingPanel(
+      this.panel,
+      document.getElementById("stopImageHeader"),
+      document.getElementById("stopImageResize")
+    );
   }
 };

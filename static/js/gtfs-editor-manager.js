@@ -16,6 +16,7 @@ APP.GtfsEditorManager = class {
     this._feedTimer = null;
     this._stopsTimer = null;
     this._populating = false; // suppress autosave while filling the form
+    this._timingDismissed = false; // user closed the timing panel this session
   }
 
   init() {
@@ -826,6 +827,8 @@ APP.GtfsEditorManager = class {
     if (!year || !file) {
       this.timingImg.style.display = "none";
       this.timingEmpty.style.display = "";
+      // No signboard — an empty floating window is just clutter.
+      this._setTimingPanelVisible(false);
       return;
     }
     this.timingEmpty.style.display = "none";
@@ -836,6 +839,30 @@ APP.GtfsEditorManager = class {
       "/" +
       encodeURIComponent(file);
     this._setZoom(1);
+    if (!this._timingDismissed) this._setTimingPanelVisible(true);
+  }
+
+  /** The timing panel floats over the map (see gtfs.html). Auto-shown when a
+   * route has a signboard, auto-hidden when not; ✕ dismisses for the session
+   * and the navbar 🕐 toggle brings it back. */
+  _setTimingPanelVisible(show) {
+    const panel = document.getElementById("timingPanel");
+    if (!panel) return;
+    // Phones: the panel would overlay everything — only the toggle opens it.
+    if (show && window.matchMedia("(max-width: 820px)").matches) return;
+    panel.style.display = show ? "flex" : "none";
+  }
+
+  _toggleTimingPanel() {
+    const panel = document.getElementById("timingPanel");
+    if (!panel) return;
+    if (panel.style.display === "flex") {
+      this._timingDismissed = true;
+      panel.style.display = "none";
+    } else {
+      this._timingDismissed = false;
+      panel.style.display = "flex"; // explicit open bypasses the phone guard
+    }
   }
 
   _setZoom(z) {
@@ -1080,6 +1107,19 @@ APP.GtfsEditorManager = class {
     $("#gepDownload").on("click", () => this._download());
     $("#gepValidate").on("click", () => this._validate());
     $("#gepPreview").on("click", () => this._preview());
+    $("#timingToggle").on("click", () => this._toggleTimingPanel());
+    $("#timingClose").on("click", () => {
+      this._timingDismissed = true;
+      this._setTimingPanelVisible(false);
+    });
+    const timingPanel = document.getElementById("timingPanel");
+    if (timingPanel) {
+      APP.MapUtils.makeFloatingPanel(
+        timingPanel,
+        document.getElementById("timingPanelHeader"),
+        document.getElementById("timingResize")
+      );
+    }
     $("#previewRefresh").on("click", () => this._preview());
     $("#previewTabs").on("click", ".gep-preview-tab", (e) => {
       this._showPreviewFile($(e.currentTarget).attr("data-file"));
