@@ -4,6 +4,11 @@
 // journeys draw on the map: solid colored ride legs, dashed walk legs.
 window.APP = window.APP || {};
 
+// Pedestrian routing for walk legs (the OSRM instance behind osm.org's foot
+// directions): turns straight A→B hops into road-following paths. Purely a
+// display upgrade — journey times still come from the planner.
+const FOOT_ROUTER = "https://routing.openstreetmap.de/routed-foot/route/v1/foot";
+
 APP.PlannerPage = class {
   constructor() {
     this.map = null;
@@ -14,6 +19,8 @@ APP.PlannerPage = class {
     this.pick = null; // "from" | "to" | null — armed map-pick target
     this.stops = []; // searchable stops of the current source
     this.journeys = [];
+    this._planSeq = 0; // invalidates in-flight walk routing on replan
+    this._walkCache = new Map(); // "lon,lat,lon,lat" -> Promise<route|null>
     this.init();
   }
 
@@ -213,8 +220,58 @@ APP.PlannerPage = class {
         this.setStatus(notes);
         this.renderResults();
         this.selectJourney(0);
+        this.routeWalkLegs(this._planSeq);
       })
       .catch((e) => this.setStatus(e.message, "warn"));
+  }
+
+  // --- Walk legs along real roads ---------------------------------------------
+
+  /** Upgrade every walk leg of the current journeys to a road-following path,
+   * then redraw. Straight lines remain wherever routing fails. */
+  routeWalkLegs(seq) {
+    const legs = [];
+    this.journeys.forEach((j) =>
+      j.legs.forEach((l) => l.type === "walk" && legs.push(l))
+    );
+    Promise.allSettled(legs.map((l) => this.routeWalkLeg(l))).then(() => {
+      if (seq !== this._planSeq) return; // results were replaced meanwhile
+      const sel = $("#tpResults .tp-journey.selected").index();
+      this.renderResults();
+      this.selectJourney(sel >= 0 ? sel : 0);
+    });
+  }
+
+  routeWalkLeg(leg) {
+    const key = [leg.from.lon, leg.from.lat, leg.to.lon, leg.to.lat]
+      .map((v) => v.toFixed(5))
+      .join(",");
+    if (!this._walkCache.has(key)) {
+      const url =
+        `${FOOT_ROUTER}/${leg.from.lon},${leg.from.lat};` +
+        `${leg.to.lon},${leg.to.lat}?overview=full&geometries=geojson`;
+      this._walkCache.set(
+        key,
+        fetch(url, { signal: AbortSignal.timeout(8000) })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => {
+            const rt = d && d.routes && d.routes[0];
+            return rt && rt.geometry && rt.geometry.coordinates.length >= 2
+              ? {
+                  coords: rt.geometry.coordinates,
+                  dist: Math.round(rt.distance),
+                }
+              : null;
+          })
+          .catch(() => null)
+      );
+    }
+    return this._walkCache.get(key).then((r) => {
+      if (r) {
+        leg.geometry = r.coords;
+        leg.road_dist_m = r.dist;
+      }
+    });
   }
 
   // --- Results list ---------------------------------------------------------------
@@ -261,11 +318,12 @@ APP.PlannerPage = class {
         const row = $('<div class="tp-leg"></div>');
         if (leg.type === "walk") {
           const dest = leg.to.name || "destination";
+          const dist = leg.road_dist_m || leg.dist_m;
           row.addClass("tp-leg-walk").append(
             $('<span class="tp-leg-icon">🚶</span>'),
             $('<span class="tp-leg-text"></span>').text(
               `${this.fmtDur(leg.arrive - leg.depart)} walk to ${dest}` +
-                (leg.dist_m ? ` (${leg.dist_m} m)` : "")
+                (dist ? ` (${dist} m)` : "")
             )
           );
         } else {
@@ -306,26 +364,54 @@ APP.PlannerPage = class {
   // --- 3D ride preview --------------------------------------------------------
 
   /** A planned journey reshaped into ride geometry ({segments, stops, bounds,
-   * name}): all legs concatenated into one continuous drive path — walks as
-   * straight hops — with the ride legs' stops as the stop markers. */
+   * phases, name}): all legs concatenated into one continuous drive path —
+   * walks along their routed road path when available — with the ride legs'
+   * stops as the stop markers. `phases` marks which stretches of the path are
+   * walked vs ridden, as fractions of total length, so the 3D engines can
+   * swap the bus for a pedestrian. */
   ridePayload(j) {
     const path = [];
     const stops = [];
+    const ranges = []; // {mode, start, end} index spans into path
     const push = (lon, lat) => {
       const last = path[path.length - 1];
       if (!last || last[0] !== lon || last[1] !== lat) path.push([lon, lat]);
     };
     j.legs.forEach((leg) => {
+      const start = Math.max(0, path.length - 1);
       if (leg.type === "walk") {
-        push(leg.from.lon, leg.from.lat);
-        push(leg.to.lon, leg.to.lat);
+        if (leg.geometry && leg.geometry.length >= 2) {
+          leg.geometry.forEach((c) => push(c[0], c[1]));
+        } else {
+          push(leg.from.lon, leg.from.lat);
+          push(leg.to.lon, leg.to.lat);
+        }
       } else {
         leg.geometry.forEach((c) => push(c[0], c[1]));
         leg.stops.forEach((s) =>
           stops.push({ name: s.name, lon: s.lon, lat: s.lat })
         );
       }
+      ranges.push({
+        mode: leg.type === "walk" ? "walk" : "ride",
+        start,
+        end: path.length - 1,
+      });
     });
+    // Index spans -> fractions of path length (planar, cos-scaled — the same
+    // approximation the ride HUD uses; only relative position matters).
+    const kx = Math.cos((path[0][1] * Math.PI) / 180);
+    const cum = [0];
+    for (let i = 1; i < path.length; i++) {
+      cum.push(
+        cum[i - 1] +
+          Math.hypot((path[i][0] - path[i - 1][0]) * kx, path[i][1] - path[i - 1][1])
+      );
+    }
+    const total = cum[cum.length - 1] || 1;
+    const phases = ranges
+      .filter((r) => r.end > r.start)
+      .map((r) => ({ mode: r.mode, t0: cum[r.start] / total, t1: cum[r.end] / total }));
     const lons = path.map((p) => p[0]);
     const lats = path.map((p) => p[1]);
     return {
@@ -337,6 +423,7 @@ APP.PlannerPage = class {
         maxLon: Math.max(...lons),
         maxLat: Math.max(...lats),
       },
+      phases,
       name: `Planned trip ${this.fmt(j.departure)} → ${this.fmt(j.arrival)}`,
     };
   }
@@ -388,11 +475,16 @@ APP.PlannerPage = class {
     let rideIdx = 0;
     j.legs.forEach((leg) => {
       if (leg.type === "walk") {
+        // Road-following path when the foot router supplied one.
+        const pts =
+          leg.geometry && leg.geometry.length >= 2
+            ? leg.geometry
+            : [
+                [leg.from.lon, leg.from.lat],
+                [leg.to.lon, leg.to.lat],
+              ];
         const line = new ol.Feature(
-          new ol.geom.LineString([
-            APP.MapUtils.toOL([leg.from.lon, leg.from.lat]),
-            APP.MapUtils.toOL([leg.to.lon, leg.to.lat]),
-          ])
+          new ol.geom.LineString(pts.map((c) => APP.MapUtils.toOL(c)))
         );
         line.setStyle(
           new ol.style.Style({

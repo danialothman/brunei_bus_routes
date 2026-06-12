@@ -113,6 +113,17 @@
     busEl.style.background = color;
     const busMarker = new maplibregl.Marker({ element: busEl }).setLngLat(start);
 
+    // On a planned-trip preview, walked stretches show a pedestrian instead.
+    let markerMode = "ride";
+    function setMarkerMode(mode) {
+      if (mode === markerMode) return;
+      markerMode = mode;
+      const walking = mode === "walk";
+      busEl.classList.toggle("walking", walking);
+      busEl.textContent = walking ? "🚶" : "";
+      busEl.style.background = walking ? "none" : color;
+    }
+
     // Ride state
     // Real km/h simulation speed; 'total' is in km, so km/h / 3600 = km/s.
     let speedKmh = parseFloat(els.speed.value) || 40;
@@ -224,6 +235,7 @@
       const heading = sampleHeading(traveled);
       const busCoord = busPt.geometry.coordinates;
 
+      setMarkerMode(RP.modeAt(geo.phases, total > 0 ? traveled / total : 0));
       busMarker.setLngLat(busCoord);
       map.jumpTo({
         center: camPt.geometry.coordinates,

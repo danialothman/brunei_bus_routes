@@ -236,9 +236,11 @@ journeys always match what a GTFS consumer of the feed would compute.
   access/egress (up to ~1 km), transfers between nearby stops, and an
   end-to-end walk when the two points are close.
 - Selecting a journey draws it on the map — colored ride legs along the real
-  route shapes, dashed walk legs — and **🚌 3D preview** rides the whole
-  journey end-to-end in either 3D engine (Three.js or MapLibre), walks
-  included.
+  route shapes, dashed walk legs that follow real roads (via the public OSM
+  foot router, falling back to straight lines offline) — and **🚌 3D preview**
+  rides the whole journey end-to-end in either 3D engine. Walked stretches
+  swap the bus for a pedestrian: an animated 3D person in Three.js, a 🚶
+  marker in MapLibre.
 
 Routes without transcribed departures plan against their synthetic headway
 (default: every 30 min, 06:00–20:00), so waits and arrival times are nominal

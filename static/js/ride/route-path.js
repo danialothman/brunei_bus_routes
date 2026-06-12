@@ -175,6 +175,22 @@ APP.RidePath = {
   },
 
   /**
+   * Travel mode at progress fraction u, from a trip preview's phases
+   * ([{mode: "walk"|"ride", t0, t1}] over 0..1). Plain routes have no
+   * phases — everything is ridden.
+   * @param {{mode:string, t0:number, t1:number}[]|undefined} phases
+   * @param {number} u - progress fraction (0..1)
+   * @returns {"walk"|"ride"}
+   */
+  modeAt(phases, u) {
+    if (!Array.isArray(phases) || !phases.length) return "ride";
+    for (const p of phases) {
+      if (u <= p.t1) return p.mode;
+    }
+    return phases[phases.length - 1].mode;
+  },
+
+  /**
    * Pick a stable color for a route from the shared palette, keyed by its
    * leading number so it matches the 2D map's coloring.
    * @param {string} routeFile

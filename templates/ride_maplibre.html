@@ -33,6 +33,20 @@
         background: rgba(255, 255, 255, 0.7);
         border-radius: 2px;
       }
+      /* Walked stretches of a planned-trip preview: pedestrian, not bus. */
+      .bus-marker.walking {
+        width: auto;
+        height: auto;
+        border: none;
+        border-radius: 0;
+        box-shadow: none;
+        font-size: 26px;
+        line-height: 1;
+        text-shadow: 0 0 4px #fff, 0 1px 3px rgba(0, 0, 0, 0.6);
+      }
+      .bus-marker.walking::after {
+        display: none;
+      }
     </style>
   </head>
   <body>
