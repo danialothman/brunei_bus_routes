@@ -309,20 +309,18 @@ APP.GtfsEditorManager = class {
     // its undo stack and explicit Save. Outside it the list still allows
     // name/code/coord edits (autosaved as versions), but not structure.
     const showTools = live;
+    // Head and rows are grids on one shared template (--gep-stop-cols in the
+    // CSS); this class picks the edit-mode template with the extra ↑↓✕ track,
+    // and the head simply leaves that last cell empty.
+    list.toggleClass("gep-has-tools", showTools);
     // Column titles, sticky atop the scrolling list. Reuses the rows' column
-    // classes (flex bases) so the labels line up with the inputs; the hidden
-    // tools clone keeps Lat/Lon aligned when rows carry ↑↓✕.
+    // classes so each label sits in the same grid track as its inputs.
     const head = $('<div class="gep-stops-head"></div>');
     head.append($('<span class="gep-stops-head-seq">#</span>'));
     head.append($('<span class="gep-stop-code">Code</span>'));
     head.append($('<span class="gep-stop-name">Name</span>'));
     head.append($('<span class="gep-stop-coord">Lat</span>'));
     head.append($('<span class="gep-stop-coord">Lon</span>'));
-    if (showTools) {
-      head.append(
-        $('<span class="gep-stop-tools" aria-hidden="true"><a>↑</a><a>↓</a><a>✕</a></span>')
-      );
-    }
     list.append(head);
     stops.forEach((s, i) => {
       const row = $('<div class="gep-stop-row"></div>').attr("data-i", i);

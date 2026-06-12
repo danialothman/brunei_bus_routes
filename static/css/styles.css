@@ -978,15 +978,32 @@ body.editing #gtfsEditBtn {
   scrollbar-gutter: stable;
   scrollbar-width: thin;
   padding-right: 18px;
+  /* One shared column template for the head row AND every data row:
+     # | code | name | lat | lon. Tracks are fixed lengths or length-bounded
+     minmax, so no cell's content (header labels, input intrinsic widths) can
+     change a track — columns cannot drift the way two independently-resolved
+     flex containers did. */
+  --gep-stop-cols: 26px 40px minmax(60px, 1fr) minmax(56px, 72px) minmax(56px, 72px);
+}
+/* Edit mode (JS toggles the class): one extra ↑↓✕ tools track, sized by the
+   rows' identical tool spans; the head simply leaves that cell empty. */
+#gepStopsList.gep-has-tools {
+  --gep-stop-cols: 26px 40px minmax(60px, 1fr) minmax(56px, 72px) minmax(56px, 72px) max-content;
+}
+/* Head and data rows share the same grid, hence identical column edges by
+   construction. (JS keeps .gep-stops-head distinct from .gep-stop-row.) */
+.gep-stops-head,
+.gep-stop-row {
+  display: grid;
+  grid-template-columns: var(--gep-stop-cols);
+  align-items: center;
+  gap: 4px;
 }
 /* Column titles for the stops list, sticky while the list scrolls. */
 .gep-stops-head {
   position: sticky;
   top: 0;
   z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 4px;
   padding: 1px 0 2px;
   background: var(--gtfs-card);
   border-bottom: 1px solid var(--gtfs-line);
@@ -998,25 +1015,13 @@ body.editing #gtfsEditBtn {
   color: var(--gtfs-ink-soft);
 }
 .gep-stops-head span {
-  padding: 1px 4px; /* match the rows' input padding so labels line up */
-}
-.gep-stops-head .gep-stop-tools {
-  padding: 0; /* width-matching spacer — the real tools cell has none */
+  /* Inputs below have 4px padding + 1px (transparent) border: inset = 5px. */
+  padding: 1px 5px;
 }
 .gep-stops-head-seq {
-  flex: 0 0 26px;
   text-align: center;
 }
-.gep-stops-head .gep-stop-coord {
-  min-width: 56px;
-}
-.gep-stops-head .gep-stop-tools {
-  visibility: hidden; /* width-matching spacer only */
-}
 .gep-stop-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
   padding: 2px 0;
   transition: background 0.6s ease;
 }
@@ -1029,7 +1034,6 @@ body.editing #gtfsEditBtn {
   border-top: 1px dotted var(--gtfs-line);
 }
 .gep-stop-seq {
-  flex: 0 0 26px;
   padding: 1px 0 2px;
   text-align: center;
   background: var(--gtfs-ink);
@@ -1052,34 +1056,27 @@ body.editing #gtfsEditBtn {
   border-radius: 3px;
   background: transparent;
   color: var(--gtfs-ink);
+  /* Inputs report a large intrinsic minimum (≈20 chars); without this the
+     grid-stretch width is floored at min-width:auto and overflows the track. */
+  min-width: 0;
 }
 .gep-stop-row input:hover:not(:disabled),
 .gep-stop-row input:focus {
   border-color: #cfc8b8;
   background: #fffdf8;
 }
+/* Column widths live in --gep-stop-cols on #gepStopsList — only typography
+   stays on the cell classes. */
 .gep-stop-code {
-  flex: 0 0 34px;
   font-family: var(--gtfs-mono);
   font-size: 10px !important;
 }
-.gep-stop-name {
-  /* Explicit basis: the header label and the input then share identical
-     grow/shrink math, keeping the columns after Name aligned. (With basis
-     auto, the input's ~160px intrinsic width shrinks while the short label
-     grows — different final widths.) */
-  flex: 1 1 60px;
-  min-width: 60px;
-}
 .gep-stop-coord {
-  flex: 0 1 72px; /* shrinkable, or rows overflow the narrow-pane basis */
-  min-width: 56px;
   font-family: var(--gtfs-mono);
   font-size: 10px !important;
   color: var(--gtfs-ink-soft) !important;
 }
 .gep-stop-tools {
-  flex: 0 0 auto;
   white-space: nowrap;
 }
 .gep-stop-tools a {
