@@ -274,6 +274,11 @@ async function main() {
     return;
   }
 
+  // A planned-trip preview returns to the planner, not the route map.
+  if (routeFile === RP.TRIP_PREVIEW) {
+    document.getElementById("exit").href = "/planner";
+  }
+
   let geo;
   try {
     geo = await RP.fetchGeometry(routeFile);

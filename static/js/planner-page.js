@@ -293,6 +293,38 @@ APP.PlannerPage = class {
       : APP.ROUTE_COLORS[i % APP.ROUTE_COLORS.length];
   }
 
+  /** Remove short out-and-back spurs from a [lon,lat] polyline (turns
+   * sharper than ~120° with a side under 300 m) — junction artifacts where
+   * stop pins and road-snapped endpoints don't quite meet. */
+  despike(pts) {
+    if (pts.length < 3) return pts;
+    const M_PER_DEG = 111320;
+    const kx = Math.cos((pts[0][1] * Math.PI) / 180);
+    const out = [];
+    for (const p of pts) {
+      const last = out[out.length - 1];
+      if (last && last[0] === p[0] && last[1] === p[1]) continue;
+      out.push(p);
+      while (out.length >= 3) {
+        const a = out[out.length - 3];
+        const b = out[out.length - 2];
+        const c = out[out.length - 1];
+        const v1 = [(b[0] - a[0]) * kx, b[1] - a[1]];
+        const v2 = [(c[0] - b[0]) * kx, c[1] - b[1]];
+        const l1 = Math.hypot(v1[0], v1[1]);
+        const l2 = Math.hypot(v2[0], v2[1]);
+        if (!l1 || !l2) break;
+        const cos = (v1[0] * v2[0] + v1[1] * v2[1]) / (l1 * l2);
+        if (cos < -0.5 && Math.min(l1, l2) * M_PER_DEG < 300) {
+          out.splice(out.length - 2, 1);
+        } else {
+          break;
+        }
+      }
+    }
+    return out;
+  }
+
   renderResults() {
     const out = $("#tpResults").empty();
     this.journeys.forEach((j, ji) => {
@@ -513,11 +545,11 @@ APP.PlannerPage = class {
       if (leg.type === "walk") {
         // Road-following path when the foot router supplied one, tied to the
         // leg's true endpoints (the router snaps to the nearest road).
-        const pts = [
+        const pts = this.despike([
           [leg.from.lon, leg.from.lat],
           ...(leg.geometry || []),
           [leg.to.lon, leg.to.lat],
-        ];
+        ]);
         const line = new ol.Feature(
           new ol.geom.LineString(pts.map((c) => APP.MapUtils.toOL(c)))
         );
@@ -535,7 +567,7 @@ APP.PlannerPage = class {
         return;
       }
       const color = this.rideColor(leg, rideIdx++);
-      const coords = leg.geometry.map((c) => APP.MapUtils.toOL(c));
+      const coords = this.despike(leg.geometry).map((c) => APP.MapUtils.toOL(c));
       const line = new ol.Feature(new ol.geom.LineString(coords));
       line.setStyle([
         new ol.style.Style({

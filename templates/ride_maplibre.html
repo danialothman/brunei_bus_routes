@@ -33,15 +33,18 @@
         background: rgba(255, 255, 255, 0.7);
         border-radius: 2px;
       }
-      /* Walked stretches of a planned-trip preview: pedestrian, not bus. */
+      /* Walked stretches of a planned-trip preview: pedestrian, not bus.
+         Size stays fixed — MapLibre markers aren't shrink-wrapped, so
+         width:auto would stretch the element across the whole map. */
       .bus-marker.walking {
-        width: auto;
-        height: auto;
+        width: 28px;
+        height: 30px;
         border: none;
         border-radius: 0;
         box-shadow: none;
-        font-size: 26px;
-        line-height: 1;
+        font-size: 24px;
+        line-height: 30px;
+        text-align: center;
         text-shadow: 0 0 4px #fff, 0 1px 3px rgba(0, 0, 0, 0.6);
       }
       .bus-marker.walking::after {
