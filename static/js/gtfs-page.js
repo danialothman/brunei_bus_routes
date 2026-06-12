@@ -43,10 +43,19 @@ APP.GtfsPage = class {
 
     $("#gtfsEditBtn").on("click", () => this.editSelected());
     // Brand-new routes enter the editor without hideRouteForEdit firing
-    // (no file yet) — engage the live stops list after the editor opens.
-    // (EditorManager bound these first, so it runs before us.)
+    // (no file yet). The pane must stop showing — and saving meta for — the
+    // previously selected route: clear the selection, mark the pane as "new
+    // route", then engage the live stops list against the fresh session.
+    // (EditorManager bound these first, so it runs before us; the guard
+    // covers a cancelled name prompt.)
     $("#newRouteBtn, #sipCreate").on("click", () =>
-      setTimeout(() => this.gtfsEditor.enterLive(), 0)
+      setTimeout(() => {
+        const em = this.editorManager;
+        if (!em.active || !em.creating) return;
+        this.clearSelection();
+        this.gtfsEditor.beginNewRoute(em.routeName);
+        this.gtfsEditor.enterLive();
+      }, 0)
     );
     // The route list shares the sidebar with the GTFS pane — collapsible so
     // the pane can take the full height (forced shut while editing, via CSS).
@@ -223,6 +232,19 @@ APP.GtfsPage = class {
     this._loadLayer();
     this.gtfsEditor.setRoute(year, file, this.names[id], kind, this.userIds.has(id));
     $("#gtfsEditBtn").show();
+  }
+
+  /** Drop the current selection (e.g. a brand-new route is being drawn):
+   * no row highlighted, no layer on the map, no edit target. */
+  clearSelection() {
+    if (this.layer) {
+      this.map.removeLayer(this.layer);
+      this.layer = null;
+    }
+    this.selected = null;
+    $("#gtfsRouteList .gtfs-route-row").removeClass("selected");
+    $("#gtfsRoutesCurrent").text("");
+    $("#gtfsEditBtn").hide();
   }
 
   /** Pan/zoom to a stop and flash a marker over it (from the stops list). */

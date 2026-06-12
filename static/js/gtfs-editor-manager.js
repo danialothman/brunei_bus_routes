@@ -211,6 +211,22 @@ APP.GtfsEditorManager = class {
     this.routeLabel.textContent = label;
   }
 
+  /** Pane state for a brand-new route being drawn (no file, no meta yet —
+   * the form attaches once the editor Save creates the route). */
+  beginNewRoute(name) {
+    // Flush pending saves so they land on the route we're leaving.
+    if (this._saveTimer) {
+      clearTimeout(this._saveTimer);
+      this._saveTimer = null;
+      this._saveMeta();
+    }
+    this._flushStopsSave();
+    this.clearRoute();
+    this.routeLabel.textContent = name || "New route";
+    this.status.classList.add("hint");
+    this.status.textContent = "new route — draw line & stops, Save to keep";
+  }
+
   clearRoute() {
     if (this._saveTimer) {
       clearTimeout(this._saveTimer);
