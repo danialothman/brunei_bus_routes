@@ -282,6 +282,26 @@ def all_gtfs_meta(year):
     return out
 
 
+def change_stamp(year):
+    """Cheap fingerprint of a year's edits, for cache invalidation: changes
+    whenever route geometry or GTFS metadata is saved, replaced, or deleted."""
+    with _connect() as conn:
+        rv = conn.execute(
+            "SELECT COUNT(*), COALESCE(MAX(id), 0) FROM route_versions WHERE year=?",
+            (year,),
+        ).fetchone()
+        gm = conn.execute(
+            "SELECT COUNT(*), COALESCE(MAX(updated_at), '') FROM gtfs_meta WHERE year=?",
+            (year,),
+        ).fetchone()
+        # History grows on every overwrite, catching same-second meta updates.
+        gh = conn.execute(
+            "SELECT COALESCE(MAX(id), 0) FROM gtfs_meta_history WHERE year=?",
+            (year,),
+        ).fetchone()
+    return (rv[0], rv[1], gm[0], gm[1], gh[0])
+
+
 def delete_all(year, filename):
     """Remove every version for a route (revert to original). Returns rows deleted."""
     with _connect() as conn:

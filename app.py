@@ -14,6 +14,7 @@ from xml.sax.saxutils import escape as _xml_escape
 
 import db
 import gtfs
+import planner
 
 # Prefer defusedxml to guard against XXE / entity-expansion attacks; fall back
 # to the stdlib parser (our KML files are trusted, shipped-in-repo assets).
@@ -996,6 +997,80 @@ def gtfs_feed():
         mimetype="application/zip",
         headers={"Content-Disposition": f'attachment; filename="brunei-gtfs-{year}.zip"'},
     )
+
+
+# --- Trip planner --------------------------------------------------------------
+# The RAPTOR network is built from the same in-memory GTFS feed the export
+# emits, then cached per year until that year's edits change.
+_PLANNER_CACHE = {}  # year -> (db change stamp, planner.Network)
+
+
+def _planner_network(year):
+    stamp = db.change_stamp(year)
+    cached = _PLANNER_CACHE.get(year)
+    if cached and cached[0] == stamp:
+        return cached[1]
+    routes, agencies, params = gtfs_feed_inputs(year)
+    if not routes:
+        return None
+    data, _stats = gtfs.build_feed(routes, agencies, params)
+    net = planner.Network(data)
+    _PLANNER_CACHE[year] = (stamp, net)
+    return net
+
+
+@app.route("/planner")
+def planner_page():
+    # Trip planner: point-to-point journeys over a chosen dataset year.
+    return render_template("planner.html")
+
+
+@app.route("/data/planner-stops")
+def planner_stops():
+    """All stops in the year's plannable network, for the search boxes."""
+    year = _resolve_year(request.args.get("year"))
+    net = _planner_network(year)
+    return jsonify({"year": year, "stops": net.stop_list() if net else []})
+
+
+@app.route("/data/plan")
+def plan_trip():
+    """Point-to-point journeys: ?from=lon,lat&to=lon,lat&time=HH:MM&day=0..6."""
+    year = _resolve_year(request.args.get("year"))
+
+    def point(name):
+        parts = (request.args.get(name) or "").split(",")
+        if len(parts) != 2:
+            return None
+        try:
+            lon, lat = float(parts[0]), float(parts[1])
+        except ValueError:
+            return None
+        if not (-180 <= lon <= 180 and -90 <= lat <= 90):
+            return None
+        return (lon, lat)
+
+    origin, dest = point("from"), point("to")
+    if not origin or not dest:
+        return jsonify({"error": "from and to must be 'lon,lat'"}), 400
+    t = _norm_time(request.args.get("time"))
+    if t is None:
+        return jsonify({"error": "time must be HH:MM or HH:MM:SS"}), 400
+    h, m, s = (int(x) for x in t.split(":"))
+    dep_secs = h * 3600 + m * 60 + s
+    try:
+        day = int(request.args.get("day", ""))
+    except ValueError:
+        return jsonify({"error": "day must be 0..6 (Mon..Sun)"}), 400
+    if not (0 <= day <= 6):
+        return jsonify({"error": "day must be 0..6 (Mon..Sun)"}), 400
+
+    net = _planner_network(year)
+    if net is None:
+        return jsonify({"error": "this source has no routes with stops to plan over"}), 404
+    result = net.plan(origin, dest, dep_secs, day)
+    result["year"] = year
+    return jsonify(result)
 
 
 @app.route("/")

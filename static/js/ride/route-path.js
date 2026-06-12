@@ -15,12 +15,24 @@ APP.RidePath = {
     return new URLSearchParams(window.location.search).get("route");
   },
 
+  // Pseudo-route name + sessionStorage key for riding a journey planned on
+  // /planner: the planner stores ride-shaped geometry, then navigates here.
+  TRIP_PREVIEW: "trip-preview",
+
   /**
-   * Fetch parsed route geometry from the backend.
+   * Fetch parsed route geometry from the backend (or, for the planner's
+   * trip preview, from sessionStorage).
    * @param {string} routeFile - KML filename
    * @returns {Promise<{segments:number[][][], stops:object[], bounds:object, name:string}>}
    */
   async fetchGeometry(routeFile) {
+    if (routeFile === this.TRIP_PREVIEW) {
+      const raw = sessionStorage.getItem(this.TRIP_PREVIEW);
+      if (!raw) {
+        throw new Error("No planned trip to preview");
+      }
+      return JSON.parse(raw);
+    }
     const year = new URLSearchParams(window.location.search).get("year");
     const yq = year ? `?year=${encodeURIComponent(year)}` : "";
     const res = await fetch(
