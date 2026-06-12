@@ -1000,6 +1000,9 @@ body.editing #gtfsEditBtn {
 .gep-stops-head span {
   padding: 1px 4px; /* match the rows' input padding so labels line up */
 }
+.gep-stops-head .gep-stop-tools {
+  padding: 0; /* width-matching spacer — the real tools cell has none */
+}
 .gep-stops-head-seq {
   flex: 0 0 26px;
   text-align: center;
@@ -1061,7 +1064,11 @@ body.editing #gtfsEditBtn {
   font-size: 10px !important;
 }
 .gep-stop-name {
-  flex: 1 1 auto;
+  /* Explicit basis: the header label and the input then share identical
+     grow/shrink math, keeping the columns after Name aligned. (With basis
+     auto, the input's ~160px intrinsic width shrinks while the short label
+     grows — different final widths.) */
+  flex: 1 1 60px;
   min-width: 60px;
 }
 .gep-stop-coord {
