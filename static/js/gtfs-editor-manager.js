@@ -960,7 +960,7 @@ APP.GtfsEditorManager = class {
     $("#validateList").empty();
     $("#validateModal").modal("show");
     fetch(`/data/gtfs-validate${year ? "?year=" + encodeURIComponent(year) : ""}`)
-      .then((r) => r.json())
+      .then((r) => r.json().catch(() => ({ error: `request failed (HTTP ${r.status})` })))
       .then((d) => {
         if (d.error) {
           $("#validateSummary").addClass("err").text(d.error);
@@ -1066,7 +1066,9 @@ APP.GtfsEditorManager = class {
     $("#previewSummary").text("Building feed…");
     $("#previewModal").modal("show");
     fetch(`/data/gtfs-preview${year ? "?year=" + encodeURIComponent(year) : ""}`)
-      .then((r) => r.json())
+      // Error statuses normally carry a JSON {error}; if the body isn't JSON
+      // (e.g. an HTML 404 page), report the status instead of a parse throw.
+      .then((r) => r.json().catch(() => ({ error: `request failed (HTTP ${r.status})` })))
       .then((d) => {
         if (d.error) {
           $("#previewSummary").text(d.error);
