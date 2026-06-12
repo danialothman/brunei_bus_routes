@@ -2,10 +2,13 @@ from flask import (
     Flask, render_template, send_from_directory, jsonify, json, request, Response,
     url_for,
 )
+import csv
 import datetime
+import io
 import os
 import re
 import math
+import zipfile
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as _xml_escape
 
@@ -945,6 +948,38 @@ def gtfs_validate():
         "warnings": len(findings) - errors,
         "findings": findings,
     })
+
+
+# Preview payloads stay bounded: stop_times.txt alone can run to tens of
+# thousands of rows, which would bloat the JSON and stall the browser table.
+GTFS_PREVIEW_MAX_ROWS = 500
+
+
+@app.route("/data/gtfs-preview")
+def gtfs_preview():
+    """Build the year's feed in memory and return every file's parsed contents,
+    so the workbench can show the data exactly as the export will emit it."""
+    year = _resolve_year(request.args.get("year"))
+    routes, agencies, params = gtfs_feed_inputs(year)
+    if not routes:
+        return jsonify({"error": "no routes to export"}), 404
+    data, stats = gtfs.build_feed(routes, agencies, params)
+    files = []
+    with zipfile.ZipFile(io.BytesIO(data)) as zf:
+        for name in zf.namelist():
+            text = zf.read(name).decode("utf-8-sig")
+            rows = list(csv.reader(io.StringIO(text)))
+            header = rows[0] if rows else []
+            body = rows[1:]
+            files.append({
+                "name": name,
+                "header": header,
+                "rows": body[:GTFS_PREVIEW_MAX_ROWS],
+                "total_rows": len(body),
+                "truncated": len(body) > GTFS_PREVIEW_MAX_ROWS,
+                "size": zf.getinfo(name).file_size,
+            })
+    return jsonify({"year": year, "size": len(data), "stats": stats, "files": files})
 
 
 @app.route("/data/gtfs.zip")

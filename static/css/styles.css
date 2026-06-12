@@ -906,6 +906,12 @@ body.editing #gtfsEditBtn {
 #gepStopsList {
   max-height: 230px;
   overflow-y: auto;
+  /* Keep the scrollbar off the row tools (the delete ✕ is the rightmost item).
+     Firefox/Zen overlay scrollbars ignore scrollbar-gutter (overlay gutter is
+     zero-width), so the padding must clear the bar's own width. */
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  padding-right: 18px;
 }
 .gep-stop-row {
   display: flex;
@@ -1244,6 +1250,125 @@ body.editing #gtfsEditBtn {
   font-family: var(--gtfs-mono);
   font-size: 11px;
   color: var(--gtfs-ink-soft);
+}
+
+/* Feed preview: tabbed view of the files the export emits */
+.gep-preview-dialog {
+  width: auto;
+  max-width: 1100px;
+  margin: 30px auto;
+}
+.gep-preview-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.gep-preview-toolbar #previewFilter {
+  flex: 0 1 260px;
+  margin-left: auto;
+}
+.gep-preview-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.gep-preview-tab {
+  font-family: var(--gtfs-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  border: 1px solid var(--gtfs-line);
+  border-radius: 3px;
+  background: #f0ede5;
+  color: var(--gtfs-ink);
+  cursor: pointer;
+}
+.gep-preview-tab:hover {
+  background: #e6e2d6;
+}
+.gep-preview-tab.active {
+  background: var(--gtfs-ink);
+  border-color: var(--gtfs-ink);
+  color: #fff;
+}
+.gep-preview-tab-count {
+  margin-left: 6px;
+  opacity: 0.65;
+}
+.gep-preview-meta {
+  font-family: var(--gtfs-mono);
+  font-size: 11px;
+  color: var(--gtfs-ink-soft);
+  margin-bottom: 4px;
+}
+.gep-preview-source {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--gtfs-ink);
+  padding: 5px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  background: #f0ede5;
+}
+.gep-preview-source:empty {
+  display: none;
+}
+.gep-preview-source.edit {
+  background: #e6f2e6;
+}
+.gep-preview-source.partial {
+  background: #fdf3d7;
+}
+.gep-preview-source.auto {
+  background: #ece9e2;
+  color: var(--gtfs-ink-soft);
+}
+.gep-preview-source-badge {
+  flex: 0 0 auto;
+  font-family: var(--gtfs-mono);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.gep-preview-source.edit .gep-preview-source-badge {
+  color: var(--gtfs-go);
+}
+.gep-preview-source.partial .gep-preview-source-badge {
+  color: #8a6d00;
+}
+.gep-preview-table-wrap {
+  max-height: 60vh;
+  overflow: auto;
+  border: 1px solid var(--gtfs-line);
+  border-radius: 4px;
+}
+.gep-preview-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--gtfs-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.gep-preview-table th {
+  position: sticky;
+  top: 0;
+  background: var(--gtfs-ink);
+  color: #fff;
+  font-weight: 600;
+  text-align: left;
+  padding: 4px 8px;
+}
+.gep-preview-table td {
+  padding: 3px 8px;
+  border-bottom: 1px dotted var(--gtfs-line);
+  color: var(--gtfs-ink);
+}
+.gep-preview-table tbody tr:nth-child(even) {
+  background: #f7f5ee;
 }
 
 @media (max-width: 991px) {
