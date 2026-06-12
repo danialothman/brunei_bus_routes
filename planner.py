@@ -30,6 +30,7 @@ TRANSFER_MAX_S = 900         # cap on a chained walk between rides (~15 min)
 MAX_DIRECT_WALK_M = 2000.0   # offer a walk-only journey under this
 MAX_ROUNDS = 5               # rides per journey (= 4 transfers)
 SLICE_TOL_M = 250.0          # a ride leg's drawn line must end this close to its stops
+THREAD_OFFSHAPE_M = 800.0    # threading still anchors a stop this far off the line
 
 _INF = float("inf")
 _DAY_COLS = ("monday", "tuesday", "wednesday", "thursday", "friday",
@@ -302,15 +303,112 @@ class Network:
         ai = min(range(bi + 1, len(pts)), key=lambda i: _haversine(pts[i], apt))
         return self._slice_shape(shape_id, cum[bi], cum[ai])
 
+    def _thread_by_stops(self, pat, bpos, apos):
+        """Leg geometry threaded hop-by-hop through the shape, for tracings
+        whose stop order doesn't follow the drawn line (multi-pass loops).
+
+        Each stop may sit near several passes of the line; a small DP picks
+        one pass per stop minimizing the total along-shape jump, then each
+        consecutive-stop hop is a (possibly reversed) slice between the
+        chosen passes. Stops too far off the shape entirely (the line was
+        never traced down their road) are bridged with straight hops to
+        their neighbours, and a hop whose along-shape span is implausible
+        against its straight-line distance degrades to a straight segment —
+        so bad data costs short cuts between adjacent stops, never a
+        kilometres-long one. Returns None when no stop is near the shape."""
+        sh = self.shapes.get(pat["shape_id"])
+        if not sh:
+            return None
+        pts, cum = sh
+        stop_pts = [[self.stops[i]["lon"], self.stops[i]["lat"]]
+                    for i in pat["stop_idxs"][bpos:apos + 1]]
+
+        # Candidate passes per stop: the best vertex of each near-the-stop
+        # run of consecutive vertices. A moderately off-line stop (misplaced
+        # marker or sloppy tracing) still anchors to its nearest pass so the
+        # hop can follow the road; None = the line truly never goes there.
+        cand_lists = []
+        for sp in stop_pts:
+            d = [_haversine(p, sp) for p in pts]
+            best = min(d)
+            if best > THREAD_OFFSHAPE_M:
+                cand_lists.append(None)
+                continue
+            tol = best + 60.0
+            cands = []
+            run = []
+            for i, di in enumerate(d):
+                if di <= tol:
+                    run.append(i)
+                else:
+                    if run:
+                        cands.append(min(run, key=lambda k: d[k]))
+                    run = []
+            if run:
+                cands.append(min(run, key=lambda k: d[k]))
+            cand_lists.append(cands)
+
+        on_shape = [n for n, c in enumerate(cand_lists) if c]
+        if not on_shape:
+            return None
+
+        # DP over the on-shape stops' passes: minimize the summed
+        # |along-shape jump| between consecutive ones (counts are tiny).
+        prev_cost = [0.0] * len(cand_lists[on_shape[0]])
+        back_ptr = []
+        for a, b in zip(on_shape, on_shape[1:]):
+            cost = []
+            back = []
+            for vj in cand_lists[b]:
+                best_c, best_k = float("inf"), 0
+                for k, vk in enumerate(cand_lists[a]):
+                    c = prev_cost[k] + abs(cum[vj] - cum[vk])
+                    if c < best_c:
+                        best_c, best_k = c, k
+                cost.append(best_c)
+                back.append(best_k)
+            prev_cost = cost
+            back_ptr.append(back)
+        j = min(range(len(prev_cost)), key=lambda k: prev_cost[k])
+        chosen = {}
+        for i in range(len(on_shape) - 1, 0, -1):
+            chosen[on_shape[i]] = cand_lists[on_shape[i]][j]
+            j = back_ptr[i - 1][j]
+        chosen[on_shape[0]] = cand_lists[on_shape[0]][j]
+
+        geom = []
+
+        def extend(seg):
+            for p in seg:
+                if not geom or geom[-1] != p:
+                    geom.append(p)
+
+        for n in range(len(stop_pts) - 1):
+            straight = _haversine(stop_pts[n], stop_pts[n + 1])
+            if n in chosen and (n + 1) in chosen:
+                d1, d2 = cum[chosen[n]], cum[chosen[n + 1]]
+                if abs(d2 - d1) <= max(5.0 * straight, 1000.0):
+                    seg = self._slice_shape(
+                        pat["shape_id"], min(d1, d2), max(d1, d2)) or []
+                    if d2 < d1:
+                        seg = seg[::-1]
+                else:
+                    seg = [stop_pts[n], stop_pts[n + 1]]
+            else:  # one end is off the drawn line — bridge it directly
+                seg = [stop_pts[n], stop_pts[n + 1]]
+            extend(seg)
+        return geom if len(geom) >= 2 else None
+
     def _ride_geometry(self, pat, bpos, apos):
         """Polyline for a ride leg, anchored to its board/alight stops.
 
         The feed's stop->shape projections can collapse on loop routes (a
         monotonic snap that runs ahead of the stops), leaving a slice that
         ends kilometres from the alight stop. Validate the slice, re-derive
-        it from the stops' own nearest shape vertices when it's off, and as
-        a last resort draw stop-to-stop lines. Ends are pinned to the exact
-        stop coordinates so consecutive journey legs always connect."""
+        it from the stops' own nearest shape vertices when it's off, thread
+        it stop-by-stop through the shape's passes when even that fails,
+        and as a last resort draw stop-to-stop lines. Ends are pinned to
+        the exact stop coordinates so consecutive journey legs connect."""
         board = self.stops[pat["stop_idxs"][bpos]]
         alight = self.stops[pat["stop_idxs"][apos]]
         bpt = [board["lon"], board["lat"]]
@@ -321,6 +419,8 @@ class Network:
         if not self._slice_ok(geom, bpt, apt):
             geom = self._reslice_by_stops(pat["shape_id"], bpt, apt)
         if not self._slice_ok(geom, bpt, apt):
+            geom = self._thread_by_stops(pat, bpos, apos)
+        if geom is None or len(geom) < 2:
             geom = [[self.stops[i]["lon"], self.stops[i]["lat"]]
                     for i in pat["stop_idxs"][bpos:apos + 1]]
         if geom[0] != bpt:
