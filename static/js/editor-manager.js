@@ -35,6 +35,7 @@ APP.EditorManager = class {
     this.undoStack = [];
     this.redoStack = [];
     this._suppressSnapshot = false;
+    this._seq = 0; // feature creation counter (stable ordering)
   }
 
   init() {
@@ -247,11 +248,16 @@ APP.EditorManager = class {
   }
 
   _buildFeatures(geom) {
+    // Stamp creation order: the vector source's own iteration order is its
+    // R-tree (spatial index), which shuffles as features move — serializing
+    // or listing in that order scrambles the stop sequence.
     this.source.clear();
+    this._seq = 0;
     geom.segments.forEach((seg) => {
       const coords = seg.map((p) => APP.MapUtils.toOL(p));
       const f = new ol.Feature(new ol.geom.LineString(coords));
       f.set("kind", "line");
+      f.set("seq", this._seq++);
       this.source.addFeature(f);
     });
     if (this.kind !== "geojson") {
@@ -260,15 +266,24 @@ APP.EditorManager = class {
         f.set("kind", "stop");
         f.set("name", s.name || "");
         f.set("code", s.code || ""); // public stop number (GTFS stop_code)
+        f.set("seq", this._seq++);
         this.source.addFeature(f);
       });
     }
   }
 
+  /** Source features in creation order (see _buildFeatures). */
+  orderedFeatures() {
+    return this.source
+      .getFeatures()
+      .slice()
+      .sort((a, b) => (a.get("seq") || 0) - (b.get("seq") || 0));
+  }
+
   _serialize() {
     const segments = [];
     const stops = [];
-    this.source.forEachFeature((f) => {
+    this.orderedFeatures().forEach((f) => {
       const geom = f.getGeometry();
       if (f.get("kind") === "line") {
         segments.push(
@@ -325,6 +340,7 @@ APP.EditorManager = class {
     this.draw.on("drawend", (e) => {
       const f = e.feature;
       f.set("kind", "stop");
+      f.set("seq", this._seq++); // new stops join the end of the sequence
       const name = window.prompt("Stop name:", "");
       f.set("name", name == null ? "" : name);
       // snapshot after the feature is committed to the source
@@ -334,6 +350,7 @@ APP.EditorManager = class {
     this.drawLine = new ol.interaction.Draw({ source: this.source, type: "LineString" });
     this.drawLine.on("drawend", (e) => {
       e.feature.set("kind", "line");
+      e.feature.set("seq", this._seq++);
       setTimeout(() => this._snapshot(), 0);
     });
 

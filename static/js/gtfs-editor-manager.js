@@ -144,7 +144,13 @@ APP.GtfsEditorManager = class {
 
   _liveStopFeatures() {
     if (!this._liveSource) return [];
-    return this._liveSource.getFeatures().filter((f) => f.get("kind") === "stop");
+    // getFeatures() iterates the source's R-tree, whose order shuffles as
+    // features move — sort by the editor's creation stamp so the list matches
+    // the saved stop sequence (and row indexes are stable across drags).
+    return this._liveSource
+      .getFeatures()
+      .filter((f) => f.get("kind") === "stop")
+      .sort((a, b) => (a.get("seq") || 0) - (b.get("seq") || 0));
   }
 
   /** Update one row's inputs in place during a drag (no re-render, no focus loss). */
