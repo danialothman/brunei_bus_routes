@@ -343,7 +343,13 @@ APP.EditorManager = class {
   /** In rename/delete tools, act on the stop under the click. */
   _handleClick(e) {
     if (!this.active) return;
-    if (this.tool !== "rename" && this.tool !== "delete") return;
+    if (
+      this.tool !== "rename" &&
+      this.tool !== "delete" &&
+      this.tool !== "move"
+    ) {
+      return; // drawline/addstop: a click means "draw here", not "inspect"
+    }
     let stop = null;
     let line = null;
     this.map.forEachFeatureAtPixel(
@@ -355,6 +361,13 @@ APP.EditorManager = class {
       },
       { hitTolerance: 6, layerFilter: (l) => l === this.layer }
     );
+    // Surface the clicked stop in the workbench's stops list (no-op on the
+    // main map page, whose route manager has no such hook). Not for delete —
+    // the row is about to disappear.
+    if (stop && this.tool !== "delete" && this.routeManager.highlightStop) {
+      this.routeManager.highlightStop(stop);
+    }
+    if (this.tool === "move") return;
     if (this.tool === "rename") {
       if (!stop) return;
       const name = window.prompt("Rename stop:", stop.get("name") || "");

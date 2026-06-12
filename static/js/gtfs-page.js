@@ -382,6 +382,11 @@ APP.GtfsPage = class {
     }
   }
 
+  /** Map → list: a stop clicked in the editor flashes its row in the pane. */
+  highlightStop(feature) {
+    this.gtfsEditor.highlightStopFeature(feature);
+  }
+
   setRouteDisplayName(year, file, name) {
     const id = this._id(year, file);
     this.names[id] = name || file.replace(/\.kml$/, "");

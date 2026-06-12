@@ -972,6 +972,12 @@ body.editing #gtfsEditBtn {
   align-items: center;
   gap: 4px;
   padding: 2px 0;
+  transition: background 0.6s ease;
+}
+/* Map → list echo: the row of a stop clicked in the editor. */
+.gep-stop-row.flash {
+  background: rgba(255, 209, 102, 0.5);
+  transition: none;
 }
 .gep-stop-row + .gep-stop-row {
   border-top: 1px dotted var(--gtfs-line);

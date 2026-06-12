@@ -165,6 +165,23 @@ APP.GtfsEditorManager = class {
     set(".gep-stop-code", feature.get("code") || "");
   }
 
+  /** Map → list: flash and scroll to the row of a stop clicked in the editor
+   * (the counterpart of the row's ① chip, which pans the map to the stop). */
+  highlightStopFeature(feature) {
+    const i = this._liveStopFeatures().indexOf(feature);
+    if (i < 0) return;
+    const rows = $("#gepStopsList .gep-stop-row");
+    rows.removeClass("flash");
+    const row = rows.eq(i);
+    if (!row.length) return;
+    row[0].scrollIntoView({ block: "nearest" });
+    // Force a reflow so re-clicking the same stop restarts the fade.
+    void row[0].offsetWidth;
+    row.addClass("flash");
+    clearTimeout(this._flashTimer);
+    this._flashTimer = setTimeout(() => row.removeClass("flash"), 1600);
+  }
+
   /** Stops as plain data, from the live editor session or saved geometry. */
   _stopsData() {
     if (this._liveSource) {
