@@ -911,7 +911,7 @@ body.editing #gtfsEditBtn {
      zero-width), so the padding must clear the bar's own width. */
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-  padding-right: 12px;
+  padding-right: 18px;
 }
 .gep-stop-row {
   display: flex;
