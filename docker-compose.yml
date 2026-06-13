@@ -1,0 +1,29 @@
+# Local Postgres that mirrors the managed database the app uses on Replit, so
+# the Postgres backend in db.py can be exercised without deploying. Start it with
+#   docker compose up -d
+# then point the app at it:
+#   DATABASE_URL=postgresql://brunei:brunei@localhost:5432/brunei_bus python app.py
+# Data persists in the named volume across restarts; `docker compose down -v`
+# wipes it. This file is for local dev/testing only — Replit provisions its own
+# Postgres and injects DATABASE_URL.
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: brunei_bus_pg
+    environment:
+      POSTGRES_USER: brunei
+      POSTGRES_PASSWORD: brunei
+      POSTGRES_DB: brunei_bus
+    ports:
+      - "5432:5432"
+    volumes:
+      - brunei_bus_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U brunei -d brunei_bus"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  brunei_bus_pgdata:
