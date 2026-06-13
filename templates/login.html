@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Editor login — Brunei Bus Routes</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/bootstrap.min.css') }}"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/styles.css') }}"
+    />
+    <style>
+      .login-wrap { max-width: 360px; margin: 12vh auto; padding: 0 16px; }
+      .login-wrap h1 { font-size: 22px; margin-bottom: 4px; }
+      .login-wrap .muted { color: #888; margin-bottom: 20px; }
+    </style>
+  </head>
+  <body>
+    <div class="login-wrap">
+      <h1>✎ Editor login</h1>
+      <p class="muted">Enter the editor password to make changes. Viewing the map needs no login.</p>
+      {% if error %}
+      <div class="alert alert-danger" role="alert">Incorrect password.</div>
+      {% endif %}
+      <form method="POST" action="{{ url_for('login_submit') }}">
+        <input type="hidden" name="next" value="{{ next }}" />
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input
+            type="password"
+            class="form-control"
+            id="password"
+            name="password"
+            autocomplete="current-password"
+            autofocus
+            required
+          />
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Log in</button>
+      </form>
+      <p style="margin-top: 16px">
+        <a href="{{ url_for('index') }}">← Back to the map</a>
+      </p>
+    </div>
+  </body>
+</html>

@@ -86,6 +86,10 @@ APP.EditorManager = class {
 
   enter(file, kind, year) {
     if (!file) return;
+    // Editing is for logged-in editors only. The public map sets APP_AUTHED to
+    // false; the server-gated /gtfs workbench leaves it unset (so editing works
+    // there). Either way the server enforces auth on every write.
+    if (window.APP_AUTHED === false) return;
     if (this.active) {
       if (this.file === file && this.kind === kind) return;
       if (!confirm("Finish editing the current route first? Unsaved in-session changes will be lost.")) {
@@ -121,6 +125,7 @@ APP.EditorManager = class {
    * @param {string} [defaultName] pre-fills the name prompt (e.g. a route number
    *   when launched from the official-stops reference panel). */
   createNew(defaultName) {
+    if (window.APP_AUTHED === false) return;  // logged-in editors only (see enter())
     if (this.active) {
       if (!confirm("Finish the current edit first? Unsaved changes will be lost.")) {
         return;

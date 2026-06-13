@@ -1,0 +1,28 @@
+# Replit configuration. Hosting notes:
+#  - Add the PostgreSQL tool to the Repl (Tools -> "PostgreSQL"). Replit then
+#    injects DATABASE_URL, and db.py uses Postgres automatically. Route edits
+#    persist across redeploys and across autoscale instances. Without it the app
+#    falls back to a local SQLite file, which an Autoscale Deployment wipes on
+#    every redeploy and does not share between instances.
+#  - The dev workspace "Run" button starts the Flask dev server; the deployment
+#    serves through gunicorn.
+#  - To enable editing, set two Secrets (Tools -> Secrets): EDITOR_PASSWORD (the
+#    shared editor password) and SECRET_KEY (a long random string for the session
+#    cookie). Fail-closed: without EDITOR_PASSWORD, editing is locked (no one can
+#    log in). See auth.py / README.
+
+modules = ["python-3.11"]
+
+# Dev workspace.
+run = "python app.py"
+
+[env]
+PORT = "8080"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "app:app"]
+
+[[ports]]
+localPort = 8080
+externalPort = 80

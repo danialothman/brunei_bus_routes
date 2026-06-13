@@ -281,7 +281,7 @@ APP.RideMusic = class {
     } catch (_) {
       /* localStorage unavailable */
     }
-    return 0.5;
+    return 0.2;
   }
 
   _loadMuted() {

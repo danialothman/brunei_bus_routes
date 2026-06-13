@@ -121,6 +121,67 @@ python -m venv .venv
 Then open http://localhost:8000 in your browser. To stop the server, press
 Ctrl+C in the terminal.
 
+## Hosting on Replit
+
+The app runs on Replit as-is, but route edits need a persistent home. Edits are
+stored in a database whose backend is chosen at runtime (see `db.py`):
+
+- **No `DATABASE_URL`** → a local SQLite file (`instance/edits.db`). Fine for
+  local dev, but a Replit Autoscale Deployment has an **ephemeral filesystem**:
+  the file is wiped on every redeploy and is not shared between instances, so
+  saved edits would be lost.
+- **`DATABASE_URL` set** → PostgreSQL, which lives outside that filesystem and
+  persists across redeploys and instances.
+
+To host with persistence:
+
+1. Add the **PostgreSQL** tool to your Repl (Tools → PostgreSQL). Replit injects
+   `DATABASE_URL` automatically; the app picks it up with no code changes.
+2. Deploy. The included `.replit` runs the app under gunicorn for Autoscale.
+3. (Optional) Carry over existing local edits — with `DATABASE_URL` pointing at
+   the Postgres target, run:
+
+   ```bash
+   python scripts/migrate_sqlite_to_pg.py   # copies instance/edits.db into Postgres
+   ```
+
+The git-tracked route data and stop images travel with the repo, and the
+client-side bits (recent trips, ride-music settings) live in browser
+`localStorage` — neither is affected by the host.
+
+### Editor login
+
+The map, planner, and ride pages are public and read-only. **Editing** — route
+geometry, schedules, notes, the `/gtfs` workbench, and all write endpoints —
+requires logging in with a single shared password (`auth.py`).
+
+Set two secrets (Repl → Tools → Secrets):
+
+- `EDITOR_PASSWORD` — the editor password. **Fail-closed: if unset, editing is
+  locked** (no one can log in) and a warning is logged at startup. Set it to
+  enable the editor — locally and in production alike.
+- `SECRET_KEY` — a long random string that signs the session cookie. Required so
+  the login stays valid across gunicorn workers and autoscale instances; locally
+  it falls back to a random per-process value (sessions reset on restart).
+
+Log in via the **✎ Log in** button (or visit `/login`). The session cookie is
+`HttpOnly`, `SameSite=Lax`, and `Secure` in production. Login attempts are rate
+limited to slow password guessing.
+
+### Rate limiting
+
+The data-entry (write) endpoints are rate limited per client IP to stop
+automated flooding of the edits DB. Defaults are **30 writes / 10s** and
+**100 writes / 60s** — far above human editing (autosaves debounce at ~0.6–0.8s),
+but enough to cut off a script within seconds. Over-limit requests get `429` with
+a `Retry-After` header. Counters live in the app DB (`ratelimit.py`), so limits
+hold across gunicorn workers and autoscale instances. Reads are not limited.
+
+Tune without code changes via env vars: `RATE_LIMIT_WRITE="30/10,100/60"`
+(hits/seconds, comma-separated) or `RATE_LIMIT_DISABLED=1` to turn it off. The app
+trusts one proxy hop (`X-Forwarded-For`) so the real client IP is used behind
+Replit's proxy.
+
 ## Usage
 
 - Use the sidebar to toggle different bus routes on/off
