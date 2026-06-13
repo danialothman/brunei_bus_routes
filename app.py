@@ -1066,8 +1066,8 @@ def _planner_network(year):
 
 @app.route("/planner")
 def planner_page():
-    # Trip planner: point-to-point journeys over a chosen dataset year.
-    return render_template("planner.html")
+    # Old URL kept for bookmarks and ride-exit links; the planner is now "/".
+    return redirect(url_for("index"))
 
 
 @app.route("/data/planner-stops")
@@ -1153,6 +1153,13 @@ def auth_status():
 
 @app.route("/")
 def index():
+    # The trip planner is the homepage.
+    return render_template("planner.html")
+
+
+@app.route("/map")
+def map_page():
+    # The route map (formerly the homepage). Editor controls are gated by auth.
     return render_template(
         "index.html", authed=auth.is_authed(), auth_configured=auth.configured()
     )
