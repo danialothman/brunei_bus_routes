@@ -412,6 +412,31 @@
       </div>
     </div>
 
+    <!-- 3D ride engine chooser (shared launcher.js drives it) -->
+    <div class="modal fade" id="engineModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-sm" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">
+              &times;
+            </button>
+            <h4 class="modal-title">🚌 Ride <span id="engineRouteName"></span></h4>
+          </div>
+          <div class="modal-body">
+            <p>Choose a 3D engine:</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" id="engineThree" data-dismiss="modal">
+              Three.js
+            </button>
+            <button type="button" class="btn btn-info" id="engineMaplibre" data-dismiss="modal">
+              MapLibre
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/config.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
@@ -420,5 +445,6 @@
     <script src="{{ url_for('static', filename='js/stop-image-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/gtfs-editor-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/gtfs-page.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/launcher.js') }}"></script>
   </body>
 </html>

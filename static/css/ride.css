@@ -432,6 +432,21 @@ body {
   color: #111;
 }
 
+/* Map-type picker — matches the toggles; options dark for native dropdowns. */
+#ride-controls .ride-style {
+  height: 36px;
+  padding: 0 8px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.28);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+#ride-controls .ride-style option {
+  color: #111;
+}
+
 #ride-controls .speed {
   display: flex;
   align-items: center;

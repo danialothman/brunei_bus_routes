@@ -26,7 +26,8 @@ APP.Minimap = class {
     this.H = 180;
     this.heading = 0;
     this.lastLonLat = null;
-    this.tiles = new Map(); // "z/x/y" -> Image (tile cache across frames/zooms)
+    this.style = "osm"; // map type; switched via setStyle()
+    this.tiles = new Map(); // "style/z/x/y" -> Image (tile cache across frames)
     this._rafPending = false;
     this._routeKey = null;
 
@@ -224,6 +225,21 @@ APP.Minimap = class {
     this.resetBtn.classList.toggle("hidden", this.zoom === this.defaultZoom);
   }
 
+  // Switch the base map type (osm/satellite/terrain/dark): swap the tile source,
+  // drop cached tiles, clamp to the style's max zoom, and redraw.
+  setStyle(style) {
+    if (!APP.RIDE_TILES[style] || style === this.style) return;
+    this.style = style;
+    this.maxZoom = APP.RIDE_TILES[style].maxZoom;
+    if (this.zoom > this.maxZoom) {
+      this.zoom = this.maxZoom;
+      this._updateResetBtn();
+    }
+    this.tiles.clear();
+    this._routeKey = null;
+    this._render();
+  }
+
   /**
    * Move the bus marker. Heading is derived from movement unless provided.
    * @param {number[]} lonLat - [lon, lat]
@@ -264,7 +280,7 @@ APP.Minimap = class {
     const oX = this._originX;
     const oY = this._originY;
     ctx.setTransform(this.ratio, 0, 0, this.ratio, 0, 0);
-    ctx.fillStyle = "#dfe3e8";
+    ctx.fillStyle = (APP.RIDE_TILES[this.style] || {}).fallback || "#dfe3e8";
     ctx.fillRect(0, 0, this.W, this.H);
 
     const tilesPerSide = 2 ** Z;
@@ -272,7 +288,6 @@ APP.Minimap = class {
     const x1 = Math.floor((oX + this.W) / 256);
     const y0 = Math.floor(oY / 256);
     const y1 = Math.floor((oY + this.H) / 256);
-    const subs = ["a", "b", "c"];
 
     for (let x = x0; x <= x1; x++) {
       for (let y = y0; y <= y1; y++) {
@@ -280,7 +295,7 @@ APP.Minimap = class {
         const tx = ((x % tilesPerSide) + tilesPerSide) % tilesPerSide; // wrap lon
         const dx = x * 256 - oX;
         const dy = y * 256 - oY;
-        const key = `${Z}/${tx}/${y}`;
+        const key = `${this.style}/${Z}/${tx}/${y}`;
         let img = this.tiles.get(key);
         if (!img) {
           img = new Image();
@@ -288,7 +303,7 @@ APP.Minimap = class {
           // Redraw once it arrives (next frame would also catch it, but this
           // keeps a paused/overview view from waiting on the ride loop).
           img.onload = () => this._scheduleDraw();
-          img.src = `https://${subs[(tx + y) % 3]}.tile.openstreetmap.org/${Z}/${tx}/${y}.png`;
+          img.src = APP.rideTileUrl(this.style, Z, tx, y);
           this.tiles.set(key, img);
         }
         if (img.complete && img.naturalWidth) {

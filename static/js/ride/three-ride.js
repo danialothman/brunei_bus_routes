@@ -24,6 +24,7 @@ const els = {
   toggleMinimap: document.getElementById("toggle-minimap"),
   minimap: document.getElementById("minimap"),
   legs: document.getElementById("ride-legs"),
+  mapStyle: document.getElementById("mapStyle"),
 };
 
 function showError(msg) {
@@ -58,7 +59,7 @@ function chooseZoom(b, maxPerSide) {
   return 12;
 }
 
-async function buildGround(bounds, origin) {
+async function buildGround(bounds, origin, style) {
   // Pad the route bbox so we see a bit of surroundings.
   const padLon = (bounds.maxLon - bounds.minLon) * 0.15 + 0.002;
   const padLat = (bounds.maxLat - bounds.minLat) * 0.15 + 0.002;
@@ -80,16 +81,15 @@ async function buildGround(bounds, origin) {
   canvas.width = cols * 256;
   canvas.height = rows * 256;
   const ctx = canvas.getContext("2d");
-  ctx.fillStyle = "#e2e5e9";
+  ctx.fillStyle = (APP.RIDE_TILES[style] || {}).fallback || "#e2e5e9";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  const subs = ["a", "b", "c"];
   const loads = [];
   for (let x = x0; x <= x1; x++) {
     for (let y = y0; y <= y1; y++) {
       const dx = (x - x0) * 256;
       const dy = (y - y0) * 256;
-      const url = `https://${subs[(x + y) % 3]}.tile.openstreetmap.org/${z}/${x}/${y}.png`;
+      const url = APP.rideTileUrl(style, z, x, y);
       loads.push(
         new Promise((resolve) => {
           const img = new Image();
@@ -287,9 +287,12 @@ async function main() {
     return;
   }
 
-  // A planned-trip preview returns to the planner, not the route map.
+  // Exit target: a planned-trip preview returns to the planner, a GTFS-launched
+  // ride to the workbench; otherwise the route map (template default).
   if (routeFile === RP.TRIP_PREVIEW) {
     document.getElementById("exit").href = "/planner";
+  } else if (new URLSearchParams(location.search).get("from") === "gtfs") {
+    document.getElementById("exit").href = "/gtfs";
   }
 
   let geo;
@@ -350,7 +353,8 @@ async function main() {
   );
 
   els.statusSub.textContent = "Loading map tiles…";
-  const ground = await buildGround(geo.bounds, origin);
+  let mapStyle = "osm";
+  let ground = await buildGround(geo.bounds, origin, mapStyle);
   scene.add(ground);
   scene.add(buildRoad(pts, color, geo.pathColors));
   const bus = buildBus(color);
@@ -497,6 +501,23 @@ async function main() {
     els.toggleMinimap.classList.toggle("active", visible);
     els.toggleMinimap.setAttribute("aria-pressed", String(visible));
   });
+  if (els.mapStyle) {
+    // Change the base map type: re-texture the ground, retint sky/fog, sync minimap.
+    els.mapStyle.addEventListener("change", async () => {
+      mapStyle = els.mapStyle.value;
+      const sky = mapStyle === "dark" ? 0x15151a : 0x87ceeb;
+      scene.background = new THREE.Color(sky);
+      scene.fog = new THREE.Fog(sky, 400, 1600);
+      minimap.setStyle(mapStyle);
+      const prev = ground;
+      ground = await buildGround(geo.bounds, origin, mapStyle);
+      scene.add(ground);
+      scene.remove(prev);
+      prev.geometry.dispose();
+      if (prev.material.map) prev.material.map.dispose();
+      prev.material.dispose();
+    });
+  }
 
   // Jump the ride to a fraction f (0..1) of the route and refresh every readout.
   function seekTo(f) {

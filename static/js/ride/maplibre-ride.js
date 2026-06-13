@@ -23,6 +23,7 @@
     toggleMinimap: document.getElementById("toggle-minimap"),
     minimap: document.getElementById("minimap"),
     legs: document.getElementById("ride-legs"),
+    mapStyle: document.getElementById("mapStyle"),
   };
 
   function showError(msg) {
@@ -56,9 +57,12 @@
       return;
     }
 
-    // A planned-trip preview returns to the planner, not the route map.
+    // Exit target: a planned-trip preview returns to the planner, a GTFS-launched
+    // ride to the workbench; otherwise the route map (template default).
     if (routeFile === RP.TRIP_PREVIEW) {
       document.getElementById("exit").href = "/planner";
+    } else if (new URLSearchParams(location.search).get("from") === "gtfs") {
+      document.getElementById("exit").href = "/gtfs";
     }
 
     let geo;
@@ -340,6 +344,14 @@
       els.toggleMinimap.classList.toggle("active", visible);
       els.toggleMinimap.setAttribute("aria-pressed", String(visible));
     });
+    if (els.mapStyle) {
+      els.mapStyle.addEventListener("change", () => {
+        const style = els.mapStyle.value;
+        const src = map.getSource("osm");
+        if (src && src.setTiles) src.setTiles(APP.rideTileList(style));
+        minimap.setStyle(style);
+      });
+    }
 
     // Scrub: click or drag along the progress bar to jump anywhere in the ride.
     // The frame loop reads `traveled` every tick, so the bus/camera/minimap

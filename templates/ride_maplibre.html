@@ -96,6 +96,12 @@
       <button id="next-stop" title="Next stop">⏭</button>
       <button id="toggle-stops" class="toggle-btn active" title="Show/hide stops" aria-pressed="true">🚏 Stops</button>
       <button id="toggle-minimap" class="toggle-btn active" title="Show/hide minimap" aria-pressed="true">🗺 Map</button>
+      <select id="mapStyle" class="ride-style" title="Map type">
+        <option value="osm">OpenStreetMap</option>
+        <option value="satellite">Satellite</option>
+        <option value="terrain">Terrain</option>
+        <option value="dark">Dark</option>
+      </select>
       <div class="speed">
         <span>Speed</span>
         <input id="speed" type="range" min="10" max="120" step="5" value="40" />
