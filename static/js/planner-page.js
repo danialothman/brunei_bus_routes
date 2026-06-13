@@ -64,6 +64,8 @@ APP.PlannerPage = class {
 
     $("#tpPickFrom").on("click", () => this.armPick("from"));
     $("#tpPickTo").on("click", () => this.armPick("to"));
+    $("#tpUseLocation").on("click", () => this.useMyLocation());
+    if (!navigator.geolocation) $("#tpUseLocation").hide(); // unsupported browser
     $("#tpSwap").on("click", () => this.swap());
     $("#tpPlan").on("click", () => this.plan());
     $("#tpClearPlan").on("click", () => this.clearPlan());
@@ -101,14 +103,8 @@ APP.PlannerPage = class {
     $("#engineThree").on("click", () => this.rideJourney("three"));
     $("#engineMaplibre").on("click", () => this.rideJourney("maplibre"));
 
-    // Default travel time: now, today.
-    const now = new Date();
-    $("#tpTime").val(
-      `${String(now.getHours()).padStart(2, "0")}:${String(
-        now.getMinutes()
-      ).padStart(2, "0")}`
-    );
-    $("#tpDay").val(String((now.getDay() + 6) % 7)); // JS Sun=0 -> Mon=0
+    // Time and day default to "any" (blank time, "Any day" option) — the planner
+    // searches typical service unless the user filters to a specific time/day.
 
     // Coming back (e.g. from a 3D trip preview): restore the previous
     // search and re-plan it, so A/B and the results survive the round trip.
@@ -293,18 +289,83 @@ APP.PlannerPage = class {
     this.drawMarkers();
   }
 
+  /** Use the browser's geolocation as the start (A) — only if the user grants it.
+   * Sets A to the reported coordinate (the planner snaps to the nearest stop, as
+   * with a map-click) and centres the map there so it can be checked/adjusted. */
+  useMyLocation() {
+    if (!navigator.geolocation) {
+      this._geoHint("Location isn't available in this browser.");
+      return;
+    }
+    const btn = $("#tpUseLocation").prop("disabled", true);
+    this._geoHint("Locating you…", false);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        btn.prop("disabled", false);
+        $("#tpMapHint").hide();
+        const lon = pos.coords.longitude;
+        const lat = pos.coords.latitude;
+        this.setPoint("from", lon, lat, "My location");
+        const view = this.map.getView();
+        view.animate({
+          center: APP.MapUtils.toOL([lon, lat]),
+          zoom: Math.max(view.getZoom() || 0, 15),
+          duration: 400,
+        });
+      },
+      (err) => {
+        btn.prop("disabled", false);
+        this._geoHint(
+          err && err.code === err.PERMISSION_DENIED
+            ? "Location permission denied — pick the start on the map instead."
+            : "Couldn't get your location — pick the start on the map instead."
+        );
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+    );
+  }
+
+  /** Transient message in the map-hint overlay (auto-hides unless told not to). */
+  _geoHint(msg, autoHide = true) {
+    $("#tpMapHint").text(msg).show();
+    clearTimeout(this._geoHintTimer);
+    if (autoHide) {
+      this._geoHintTimer = setTimeout(() => $("#tpMapHint").hide(), 4000);
+    }
+  }
+
   stopTyped(which) {
-    // Typing a stop name (via the datalist) pins the point to that stop.
+    // A point can be set by typing a stop name (via the datalist) or a raw
+    // "lat, lon" coordinate. Stop-name match wins; then coordinates.
     const text = $(which === "from" ? "#tpFrom" : "#tpTo").val().trim();
+    if (!text) {
+      this[which] = null;
+      this.drawMarkers();
+      return;
+    }
     const stop = this.stops.find(
       (s) => this.stopLabel(s).toLowerCase() === text.toLowerCase()
     ) || this.stops.find((s) => s.name.toLowerCase() === text.toLowerCase());
     if (stop) {
       this.setPoint(which, stop.lon, stop.lat, this.stopLabel(stop));
-    } else if (!text) {
-      this[which] = null;
-      this.drawMarkers();
+      return;
     }
+    const c = this._parseLatLon(text);
+    if (c) {
+      this.setPoint(which, c.lon, c.lat, `${c.lat.toFixed(5)}, ${c.lon.toFixed(5)}`);
+    }
+  }
+
+  /** Parse "lat, lon" (latitude first, the order shown for map-picked points).
+   * Returns {lat, lon} within valid ranges, or null. */
+  _parseLatLon(text) {
+    const m = text.match(/^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$/);
+    if (!m) return null;
+    const lat = parseFloat(m[1]);
+    const lon = parseFloat(m[2]);
+    if (!isFinite(lat) || !isFinite(lon)) return null;
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+    return { lat, lon };
   }
 
   swap() {
@@ -366,8 +427,8 @@ APP.PlannerPage = class {
       this.setStatus("Set both A and B first — click the map or type a stop.", "warn");
       return;
     }
-    const time = $("#tpTime").val() || "08:00";
-    const day = $("#tpDay").val();
+    const time = $("#tpTime").val(); // blank = any time (backend uses a default)
+    const day = $("#tpDay").val();   // "any" or 0..6
     const q = new URLSearchParams({
       year: this.year,
       from: `${this.from.lon},${this.from.lat}`,
@@ -527,42 +588,53 @@ APP.PlannerPage = class {
       );
       card.append(head);
 
+      const esc = (s) => $("<i>").text(s == null ? "" : s).html();
+      const legs = $('<div class="tp-legs"></div>');
       let rideIdx = 0;
       j.legs.forEach((leg) => {
         const row = $('<div class="tp-leg"></div>');
+        const body = $('<div class="tp-leg-body"></div>');
         if (leg.type === "walk") {
           const dest = leg.to.name || "destination";
           const dist = leg.road_dist_m || leg.dist_m;
-          row.addClass("tp-leg-walk").append(
-            $('<span class="tp-leg-icon">🚶</span>'),
-            $('<span class="tp-leg-text"></span>').text(
-              `${this.fmtDur(leg.arrive - leg.depart)} walk to ${dest}` +
-                (dist ? ` (${dist} m)` : "")
+          body.append(
+            $('<div class="tp-leg-main"></div>').text(
+              `${this.fmtDur(leg.arrive - leg.depart)} walk to ${dest}`
             )
+          );
+          if (dist) body.append($('<div class="tp-leg-sub"></div>').text(`${dist} m`));
+          row.addClass("tp-leg-walk").append(
+            $('<span class="tp-leg-node tp-leg-icon">🚶</span>'),
+            body
           );
         } else {
           const color = this.rideColor(leg, rideIdx++);
           const name = leg.short_name || leg.long_name || leg.route_id;
-          row.addClass("tp-leg-ride").append(
-            $('<span class="tp-leg-chip"></span>')
-              .text(name)
-              .css("background", color),
-            $('<span class="tp-leg-text"></span>').html(
-              `<b>${$("<i>").text(leg.board.name).html()}</b> ${this.fmt(
-                leg.depart
-              )} → <b>${$("<i>").text(leg.alight.name).html()}</b> ${this.fmt(
-                leg.arrive
-              )} · ${leg.stops.length - 1} stops` +
+          body.css("border-left-color", color).append(
+            $('<div class="tp-leg-main"></div>').html(
+              `<b>${esc(leg.board.name)}</b> <time>${this.fmt(leg.depart)}</time>` +
+                ` <span class="tp-leg-arrow">→</span> ` +
+                `<b>${esc(leg.alight.name)}</b> <time>${this.fmt(leg.arrive)}</time>`
+            ),
+            $('<div class="tp-leg-sub"></div>').html(
+              `${leg.stops.length - 1} stops` +
                 (leg.headsign
-                  ? ` · <span class="tp-headsign">${$("<i>")
-                      .text(leg.headsign)
-                      .html()}</span>`
+                  ? ` · <span class="tp-headsign">${esc(leg.headsign)}</span>`
                   : "")
             )
           );
+          const chip = $('<span class="tp-leg-node tp-leg-chip"></span>')
+            .css("background", color)
+            .append(
+              $('<span class="tp-chip-text"></span>').append(
+                $('<span class="tp-chip-run"></span>').text(name)
+              )
+            );
+          row.addClass("tp-leg-ride").append(chip, body);
         }
-        card.append(row);
+        legs.append(row);
       });
+      card.append(legs);
       card.append(
         $('<div class="tp-journey-ride"></div>').append(
           $(
@@ -572,6 +644,29 @@ APP.PlannerPage = class {
         )
       );
       out.append(card);
+    });
+    this._applyChipTickers(out);
+  }
+
+  /** Route chips are compact timeline nodes, so a long route name (e.g. "BSB
+   * Circular (C)") would be clipped. Where the name overflows its chip, scroll
+   * it as a seamless ticker: duplicate the run so a -50% slide loops without a
+   * seam, paused on hover so it can be read. Chips that fit are left static. */
+  _applyChipTickers(scope) {
+    scope.find(".tp-leg-chip").each((_, el) => {
+      const _cs = getComputedStyle(el);
+      const _avail =
+        el.clientWidth - parseFloat(_cs.paddingLeft) - parseFloat(_cs.paddingRight);
+      const _run = el.querySelector(".tp-chip-run");
+      if (!_run || _run.getBoundingClientRect().width <= _avail + 1) return; // fits — no ticker
+      const run = _run;
+      const text = el.querySelector(".tp-chip-text");
+      if (!text) return;
+      run.textContent += "  "; // trailing gap baked into each copy
+      text.appendChild(run.cloneNode(true)); // 2 copies → -50% loops seamlessly
+      const runW = run.getBoundingClientRect().width;
+      el.style.setProperty("--tp-ticker-dur", Math.max(4, runW / 22).toFixed(1) + "s");
+      el.classList.add("tp-chip-ticker");
     });
   }
 
@@ -652,15 +747,46 @@ APP.PlannerPage = class {
       if (first[li] == null) first[li] = i;
       last[li] = i;
     });
+    // phases drive the walk/ride marker swap; legs carry display info so the 3D
+    // ride can show the journey breakdown and highlight the leg being travelled.
+    const WALK_COLOR = "#9aa0a6"; // muted grey marks walked stretches
     const phases = [];
+    const legs = [];
+    const legColor = {}; // leg index -> colour, for the per-point path colouring
+    let rideIdx = 0;
     j.legs.forEach((leg, li) => {
       if (first[li] == null || last[li] <= first[li]) return; // leg despiked away
-      phases.push({
-        mode: leg.type === "walk" ? "walk" : "ride",
-        t0: cum[first[li]] / total,
-        t1: cum[last[li]] / total,
-      });
+      const t0 = cum[first[li]] / total;
+      const t1 = cum[last[li]] / total;
+      if (leg.type === "walk") {
+        legColor[li] = WALK_COLOR;
+        phases.push({ mode: "walk", t0, t1 });
+        legs.push({
+          mode: "walk",
+          t0,
+          t1,
+          color: WALK_COLOR,
+          to: (leg.to && leg.to.name) || "destination",
+        });
+      } else {
+        const c = this.rideColor(leg, rideIdx++);
+        legColor[li] = c;
+        phases.push({ mode: "ride", t0, t1 });
+        legs.push({
+          mode: "ride",
+          t0,
+          t1,
+          name: leg.short_name || leg.long_name || leg.route_id,
+          color: c,
+          board: leg.board.name,
+          alight: leg.alight.name,
+          headsign: leg.headsign || "",
+        });
+      }
     });
+    // Colour per path point (parallel to segments[0]) so the 3D centerline can
+    // be drawn in each leg's colour — rides in their route colour, walks grey.
+    const pathColors = legOf.map((li) => legColor[li] || WALK_COLOR);
 
     const lons = path.map((p) => p[0]);
     const lats = path.map((p) => p[1]);
@@ -674,6 +800,8 @@ APP.PlannerPage = class {
         maxLat: Math.max(...lats),
       },
       phases,
+      legs,
+      pathColors,
       name: `Planned trip ${this.fmt(j.departure)} → ${this.fmt(j.arrival)}`,
     };
   }

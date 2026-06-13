@@ -1932,39 +1932,125 @@ body.guide-page {
   color: var(--gtfs-ink-soft);
   white-space: nowrap;
 }
+/* Legs: separated cards threaded on a dotted transit timeline. The route chip
+   (or walk icon) is the node; each card carries the route colour on its rail. */
+.tp-legs {
+  margin: 9px 0 2px;
+}
 .tp-leg {
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-  padding: 3px 0;
-  font-size: 12px;
-  line-height: 1.4;
+  position: relative;
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: start;
+  gap: 9px;
+  margin-bottom: 9px;
 }
-.tp-leg-walk {
-  color: var(--gtfs-ink-soft);
+.tp-leg:last-child {
+  margin-bottom: 0;
 }
-.tp-leg-icon {
-  flex: 0 0 20px;
-  text-align: center;
+.tp-leg:not(:last-child)::after {   /* dotted connector down to the next node */
+  content: "";
+  position: absolute;
+  left: 13px;
+  top: 30px;
+  bottom: -9px;
+  border-left: 2px dotted var(--gtfs-line);
+}
+.tp-leg-node {
+  justify-self: center;
 }
 .tp-leg-chip {
-  flex: 0 0 auto;
-  min-width: 20px;
-  padding: 0 6px;
-  border-radius: 3px;
+  min-width: 26px;
+  max-width: 40px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0 5px;
+  border-radius: 4px;
   color: #fff;
   font-family: var(--gtfs-mono);
-  font-weight: 600;
+  font-weight: 700;
   font-size: 11px;
-  text-align: center;
+  letter-spacing: 0.02em;
 }
-.tp-leg-text {
+.tp-chip-text {
+  display: inline-flex;
+}
+.tp-chip-run {
+  white-space: nowrap;
+}
+/* Long route names scroll as a seamless ticker (two copies, -50% loop). */
+.tp-leg-chip.tp-chip-ticker {
+  justify-content: flex-start;
+}
+.tp-leg-chip.tp-chip-ticker .tp-chip-text {
+  animation: tp-chip-ticker var(--tp-ticker-dur, 6s) linear infinite;
+}
+.tp-leg-chip.tp-chip-ticker:hover .tp-chip-text {
+  animation-play-state: paused; /* pause to read */
+}
+@keyframes tp-chip-ticker {
+  to {
+    transform: translateX(-50%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tp-leg-chip.tp-chip-ticker .tp-chip-text {
+    animation: none;
+  }
+}
+.tp-leg-icon {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--gtfs-paper);
+  border: 1px dashed var(--gtfs-line);
+  font-size: 13px;
+}
+.tp-leg-body {
   min-width: 0;
+  background: var(--gtfs-card);
+  border: 1px solid var(--gtfs-line);
+  border-left: 3px solid var(--gtfs-line);
+  border-radius: 5px;
+  padding: 5px 9px;
+}
+.tp-leg-walk .tp-leg-body {
+  background: var(--gtfs-paper);
+  border-style: dashed;
+}
+.tp-leg-main {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--gtfs-ink);
+}
+.tp-leg-main b {
+  font-weight: 600;
+}
+.tp-leg-main time {
+  font-family: var(--gtfs-mono);
+  font-size: 11px;
+  color: var(--gtfs-ink-soft);
+}
+.tp-leg-arrow {
+  color: var(--gtfs-ink-soft);
+  padding: 0 3px;
+}
+.tp-leg-sub {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--gtfs-ink-soft);
 }
 .tp-headsign {
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--gtfs-ink-soft);
+  font-family: var(--gtfs-display);
+  font-size: 12.5px;
 }
 .tp-journey-ride {
   margin-top: 6px;

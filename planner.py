@@ -433,9 +433,17 @@ class Network:
 
     def plan(self, origin, dest, dep_secs, day, max_rounds=MAX_ROUNDS):
         """Journeys from origin to dest (both (lon, lat)) departing at/after
-        dep_secs on weekday `day` (0=Mon..6=Sun). Returns a dict with the
-        Pareto set over (arrival time, number of rides): one journey per ride
-        count that arrives strictly earlier than using fewer rides."""
+        dep_secs on weekday `day` (0=Mon..6=Sun, or None for any day). Returns a
+        dict with the Pareto set over (arrival time, number of rides): one
+        journey per ride count that arrives strictly earlier than fewer rides."""
+        # day=None ("any day"): a trip is eligible if it runs on at least one day.
+        if day is None:
+            def _runs(tr):
+                return any(tr["days"])
+        else:
+            def _runs(tr):
+                return tr["days"][day]
+
         access = [(i, d) for i, d in self._near(origin, ACCESS_RADIUS_M)]
         egress = {i: d for i, d in self._near(dest, ACCESS_RADIUS_M)}
         direct_m = _haversine(list(origin), list(dest))
@@ -521,7 +529,7 @@ class Network:
                         trip is None or t_here <= trip["times"][pos][1]
                     ):
                         for ti, tr in enumerate(trips):
-                            if tr["days"][day] and tr["times"][pos][1] >= t_here:
+                            if _runs(tr) and tr["times"][pos][1] >= t_here:
                                 if (trip is None
                                         or tr["times"][pos][1]
                                         < trip["times"][pos][1]

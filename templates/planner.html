@@ -81,7 +81,9 @@
               <span class="tp-dot tp-dot-a">A</span>
               <input type="text" id="tpFrom" class="form-control input-sm"
                 list="tpStopOptions" autocomplete="off"
-                placeholder="From — click the map or type a stop" />
+                placeholder="From — click the map, type a stop, or lat, lon" />
+              <button type="button" class="btn btn-default btn-sm tp-pick" id="tpUseLocation"
+                title="Use my current location as the start (A)">🎯</button>
               <button type="button" class="btn btn-default btn-sm tp-pick" id="tpPickFrom"
                 title="Pick the start point on the map">📍</button>
             </div>
@@ -89,15 +91,17 @@
               <span class="tp-dot tp-dot-b">B</span>
               <input type="text" id="tpTo" class="form-control input-sm"
                 list="tpStopOptions" autocomplete="off"
-                placeholder="To — click the map or type a stop" />
+                placeholder="To — click the map, type a stop, or lat, lon" />
               <button type="button" class="btn btn-default btn-sm tp-pick" id="tpPickTo"
                 title="Pick the destination on the map">📍</button>
             </div>
             <div class="tp-when-row">
               <button type="button" class="btn btn-default btn-sm" id="tpSwap"
                 title="Swap start and destination">⇅</button>
-              <label>Depart <input type="time" id="tpTime" class="form-control input-sm" /></label>
-              <select id="tpDay" class="form-control input-sm" title="Day of travel">
+              <label title="Optional — leave blank to search any departure time">Depart
+                <input type="time" id="tpTime" class="form-control input-sm" /></label>
+              <select id="tpDay" class="form-control input-sm" title="Optional — filter to a day of travel">
+                <option value="any">Any day</option>
                 <option value="0">Monday</option>
                 <option value="1">Tuesday</option>
                 <option value="2">Wednesday</option>
