@@ -13,11 +13,14 @@ APP.Minimap = class {
    * @param {object} bounds - {minLon, minLat, maxLon, maxLat}
    * @param {string} color - route color
    * @param {Array} [stops] - stop positions ([{lon,lat}] or [[lon,lat]])
+   * @param {string[]} [pathColors] - per-point colours (parallel to drivePath),
+   *   so a planned trip's line is drawn in each leg's colour
    */
-  constructor(container, drivePath, bounds, color, stops) {
+  constructor(container, drivePath, bounds, color, stops, pathColors) {
     this.container = container;
     this.drivePath = drivePath;
     this.color = color;
+    this.runs = this._computeRuns(pathColors); // null for a single-colour line
     this.stops = (stops || []).map((s) => (Array.isArray(s) ? s : [s.lon, s.lat]));
     this.W = 180;
     this.H = 180;
@@ -59,6 +62,25 @@ APP.Minimap = class {
     );
   }
 
+  // Contiguous same-colour spans of the path -> one polyline each. Returns null
+  // for a single colour (plain route), so the simple one-line path is used.
+  _computeRuns(pathColors) {
+    if (!Array.isArray(pathColors) || pathColors.length !== this.drivePath.length) {
+      return null;
+    }
+    const runs = [];
+    let start = 0;
+    for (let i = 1; i <= pathColors.length; i++) {
+      if (i === pathColors.length || pathColors[i] !== pathColors[start]) {
+        runs.push({ start, end: i - 1, color: pathColors[start] });
+        start = i;
+      }
+    }
+    // Extend each run onto the next run's first point so colours meet with no gap.
+    for (let k = 0; k < runs.length - 1; k++) runs[k].end = runs[k + 1].start;
+    return runs.length > 1 ? runs : null;
+  }
+
   _buildDom() {
     const { container, W, H, color } = this;
     container.innerHTML = "";
@@ -95,14 +117,23 @@ APP.Minimap = class {
     });
     svg.appendChild(this.casing);
 
-    this.route = mk("polyline", {
+    // Route line: one polyline per leg colour for a planned trip, else a single
+    // line. _drawRoute fills in their points (sliced per run) each frame.
+    const routeAttrs = (stroke) => ({
       fill: "none",
-      stroke: color,
+      stroke,
       "stroke-width": "2.5",
       "stroke-linejoin": "round",
       "stroke-linecap": "round",
     });
-    svg.appendChild(this.route);
+    if (this.runs) {
+      this.routeEls = this.runs.map((run) =>
+        svg.appendChild(mk("polyline", routeAttrs(run.color)))
+      );
+    } else {
+      this.route = mk("polyline", routeAttrs(color));
+      svg.appendChild(this.route);
+    }
 
     // Stop dots (over the route line, under the start dot + bus arrow).
     this.stopsGroup = mk("g", {});
@@ -286,14 +317,24 @@ APP.Minimap = class {
     if (key === this._routeKey) return;
     this._routeKey = key;
 
+    const proj = new Array(this.drivePath.length);
     let pts = "";
-    for (const [lon, lat] of this.drivePath) {
+    for (let i = 0; i < this.drivePath.length; i++) {
+      const [lon, lat] = this.drivePath[i];
       const x = this._worldX(lon, Z) - oX;
       const y = this._worldY(lat, Z) - oY;
-      pts += `${x.toFixed(1)},${y.toFixed(1)} `;
+      proj[i] = `${x.toFixed(1)},${y.toFixed(1)}`;
+      pts += proj[i] + " ";
     }
     this.casing.setAttribute("points", pts);
-    this.route.setAttribute("points", pts);
+    if (this.runs) {
+      for (let k = 0; k < this.runs.length; k++) {
+        const run = this.runs[k];
+        this.routeEls[k].setAttribute("points", proj.slice(run.start, run.end + 1).join(" "));
+      }
+    } else {
+      this.route.setAttribute("points", pts);
+    }
 
     const s = this.drivePath[0];
     this.startDot.setAttribute("cx", (this._worldX(s[0], Z) - oX).toFixed(1));

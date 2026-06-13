@@ -14,6 +14,8 @@ const els = {
   spPrev: document.getElementById("sp-prev"),
   spNext: document.getElementById("sp-next"),
   playpause: document.getElementById("playpause"),
+  prevStop: document.getElementById("prev-stop"),
+  nextStop: document.getElementById("next-stop"),
   speed: document.getElementById("speed"),
   speedVal: document.getElementById("speed-val"),
   progress: document.getElementById("progress-bar"),
@@ -21,6 +23,7 @@ const els = {
   toggleStops: document.getElementById("toggle-stops"),
   toggleMinimap: document.getElementById("toggle-minimap"),
   minimap: document.getElementById("minimap"),
+  legs: document.getElementById("ride-legs"),
 };
 
 function showError(msg) {
@@ -138,7 +141,7 @@ async function buildGround(bounds, origin) {
 }
 
 // --- Road ribbon + route line ------------------------------------------------
-function buildRoad(pts, color) {
+function buildRoad(pts, color, pathColors) {
   const half = 4.5;
   const edges = [];
   for (let i = 0; i < pts.length; i++) {
@@ -176,14 +179,24 @@ function buildRoad(pts, color) {
       })
     )
   );
-  // bright centerline in the route color
+  // Bright centerline — per-leg colours when a planned trip provides them
+  // (rides in route colour, walks grey), otherwise the single route colour.
   const linePts = pts.map((p) => new THREE.Vector3(p.x, 0.4, p.z));
-  group.add(
-    new THREE.Line(
-      new THREE.BufferGeometry().setFromPoints(linePts),
-      new THREE.LineBasicMaterial({ color })
-    )
-  );
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(linePts);
+  let lineMat;
+  if (Array.isArray(pathColors) && pathColors.length === pts.length) {
+    const cols = [];
+    const tmp = new THREE.Color();
+    for (const hex of pathColors) {
+      tmp.set(hex || color);
+      cols.push(tmp.r, tmp.g, tmp.b);
+    }
+    lineGeo.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3));
+    lineMat = new THREE.LineBasicMaterial({ vertexColors: true });
+  } else {
+    lineMat = new THREE.LineBasicMaterial({ color });
+  }
+  group.add(new THREE.Line(lineGeo, lineMat));
   return group;
 }
 
@@ -300,6 +313,8 @@ async function main() {
   const pts = RP.pathToMeters(drivePath, origin);
   // Stops projected onto the route (fraction 0..1) for the prev/next HUD.
   const stopList = RP.stopProgressList(drivePath, geo.stops);
+  // Trip-legs panel (planned previews only; hides itself for plain routes).
+  APP.RideLegs.build(els.legs, geo.legs);
 
   // Minimap overlay (shared widget) — built early so it shows while tiles load.
   const minimap = new APP.Minimap(
@@ -307,7 +322,8 @@ async function main() {
     drivePath,
     geo.bounds,
     color,
-    geo.stops
+    geo.stops,
+    geo.pathColors
   );
 
   // Scene
@@ -336,7 +352,7 @@ async function main() {
   els.statusSub.textContent = "Loading map tiles…";
   const ground = await buildGround(geo.bounds, origin);
   scene.add(ground);
-  scene.add(buildRoad(pts, color));
+  scene.add(buildRoad(pts, color, geo.pathColors));
   const bus = buildBus(color);
   scene.add(bus);
   // Planned-trip previews carry walk/ride phases: walked stretches swap the
@@ -429,6 +445,7 @@ async function main() {
 
   // Persistent previous/next stop HUD, driven by progress fraction u.
   function updateStopProgress(u) {
+    APP.RideLegs.update(u); // highlight the leg being travelled (independent of stops toggle)
     if (!stopList.length || !stopsVisible) {
       els.progressPanel.classList.add("hidden");
       return;
@@ -481,10 +498,9 @@ async function main() {
     els.toggleMinimap.setAttribute("aria-pressed", String(visible));
   });
 
-  // Scrub: click or drag along the progress bar to jump anywhere in the ride.
-  function scrubTo(clientX) {
-    const rect = els.progressWrap.getBoundingClientRect();
-    const f = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
+  // Jump the ride to a fraction f (0..1) of the route and refresh every readout.
+  function seekTo(f) {
+    f = Math.min(1, Math.max(0, f));
     traveled = f * totalLength;
     els.progress.style.width = `${(f * 100).toFixed(1)}%`;
     // Leaving the end clears the "replay" state so the icon reflects play/pause.
@@ -496,6 +512,34 @@ async function main() {
     updateStopProgress(f);
     minimap.update(RP.metersToLonLat({ x: busPos.x, z: busPos.z }, origin));
   }
+
+  // Scrub: click or drag along the progress bar to jump anywhere in the ride.
+  function scrubTo(clientX) {
+    const rect = els.progressWrap.getBoundingClientRect();
+    seekTo((clientX - rect.left) / rect.width);
+  }
+
+  // Skip to the previous / next stop along the route (dir -1 / +1).
+  function jumpStop(dir) {
+    if (!stopList.length) return;
+    const u = totalLength > 0 ? traveled / totalLength : 0;
+    const eps = 0.004;
+    let target;
+    if (dir > 0) {
+      const nx = stopList.find((s) => s.t > u + eps);
+      target = nx ? nx.t : 1;
+    } else {
+      let pv = null;
+      for (const s of stopList) {
+        if (s.t < u - eps) pv = s;
+        else break;
+      }
+      target = pv ? pv.t : 0;
+    }
+    seekTo(target);
+  }
+  els.prevStop.addEventListener("click", () => jumpStop(-1));
+  els.nextStop.addEventListener("click", () => jumpStop(1));
   els.progressWrap.addEventListener("pointerdown", (e) => {
     scrubbing = true;
     els.progressWrap.setPointerCapture(e.pointerId);
