@@ -219,16 +219,8 @@ APP.RouteManager = class {
     if (isRouteLike) {
       label.append($('<a class="route-ride-btn" title="3D ride">🚌</a>').attr(attrs));
     }
-    if (isUser) {
-      // Only the user's own routes are editable.
-      label.append($('<a class="route-edit-btn" title="Edit">✎</a>').attr(attrs));
-      label.append($('<a class="route-del-btn" title="Delete route">✕</a>').attr(attrs));
-    } else if (isRouteLike && this.canCreateUserRoutes) {
-      // Shipped routes are read-only — offer to copy into an editable route.
-      label.append(
-        $('<a class="route-copy-btn" title="Copy to my routes">📋</a>').attr(attrs)
-      );
-    }
+    // Editing actions (edit/delete user routes, copy shipped routes) live in the
+    // GTFS workbench, not the homepage list — the homepage stays view-only.
     return label;
   }
 
