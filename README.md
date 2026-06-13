@@ -149,6 +149,24 @@ The git-tracked route data and stop images travel with the repo, and the
 client-side bits (recent trips, ride-music settings) live in browser
 `localStorage` — neither is affected by the host.
 
+### Editor login
+
+The map, planner, and ride pages are public and read-only. **Editing** — route
+geometry, schedules, notes, the `/gtfs` workbench, and all write endpoints —
+requires logging in with a single shared password (`auth.py`).
+
+Set two secrets (Repl → Tools → Secrets):
+
+- `EDITOR_PASSWORD` — the editor password. **If unset, editing is left open** (as
+  it was before) and a warning is logged at startup, so set it in production.
+- `SECRET_KEY` — a long random string that signs the session cookie. Required so
+  the login stays valid across gunicorn workers and autoscale instances; locally
+  it falls back to a random per-process value (sessions reset on restart).
+
+Log in via the **✎ Log in** button (or visit `/login`). The session cookie is
+`HttpOnly`, `SameSite=Lax`, and `Secure` in production. Login attempts are rate
+limited to slow password guessing.
+
 ### Rate limiting
 
 The data-entry (write) endpoints are rate limited per client IP to stop

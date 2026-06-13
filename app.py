@@ -1,6 +1,6 @@
 from flask import (
     Flask, render_template, send_from_directory, jsonify, json, request, Response,
-    url_for,
+    url_for, session, redirect,
 )
 import csv
 import datetime
@@ -16,6 +16,7 @@ import db
 import gtfs
 import planner
 import ratelimit
+import auth
 
 # Prefer defusedxml to guard against XXE / entity-expansion attacks; fall back
 # to the stdlib parser (our KML files are trusted, shipped-in-repo assets).
@@ -37,6 +38,20 @@ app = Flask(
 from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
 
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
+
+# Signed-cookie sessions back the editor login (see auth.py). SECRET_KEY must be
+# set in production so the cookie validates across gunicorn workers and autoscale
+# instances (same rationale as DATABASE_URL); the random fallback is dev-only and
+# resets sessions on restart. SameSite=Lax is the CSRF baseline — the cookie isn't
+# sent on cross-site POST/DELETE/fetch — and the write endpoints already require
+# JSON. Secure is on only when SECRET_KEY is set, so local http login still works.
+app.secret_key = os.environ.get("SECRET_KEY") or os.urandom(32)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=bool(os.environ.get("SECRET_KEY")),
+    PERMANENT_SESSION_LIFETIME=datetime.timedelta(days=14),
+)
 
 # The route data is segregated by year so new datasets live alongside the repo
 # owner's original 2016 set (under sibling folders, e.g. data/2026). DATA_YEAR is
@@ -798,6 +813,7 @@ def get_gtfs_meta():
 
 
 @app.route("/data/gtfs-meta", methods=["POST"])
+@auth.login_required(api=True)
 @ratelimit.rate_limited()
 def save_gtfs_meta():
     payload = request.get_json(silent=True) or {}
@@ -859,6 +875,7 @@ def get_gtfs_config():
 
 
 @app.route("/data/gtfs-config", methods=["POST"])
+@auth.login_required(api=True)
 @ratelimit.rate_limited()
 def save_gtfs_config():
     payload = request.get_json(silent=True) or {}
@@ -1101,12 +1118,46 @@ def plan_trip():
     return jsonify(result)
 
 
+@app.route("/login")
+def login_page():
+    # Shared-password gate for the editor. Already in? Skip straight through.
+    if auth.is_authed():
+        return redirect(auth.safe_next(request.args.get("next")) or url_for("gtfs_page"))
+    return render_template("login.html", next=request.args.get("next", ""), error=False)
+
+
+@app.route("/login", methods=["POST"])
+@ratelimit.rate_limited(limits=[(5, 60), (20, 3600)], scope="login")
+def login_submit():
+    # Tight rate tiers above slow password brute-forcing.
+    if auth.check_password(request.form.get("password")):
+        session.permanent = True
+        session["authed"] = True
+        return redirect(auth.safe_next(request.form.get("next")) or url_for("gtfs_page"))
+    return render_template(
+        "login.html", next=request.form.get("next", ""), error=True
+    ), 401
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return redirect(url_for("index"))
+
+
+@app.route("/auth/status")
+def auth_status():
+    # Lets the frontend decide whether to show editor controls.
+    return jsonify({"authed": auth.is_authed()})
+
+
 @app.route("/")
 def index():
-    return render_template("index.html")
+    return render_template("index.html", authed=auth.is_authed())
 
 
 @app.route("/gtfs")
+@auth.login_required()
 def gtfs_page():
     # Dedicated GTFS workbench: route list + geometry editor + schedule forms.
     return render_template("gtfs.html")
@@ -1316,6 +1367,7 @@ def get_route_note():
 
 
 @app.route("/data/route-note", methods=["POST"])
+@auth.login_required(api=True)
 @ratelimit.rate_limited()
 def save_route_note():
     payload = request.get_json(silent=True) or {}
@@ -1331,6 +1383,7 @@ def save_route_note():
 
 
 @app.route("/data/edit/<path:filename>", methods=["POST"])
+@auth.login_required(api=True)
 @ratelimit.rate_limited()
 def save_edit(filename):
     # Save a new edited version of a route's geometry into the SQLite store.
@@ -1382,6 +1435,7 @@ def user_routes():
 
 
 @app.route("/data/create", methods=["POST"])
+@auth.login_required(api=True)
 @ratelimit.rate_limited()
 def create_route():
     # Create a brand-new (file-less) route — allowed only for USER_ROUTE_YEAR.
@@ -1407,6 +1461,7 @@ def create_route():
 
 
 @app.route("/data/edit/<path:filename>", methods=["DELETE"])
+@auth.login_required(api=True)
 @ratelimit.rate_limited()
 def delete_edit(filename):
     # Revert to original: drop all saved versions so serving falls back to disk.
@@ -1416,6 +1471,7 @@ def delete_edit(filename):
 
 
 @app.route("/data/edit/<path:filename>/restore", methods=["POST"])
+@auth.login_required(api=True)
 @ratelimit.rate_limited()
 def restore_edit(filename):
     # Append a copy of version N as a new latest version (history stays forward).
