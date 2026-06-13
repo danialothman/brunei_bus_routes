@@ -30,14 +30,14 @@ if not _PASSWORD:
     )
 
 
-def _enforced():
-    """Auth is enforced only when a password is configured."""
+def enforced():
+    """Auth is enforced only when a password is configured (EDITOR_PASSWORD set)."""
     return bool(_PASSWORD)
 
 
 def is_authed():
     """True if the current session has logged in (or auth isn't enforced)."""
-    return not _enforced() or bool(session.get("authed"))
+    return not enforced() or bool(session.get("authed"))
 
 
 def check_password(candidate):
