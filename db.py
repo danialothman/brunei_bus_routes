@@ -164,6 +164,17 @@ def _schema():
             replaced_at TEXT NOT NULL DEFAULT {now}
         )
         """,
+        # Fixed-window request counters for rate limiting (see ratelimit.py).
+        # Shared through the DB so limits hold across gunicorn workers and
+        # autoscale instances, where in-memory counters would not.
+        """
+        CREATE TABLE IF NOT EXISTS rate_limits (
+            bucket       TEXT    NOT NULL,
+            window_start BIGINT  NOT NULL,
+            hits         INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (bucket, window_start)
+        )
+        """,
     ]
 
 
@@ -389,6 +400,35 @@ def change_stamp(year):
             (year,),
         ).fetchone()
     return (rv["c"], rv["m"], gm["c"], gm["m"], gh["m"])
+
+
+def rate_limit_hit(bucket, window_start, prune_before=None):
+    """Atomically count one request in a fixed window and return the running
+    total for (bucket, window_start). Optionally drop the bucket's older windows
+    to keep the table small. Backend-shared, so counts hold across gunicorn
+    workers and autoscale instances. Used by ratelimit.py."""
+    with _connect() as conn:
+        conn.execute(
+            _q(
+                """
+                INSERT INTO rate_limits (bucket, window_start, hits)
+                VALUES (?, ?, 1)
+                ON CONFLICT (bucket, window_start)
+                DO UPDATE SET hits = rate_limits.hits + 1
+                """
+            ),
+            (bucket, window_start),
+        )
+        row = conn.execute(
+            _q("SELECT hits FROM rate_limits WHERE bucket=? AND window_start=?"),
+            (bucket, window_start),
+        ).fetchone()
+        if prune_before is not None:
+            conn.execute(
+                _q("DELETE FROM rate_limits WHERE bucket=? AND window_start<?"),
+                (bucket, prune_before),
+            )
+    return row["hits"]
 
 
 def delete_all(year, filename):

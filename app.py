@@ -15,6 +15,7 @@ from xml.sax.saxutils import escape as _xml_escape
 import db
 import gtfs
 import planner
+import ratelimit
 
 # Prefer defusedxml to guard against XXE / entity-expansion attacks; fall back
 # to the stdlib parser (our KML files are trusted, shipped-in-repo assets).
@@ -28,6 +29,14 @@ app = Flask(
     static_folder="static",
     template_folder="templates",
 )
+
+# On Replit (and most PaaS) the app sits behind one reverse proxy, so the real
+# client IP arrives in X-Forwarded-For. Trust exactly one hop so request.remote_addr
+# reflects the client — rate limiting keys on it. Locally there's no such header,
+# so remote_addr stays the loopback address. See ratelimit.py.
+from werkzeug.middleware.proxy_fix import ProxyFix  # noqa: E402
+
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1)
 
 # The route data is segregated by year so new datasets live alongside the repo
 # owner's original 2016 set (under sibling folders, e.g. data/2026). DATA_YEAR is
@@ -789,6 +798,7 @@ def get_gtfs_meta():
 
 
 @app.route("/data/gtfs-meta", methods=["POST"])
+@ratelimit.rate_limited()
 def save_gtfs_meta():
     payload = request.get_json(silent=True) or {}
     year = _resolve_year(payload.get("year"))
@@ -849,6 +859,7 @@ def get_gtfs_config():
 
 
 @app.route("/data/gtfs-config", methods=["POST"])
+@ratelimit.rate_limited()
 def save_gtfs_config():
     payload = request.get_json(silent=True) or {}
     year = _resolve_year(payload.get("year"))
@@ -1305,6 +1316,7 @@ def get_route_note():
 
 
 @app.route("/data/route-note", methods=["POST"])
+@ratelimit.rate_limited()
 def save_route_note():
     payload = request.get_json(silent=True) or {}
     year = _resolve_year(payload.get("year"))
@@ -1319,6 +1331,7 @@ def save_route_note():
 
 
 @app.route("/data/edit/<path:filename>", methods=["POST"])
+@ratelimit.rate_limited()
 def save_edit(filename):
     # Save a new edited version of a route's geometry into the SQLite store.
     year = _resolve_year(request.args.get("year"))
@@ -1369,6 +1382,7 @@ def user_routes():
 
 
 @app.route("/data/create", methods=["POST"])
+@ratelimit.rate_limited()
 def create_route():
     # Create a brand-new (file-less) route — allowed only for USER_ROUTE_YEAR.
     year = _resolve_year(request.args.get("year"))
@@ -1393,6 +1407,7 @@ def create_route():
 
 
 @app.route("/data/edit/<path:filename>", methods=["DELETE"])
+@ratelimit.rate_limited()
 def delete_edit(filename):
     # Revert to original: drop all saved versions so serving falls back to disk.
     year = _resolve_year(request.args.get("year"))
@@ -1401,6 +1416,7 @@ def delete_edit(filename):
 
 
 @app.route("/data/edit/<path:filename>/restore", methods=["POST"])
+@ratelimit.rate_limited()
 def restore_edit(filename):
     # Append a copy of version N as a new latest version (history stays forward).
     year = _resolve_year(request.args.get("year"))

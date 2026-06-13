@@ -149,6 +149,20 @@ The git-tracked route data and stop images travel with the repo, and the
 client-side bits (recent trips, ride-music settings) live in browser
 `localStorage` — neither is affected by the host.
 
+### Rate limiting
+
+The data-entry (write) endpoints are rate limited per client IP to stop
+automated flooding of the edits DB. Defaults are **30 writes / 10s** and
+**100 writes / 60s** — far above human editing (autosaves debounce at ~0.6–0.8s),
+but enough to cut off a script within seconds. Over-limit requests get `429` with
+a `Retry-After` header. Counters live in the app DB (`ratelimit.py`), so limits
+hold across gunicorn workers and autoscale instances. Reads are not limited.
+
+Tune without code changes via env vars: `RATE_LIMIT_WRITE="30/10,100/60"`
+(hits/seconds, comma-separated) or `RATE_LIMIT_DISABLED=1` to turn it off. The app
+trusts one proxy hop (`X-Forwarded-For`) so the real client IP is used behind
+Replit's proxy.
+
 ## Usage
 
 - Use the sidebar to toggle different bus routes on/off
