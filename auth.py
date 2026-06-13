@@ -8,10 +8,9 @@ cookie hardening (HttpOnly, SameSite=Lax, Secure) and SECRET_KEY wiring.
 The security boundary is the login_required decorator on the server. Frontend code
 only hides controls for anonymous visitors; it is not relied on for enforcement.
 
-If EDITOR_PASSWORD is unset, the gate is a no-op (editing stays open, as before)
-and a warning is logged at import — convenient for local dev. Production must set
-it. For fail-closed behaviour instead, make _enforced() return True unconditionally
-and have check_password() reject when no password is configured.
+Fail-closed: if EDITOR_PASSWORD is unset, no one can log in, so every write endpoint
+and the /gtfs workbench stay locked (a warning is logged at import). Set
+EDITOR_PASSWORD to enable editing — the same locally and in production.
 """
 import hmac
 import logging
@@ -25,19 +24,22 @@ _PASSWORD = os.environ.get("EDITOR_PASSWORD", "")
 
 if not _PASSWORD:
     logging.getLogger(__name__).warning(
-        "EDITOR_PASSWORD is not set — the editor is UNPROTECTED (anyone can write). "
-        "Set EDITOR_PASSWORD (and SECRET_KEY) to require login before editing."
+        "EDITOR_PASSWORD is not set — editing is LOCKED (no one can log in). "
+        "Set EDITOR_PASSWORD (and SECRET_KEY) to enable the editor."
     )
 
 
-def enforced():
-    """Auth is enforced only when a password is configured (EDITOR_PASSWORD set)."""
+def configured():
+    """True when an editor password is set. With none, login is impossible and
+    the editor stays locked (fail-closed)."""
     return bool(_PASSWORD)
 
 
 def is_authed():
-    """True if the current session has logged in (or auth isn't enforced)."""
-    return not enforced() or bool(session.get("authed"))
+    """True only for a session that has logged in. Fail-closed: with no
+    EDITOR_PASSWORD set, check_password() always fails, so this never becomes
+    True and the editor stays locked."""
+    return bool(session.get("authed"))
 
 
 def check_password(candidate):

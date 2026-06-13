@@ -157,8 +157,9 @@ requires logging in with a single shared password (`auth.py`).
 
 Set two secrets (Repl → Tools → Secrets):
 
-- `EDITOR_PASSWORD` — the editor password. **If unset, editing is left open** (as
-  it was before) and a warning is logged at startup, so set it in production.
+- `EDITOR_PASSWORD` — the editor password. **Fail-closed: if unset, editing is
+  locked** (no one can log in) and a warning is logged at startup. Set it to
+  enable the editor — locally and in production alike.
 - `SECRET_KEY` — a long random string that signs the session cookie. Required so
   the login stays valid across gunicorn workers and autoscale instances; locally
   it falls back to a random per-process value (sessions reset on restart).

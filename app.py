@@ -1154,7 +1154,7 @@ def auth_status():
 @app.route("/")
 def index():
     return render_template(
-        "index.html", authed=auth.is_authed(), auth_enforced=auth.enforced()
+        "index.html", authed=auth.is_authed(), auth_configured=auth.configured()
     )
 
 

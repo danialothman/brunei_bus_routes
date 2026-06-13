@@ -73,12 +73,10 @@
         >
           🕐 GTFS
         </a>
-        {% if auth_enforced %}
         <form method="POST" action="{{ url_for('logout') }}" class="navbar-right" style="display:inline">
           <button type="submit" class="btn btn-default btn-sm navbar-btn" title="Log out of the editor">Log out</button>
         </form>
-        {% endif %}
-        {% else %}
+        {% elif auth_configured %}
         <a
           href="{{ url_for('login_page') }}"
           class="btn btn-default btn-sm navbar-btn navbar-right"
