@@ -65,6 +65,7 @@
     <div id="stop-banner"></div>
 
     <div id="stop-progress">
+      <div class="rl-title">Stops</div>
       <div class="sp-row sp-prev">
         <span class="sp-label">Prev</span>
         <span class="sp-name" id="sp-prev">—</span>
@@ -74,6 +75,9 @@
         <span class="sp-name" id="sp-next">—</span>
       </div>
     </div>
+
+    <!-- Planned-trip legs (hidden for plain routes); active leg highlights as you ride. -->
+    <div id="ride-legs" class="hidden"></div>
 
     <div id="minimap"></div>
 
@@ -87,7 +91,9 @@
     </div>
 
     <div id="ride-controls">
+      <button id="prev-stop" title="Previous stop">⏮</button>
       <button id="playpause" title="Play/Pause">⏸</button>
+      <button id="next-stop" title="Next stop">⏭</button>
       <button id="toggle-stops" class="toggle-btn active" title="Show/hide stops" aria-pressed="true">🚏 Stops</button>
       <button id="toggle-minimap" class="toggle-btn active" title="Show/hide minimap" aria-pressed="true">🗺 Map</button>
       <div class="speed">
@@ -107,6 +113,7 @@
     <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
     <script src="{{ url_for('static', filename='js/config.js', v=asset_v) }}"></script>
     <script src="{{ url_for('static', filename='js/ride/route-path.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/ride-legs.js', v=asset_v) }}"></script>
     <script src="{{ url_for('static', filename='js/ride/minimap.js', v=asset_v) }}"></script>
     <script src="{{ url_for('static', filename='js/ride/ride-music.js', v=asset_v) }}"></script>
     <script src="{{ url_for('static', filename='js/ride/maplibre-ride.js', v=asset_v) }}"></script>

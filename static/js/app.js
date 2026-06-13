@@ -4,7 +4,6 @@ APP.BusMap = class {
   constructor() {
     this.map = null;
     this.baseLayer = null;
-    this.locationTracker = null;
     this.routeManager = null;
     this.infoManager = null;
 
@@ -20,7 +19,6 @@ APP.BusMap = class {
     this.setupLoadingControls();
 
     // Initialize components
-    this.locationTracker = new APP.LocationTracker(this.map);
     this.routeManager = new APP.RouteManager(this.map);
     this.infoManager = new APP.InfoManager(this.map);
     this.editorManager = new APP.EditorManager(
@@ -29,7 +27,6 @@ APP.BusMap = class {
       this.infoManager
     );
 
-    this.locationTracker.init();
     this.routeManager.init();
     this.infoManager.init();
     this.editorManager.init();

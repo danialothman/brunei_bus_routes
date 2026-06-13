@@ -1098,22 +1098,38 @@ def plan_trip():
     origin, dest = point("from"), point("to")
     if not origin or not dest:
         return jsonify({"error": "from and to must be 'lon,lat'"}), 400
-    t = _norm_time(request.args.get("time"))
-    if t is None:
-        return jsonify({"error": "time must be HH:MM or HH:MM:SS"}), 400
-    h, m, s = (int(x) for x in t.split(":"))
-    dep_secs = h * 3600 + m * 60 + s
-    try:
-        day = int(request.args.get("day", ""))
-    except ValueError:
-        return jsonify({"error": "day must be 0..6 (Mon..Sun)"}), 400
-    if not (0 <= day <= 6):
-        return jsonify({"error": "day must be 0..6 (Mon..Sun)"}), 400
+    # Time and day are optional filters. With neither, plan over the typical
+    # service: a blank time uses a representative departure, and a blank/"any"
+    # day skips weekday filtering (the feed is frequency-based and mostly daily).
+    time_arg = (request.args.get("time") or "").strip()
+    if time_arg:
+        t = _norm_time(time_arg)
+        if t is None:
+            return jsonify({"error": "time must be HH:MM or HH:MM:SS"}), 400
+        h, m, s = (int(x) for x in t.split(":"))
+        dep_secs = h * 3600 + m * 60 + s
+    else:
+        dep_secs = 8 * 3600  # representative midday-ish departure for "any time"
+
+    day_arg = (request.args.get("day") or "").strip().lower()
+    if day_arg in ("", "any"):
+        day = None
+    else:
+        try:
+            day = int(day_arg)
+        except ValueError:
+            return jsonify({"error": "day must be 0..6 (Mon..Sun) or 'any'"}), 400
+        if not (0 <= day <= 6):
+            return jsonify({"error": "day must be 0..6 (Mon..Sun) or 'any'"}), 400
 
     net = _planner_network(year)
     if net is None:
         return jsonify({"error": "this source has no routes with stops to plan over"}), 404
     result = net.plan(origin, dest, dep_secs, day)
+    if not time_arg or day is None:
+        result.setdefault("notes", []).append(
+            "Typical journey for any time/day — set a depart time or day to filter."
+        )
     result["year"] = year
     return jsonify(result)
 

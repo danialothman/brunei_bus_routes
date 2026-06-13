@@ -13,6 +13,8 @@
     spPrev: document.getElementById("sp-prev"),
     spNext: document.getElementById("sp-next"),
     playpause: document.getElementById("playpause"),
+    prevStop: document.getElementById("prev-stop"),
+    nextStop: document.getElementById("next-stop"),
     speed: document.getElementById("speed"),
     speedVal: document.getElementById("speed-val"),
     progress: document.getElementById("progress-bar"),
@@ -20,6 +22,7 @@
     toggleStops: document.getElementById("toggle-stops"),
     toggleMinimap: document.getElementById("toggle-minimap"),
     minimap: document.getElementById("minimap"),
+    legs: document.getElementById("ride-legs"),
   };
 
   function showError(msg) {
@@ -81,6 +84,8 @@
     const start = drivePath[0];
     // Stops projected onto the route (fraction 0..1) for the prev/next HUD.
     const stopList = RP.stopProgressList(drivePath, geo.stops);
+    // Trip-legs panel (planned previews only; hides itself for plain routes).
+    APP.RideLegs.build(els.legs, geo.legs);
 
     const bounds =
       geo.bounds ||
@@ -98,7 +103,8 @@
       drivePath,
       bounds,
       color,
-      geo.stops
+      geo.stops,
+      geo.pathColors
     );
 
     const map = new maplibregl.Map({
@@ -180,6 +186,7 @@
 
     // Persistent previous/next stop HUD, driven by progress fraction u.
     function updateStopProgress(u) {
+      APP.RideLegs.update(u); // highlight the leg being travelled (independent of stops toggle)
       if (!stopList.length || !stopsVisible) {
         els.progressPanel.classList.add("hidden");
         return;
@@ -190,9 +197,25 @@
       els.spNext.textContent = next ? next.name : "—";
     }
 
+    // A planned trip colours the line per leg via a line-progress gradient
+    // (rides in route colour, walks grey); plain routes use one colour.
+    function legGradient(legs) {
+      if (!Array.isArray(legs) || legs.length < 2) return null;
+      const expr = ["step", ["line-progress"], legs[0].color || color];
+      let last = 0;
+      for (let i = 1; i < legs.length; i++) {
+        let t = Math.max(0, Math.min(1, legs[i].t0));
+        if (t <= last) t = last + 1e-4; // step stops must strictly increase
+        if (t >= 1) break;
+        last = t;
+        expr.push(t, legs[i].color || color);
+      }
+      return expr.length > 3 ? expr : null;
+    }
+
     function addRouteLayers() {
       if (map.getSource("route")) return;
-      map.addSource("route", { type: "geojson", data: line });
+      map.addSource("route", { type: "geojson", data: line, lineMetrics: true });
       map.addLayer({
         id: "route-casing",
         type: "line",
@@ -200,11 +223,14 @@
         paint: { "line-color": "#ffffff", "line-width": 9, "line-opacity": 0.7 },
         layout: { "line-cap": "round", "line-join": "round" },
       });
+      const grad = legGradient(geo.legs);
       map.addLayer({
         id: "route-line",
         type: "line",
         source: "route",
-        paint: { "line-color": color, "line-width": 5 },
+        paint: grad
+          ? { "line-gradient": grad, "line-width": 5 }
+          : { "line-color": color, "line-width": 5 },
         layout: { "line-cap": "round", "line-join": "round" },
       });
       map.addSource("stops", { type: "geojson", data: stopsFC });
@@ -327,6 +353,31 @@
         els.playpause.textContent = playing ? "⏸" : "▶";
       }
     }
+    // Skip to the previous / next stop along the route (dir -1 / +1). The
+    // animate loop redraws the bus/camera from `traveled` on the next frame.
+    function jumpStop(dir) {
+      if (!stopList.length) return;
+      const u = total > 0 ? traveled / total : 0;
+      const eps = 0.004;
+      let target;
+      if (dir > 0) {
+        const nx = stopList.find((s) => s.t > u + eps);
+        target = nx ? nx.t : 1;
+      } else {
+        let pv = null;
+        for (const s of stopList) {
+          if (s.t < u - eps) pv = s;
+          else break;
+        }
+        target = pv ? pv.t : 0;
+      }
+      traveled = Math.min(1, Math.max(0, target)) * total;
+      els.progress.style.width = `${((traveled / total) * 100).toFixed(1)}%`;
+      if (traveled < total) els.playpause.textContent = playing ? "⏸" : "▶";
+    }
+    els.prevStop.addEventListener("click", () => jumpStop(-1));
+    els.nextStop.addEventListener("click", () => jumpStop(1));
+
     els.progressWrap.addEventListener("pointerdown", (e) => {
       scrubbing = true;
       els.progressWrap.setPointerCapture(e.pointerId);
