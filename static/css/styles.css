@@ -760,6 +760,10 @@ body.editing .gtfs-routes-scroll {
   color: var(--gtfs-danger);
   text-decoration: none;
 }
+.gtfs-route-ride {
+  margin-left: 0; /* the row's flex gap handles spacing */
+  opacity: 0.6;
+}
 
 /* --- Map column ------------------------------------------------------- */
 .gtfs-map-col {

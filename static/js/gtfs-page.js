@@ -64,7 +64,7 @@ APP.GtfsPage = class {
     );
     const list = $("#gtfsRouteList");
     list.on("click", ".gtfs-route-row", (e) => {
-      if ($(e.target).closest(".gtfs-route-del").length) return;
+      if ($(e.target).closest(".gtfs-route-del, .route-ride-btn").length) return;
       const el = $(e.currentTarget);
       this.select(el.attr("data-year"), el.attr("data-file"));
     });
@@ -193,6 +193,14 @@ APP.GtfsPage = class {
     // Every schedulable route shows its transcription meter up front (all-off
     // until the meta summary fills it in). Paths can't carry GTFS meta.
     if (kind !== "geojson") row.append(this._meterEl());
+    // 3D ride-along, so editors can preview the route they're working on.
+    row.append(
+      $('<a class="route-ride-btn gtfs-route-ride" title="3D ride along">🚌</a>').attr({
+        "data-file": file,
+        "data-year": year,
+        "data-name": display,
+      })
+    );
     if (isUser) {
       row.append($('<a class="gtfs-route-del" title="Delete route">✕</a>'));
     }
