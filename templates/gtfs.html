@@ -46,6 +46,9 @@
             </select>
           </li>
         </ul>
+        <form method="POST" action="{{ url_for('logout') }}" style="display:inline; margin:0">
+          <button type="submit" class="btn btn-default btn-sm navbar-btn" title="Log out of the editor">Log out</button>
+        </form>
         <button
           type="button"
           class="btn btn-sm navbar-btn navbar-right gtfs-download-btn"
