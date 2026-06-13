@@ -121,6 +121,34 @@ python -m venv .venv
 Then open http://localhost:8000 in your browser. To stop the server, press
 Ctrl+C in the terminal.
 
+## Hosting on Replit
+
+The app runs on Replit as-is, but route edits need a persistent home. Edits are
+stored in a database whose backend is chosen at runtime (see `db.py`):
+
+- **No `DATABASE_URL`** → a local SQLite file (`instance/edits.db`). Fine for
+  local dev, but a Replit Autoscale Deployment has an **ephemeral filesystem**:
+  the file is wiped on every redeploy and is not shared between instances, so
+  saved edits would be lost.
+- **`DATABASE_URL` set** → PostgreSQL, which lives outside that filesystem and
+  persists across redeploys and instances.
+
+To host with persistence:
+
+1. Add the **PostgreSQL** tool to your Repl (Tools → PostgreSQL). Replit injects
+   `DATABASE_URL` automatically; the app picks it up with no code changes.
+2. Deploy. The included `.replit` runs the app under gunicorn for Autoscale.
+3. (Optional) Carry over existing local edits — with `DATABASE_URL` pointing at
+   the Postgres target, run:
+
+   ```bash
+   python scripts/migrate_sqlite_to_pg.py   # copies instance/edits.db into Postgres
+   ```
+
+The git-tracked route data and stop images travel with the repo, and the
+client-side bits (recent trips, ride-music settings) live in browser
+`localStorage` — neither is affected by the host.
+
 ## Usage
 
 - Use the sidebar to toggle different bus routes on/off

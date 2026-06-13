@@ -1,99 +1,177 @@
-"""SQLite store for route edits (full version history).
+"""Versioned store for route edits — SQLite locally, PostgreSQL on Replit.
+
+The backend is chosen at init_db(): a connection string (explicit dsn, or the
+DATABASE_URL env var that Replit's managed Postgres injects) selects PostgreSQL;
+otherwise a local SQLite file. This matters for hosting — Replit Deployments have
+an ephemeral filesystem, so a SQLite file there is wiped on every redeploy and
+not shared across autoscale instances. Postgres lives outside that filesystem
+and persists. Local dev keeps using SQLite with no setup.
+
+Every function below is backend-agnostic: the small dialect differences (the
+parameter marker `?` and `datetime('now')`) are translated for Postgres in _q(),
+and the schema's column types are emitted per-backend in _schema().
 
 Originals on disk are never modified. Each Save appends an immutable version
 row keyed by (year, filename); the highest version is the active one. Reverting
 to the original simply deletes all rows for a route so callers fall back to disk.
-
-Pure stdlib (sqlite3) — framework-agnostic; the DB path is injected by app.py.
 """
+import contextlib
 import json
+import os
 import sqlite3
 
-_DB_PATH = None
+try:
+    import psycopg
+    from psycopg.rows import dict_row
+    from psycopg import errors as _pg_errors
+    _HAVE_PSYCOPG = True
+except ImportError:  # SQLite-only environments don't need the Postgres driver
+    _HAVE_PSYCOPG = False
+
+_BACKEND = None   # "sqlite" | "postgres", set by init_db
+_DB_PATH = None   # SQLite file path
+_DSN = None       # Postgres connection string
+
+# UNIQUE-violation classes differ by backend; add_version catches both.
+_INTEGRITY_ERRORS = (sqlite3.IntegrityError,)
+if _HAVE_PSYCOPG:
+    _INTEGRITY_ERRORS = (sqlite3.IntegrityError, _pg_errors.UniqueViolation)
 
 
-def init_db(db_path):
-    """Remember the DB path and create the schema if needed (idempotent)."""
-    global _DB_PATH
-    _DB_PATH = db_path
-    with _connect() as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS route_versions (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                year       TEXT    NOT NULL,
-                filename   TEXT    NOT NULL,
-                version    INTEGER NOT NULL,
-                geometry   TEXT    NOT NULL,
-                label      TEXT,
-                created_at TEXT    NOT NULL DEFAULT (datetime('now')),
-                UNIQUE (year, filename, version)
+def init_db(db_path=None, dsn=None):
+    """Choose the backend and create the schema if needed (idempotent).
+
+    Pass dsn — or set the DATABASE_URL env var (Replit's managed Postgres) — to
+    use PostgreSQL; otherwise db_path selects a local SQLite file. app.py passes
+    db_path and lets the environment decide which backend wins.
+    """
+    global _BACKEND, _DB_PATH, _DSN
+    dsn = dsn or os.environ.get("DATABASE_URL")
+    if dsn:
+        if not _HAVE_PSYCOPG:
+            raise RuntimeError(
+                "DATABASE_URL is set but psycopg is not installed; "
+                "add 'psycopg[binary]' to requirements.txt"
             )
-            """
+        # Some platforms hand out the legacy postgres:// scheme; psycopg wants
+        # postgresql://. SQLAlchemy does the same normalisation.
+        if dsn.startswith("postgres://"):
+            dsn = "postgresql://" + dsn[len("postgres://"):]
+        _BACKEND = "postgres"
+        _DSN = dsn
+    else:
+        _BACKEND = "sqlite"
+        _DB_PATH = db_path
+    with _connect() as conn:
+        for stmt in _schema():
+            conn.execute(stmt)
+
+
+@contextlib.contextmanager
+def _connect():
+    """Yield a connection, committing on clean exit and always closing.
+
+    Both backends expose conn.execute(sql, params) -> cursor and dict-style row
+    access (sqlite3.Row / psycopg dict_row), so the query functions below don't
+    care which one they got.
+    """
+    if _BACKEND is None:
+        raise RuntimeError("db.init_db(...) must be called before use")
+    if _BACKEND == "postgres":
+        conn = psycopg.connect(_DSN, row_factory=dict_row)
+    else:
+        conn = sqlite3.connect(_DB_PATH)
+        conn.row_factory = sqlite3.Row
+        # WAL keeps reads non-blocking against the occasional write.
+        conn.execute("PRAGMA journal_mode=WAL")
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def _q(sql):
+    """Translate our SQLite-flavoured SQL to the active backend.
+
+    `?` placeholders become `%s`, and inline datetime('now') becomes the Postgres
+    equivalent. Both tokens appear only as SQL syntax here, never inside literals.
+    """
+    if _BACKEND == "postgres":
+        return sql.replace("?", "%s").replace("datetime('now')", "(now())::text")
+    return sql
+
+
+def _schema():
+    """CREATE statements for the active backend (column types differ; SQL shared)."""
+    if _BACKEND == "postgres":
+        idpk = "BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
+        now = "((now())::text)"
+    else:
+        idpk = "INTEGER PRIMARY KEY AUTOINCREMENT"
+        now = "(datetime('now'))"
+    return [
+        f"""
+        CREATE TABLE IF NOT EXISTS route_versions (
+            id         {idpk},
+            year       TEXT    NOT NULL,
+            filename   TEXT    NOT NULL,
+            version    INTEGER NOT NULL,
+            geometry   TEXT    NOT NULL,
+            label      TEXT,
+            created_at TEXT    NOT NULL DEFAULT {now},
+            UNIQUE (year, filename, version)
         )
-        conn.execute(
-            """
-            CREATE INDEX IF NOT EXISTS idx_route_versions_route
-            ON route_versions (year, filename, version DESC)
-            """
-        )
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_route_versions_route
+        ON route_versions (year, filename, version DESC)
+        """,
         # Free-text triage notes, one per route (year, route key). Independent of
         # the version history above — notes are about a route, not a geometry edit.
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS route_notes (
-                year       TEXT NOT NULL,
-                route      TEXT NOT NULL,
-                note       TEXT NOT NULL DEFAULT '',
-                updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-                PRIMARY KEY (year, route)
-            )
-            """
+        f"""
+        CREATE TABLE IF NOT EXISTS route_notes (
+            year       TEXT NOT NULL,
+            route      TEXT NOT NULL,
+            note       TEXT NOT NULL DEFAULT '',
+            updated_at TEXT NOT NULL DEFAULT {now},
+            PRIMARY KEY (year, route)
         )
+        """,
         # GTFS metadata overrides as JSON blobs. `key` is a route filename for
         # per-route data (schedule, names, color) or '_feed' for feed-level
         # settings (agency, fare). Upsert-only, like route_notes.
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS gtfs_meta (
-                year       TEXT NOT NULL,
-                key        TEXT NOT NULL,
-                data       TEXT NOT NULL DEFAULT '{}',
-                updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-                PRIMARY KEY (year, key)
-            )
-            """
+        f"""
+        CREATE TABLE IF NOT EXISTS gtfs_meta (
+            year       TEXT NOT NULL,
+            key        TEXT NOT NULL,
+            data       TEXT NOT NULL DEFAULT '{{}}',
+            updated_at TEXT NOT NULL DEFAULT {now},
+            PRIMARY KEY (year, key)
         )
+        """,
         # Every overwritten gtfs_meta value is archived here, so a bad
         # autosave is recoverable (via SQL; no UI). Append-only.
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS gtfs_meta_history (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                year        TEXT NOT NULL,
-                key         TEXT NOT NULL,
-                data        TEXT NOT NULL,
-                replaced_at TEXT NOT NULL DEFAULT (datetime('now'))
-            )
-            """
+        f"""
+        CREATE TABLE IF NOT EXISTS gtfs_meta_history (
+            id          {idpk},
+            year        TEXT NOT NULL,
+            key         TEXT NOT NULL,
+            data        TEXT NOT NULL,
+            replaced_at TEXT NOT NULL DEFAULT {now}
         )
-
-
-def _connect():
-    if _DB_PATH is None:
-        raise RuntimeError("db.init_db(path) must be called before use")
-    conn = sqlite3.connect(_DB_PATH)
-    conn.row_factory = sqlite3.Row
-    # WAL keeps reads non-blocking against the occasional write.
-    conn.execute("PRAGMA journal_mode=WAL")
-    return conn
+        """,
+    ]
 
 
 def latest_version(year, filename):
     """Highest version number for a route, or None if it has no edits."""
     with _connect() as conn:
         row = conn.execute(
-            "SELECT MAX(version) AS v FROM route_versions WHERE year=? AND filename=?",
+            _q("SELECT MAX(version) AS v FROM route_versions WHERE year=? AND filename=?"),
             (year, filename),
         ).fetchone()
     return row["v"] if row and row["v"] is not None else None
@@ -103,11 +181,13 @@ def latest_geometry(year, filename):
     """Parsed geometry dict of the active (highest) version, or None."""
     with _connect() as conn:
         row = conn.execute(
-            """
-            SELECT geometry FROM route_versions
-            WHERE year=? AND filename=?
-            ORDER BY version DESC LIMIT 1
-            """,
+            _q(
+                """
+                SELECT geometry FROM route_versions
+                WHERE year=? AND filename=?
+                ORDER BY version DESC LIMIT 1
+                """
+            ),
             (year, filename),
         ).fetchone()
     return json.loads(row["geometry"]) if row else None
@@ -117,7 +197,7 @@ def distinct_files(year):
     """All distinct route filenames that have at least one saved version."""
     with _connect() as conn:
         rows = conn.execute(
-            "SELECT DISTINCT filename FROM route_versions WHERE year=?",
+            _q("SELECT DISTINCT filename FROM route_versions WHERE year=?"),
             (year,),
         ).fetchall()
     return [r["filename"] for r in rows]
@@ -128,14 +208,16 @@ def latest_names(year):
     out = {}
     with _connect() as conn:
         rows = conn.execute(
-            """
-            SELECT rv.filename AS filename, rv.geometry AS geometry
-            FROM route_versions rv
-            WHERE rv.year = ? AND rv.version = (
-                SELECT MAX(version) FROM route_versions
-                WHERE year = rv.year AND filename = rv.filename
-            )
-            """,
+            _q(
+                """
+                SELECT rv.filename AS filename, rv.geometry AS geometry
+                FROM route_versions rv
+                WHERE rv.year = ? AND rv.version = (
+                    SELECT MAX(version) FROM route_versions
+                    WHERE year = rv.year AND filename = rv.filename
+                )
+                """
+            ),
             (year,),
         ).fetchall()
     for r in rows:
@@ -152,11 +234,13 @@ def list_versions(year, filename):
     """Version metadata (no geometry blob), newest first."""
     with _connect() as conn:
         rows = conn.execute(
-            """
-            SELECT version, created_at, label FROM route_versions
-            WHERE year=? AND filename=?
-            ORDER BY version DESC
-            """,
+            _q(
+                """
+                SELECT version, created_at, label FROM route_versions
+                WHERE year=? AND filename=?
+                ORDER BY version DESC
+                """
+            ),
             (year, filename),
         ).fetchall()
     return [dict(r) for r in rows]
@@ -166,7 +250,7 @@ def get_version(year, filename, version):
     """Parsed geometry dict for a specific version, or None."""
     with _connect() as conn:
         row = conn.execute(
-            "SELECT geometry FROM route_versions WHERE year=? AND filename=? AND version=?",
+            _q("SELECT geometry FROM route_versions WHERE year=? AND filename=? AND version=?"),
             (year, filename, version),
         ).fetchone()
     return json.loads(row["geometry"]) if row else None
@@ -178,21 +262,24 @@ def add_version(year, filename, geometry, label=None):
     for _attempt in range(2):  # UNIQUE constraint is a race backstop; retry once
         with _connect() as conn:
             row = conn.execute(
-                "SELECT MAX(version) AS v FROM route_versions WHERE year=? AND filename=?",
+                _q("SELECT MAX(version) AS v FROM route_versions WHERE year=? AND filename=?"),
                 (year, filename),
             ).fetchone()
             nxt = (row["v"] or 0) + 1
             try:
                 conn.execute(
-                    """
-                    INSERT INTO route_versions (year, filename, version, geometry, label)
-                    VALUES (?, ?, ?, ?, ?)
-                    """,
+                    _q(
+                        """
+                        INSERT INTO route_versions (year, filename, version, geometry, label)
+                        VALUES (?, ?, ?, ?, ?)
+                        """
+                    ),
                     (year, filename, nxt, payload, label),
                 )
-                conn.commit()
-                return nxt
-            except sqlite3.IntegrityError:
+                return nxt  # context manager commits on the way out
+            except _INTEGRITY_ERRORS:
+                # Postgres aborts the txn on error; roll back before the retry.
+                conn.rollback()
                 continue
     raise sqlite3.IntegrityError("could not allocate a version number")
 
@@ -201,7 +288,7 @@ def get_note(year, route):
     """Free-text note for a route, or '' if none."""
     with _connect() as conn:
         row = conn.execute(
-            "SELECT note FROM route_notes WHERE year=? AND route=?",
+            _q("SELECT note FROM route_notes WHERE year=? AND route=?"),
             (year, route),
         ).fetchone()
     return row["note"] if row else ""
@@ -211,15 +298,16 @@ def set_note(year, route, note):
     """Upsert a route's note. Returns the saved text."""
     with _connect() as conn:
         conn.execute(
-            """
-            INSERT INTO route_notes (year, route, note, updated_at)
-            VALUES (?, ?, ?, datetime('now'))
-            ON CONFLICT(year, route) DO UPDATE SET
-                note = excluded.note, updated_at = excluded.updated_at
-            """,
+            _q(
+                """
+                INSERT INTO route_notes (year, route, note, updated_at)
+                VALUES (?, ?, ?, datetime('now'))
+                ON CONFLICT (year, route) DO UPDATE SET
+                    note = excluded.note, updated_at = excluded.updated_at
+                """
+            ),
             (year, route, note),
         )
-        conn.commit()
     return note
 
 
@@ -227,7 +315,7 @@ def get_gtfs_meta(year, key):
     """GTFS metadata dict for a route filename (or '_feed'), or {} if none."""
     with _connect() as conn:
         row = conn.execute(
-            "SELECT data FROM gtfs_meta WHERE year=? AND key=?",
+            _q("SELECT data FROM gtfs_meta WHERE year=? AND key=?"),
             (year, key),
         ).fetchone()
     if not row:
@@ -245,23 +333,24 @@ def set_gtfs_meta(year, key, data):
     payload = json.dumps(data, ensure_ascii=False)
     with _connect() as conn:
         row = conn.execute(
-            "SELECT data FROM gtfs_meta WHERE year=? AND key=?", (year, key)
+            _q("SELECT data FROM gtfs_meta WHERE year=? AND key=?"), (year, key)
         ).fetchone()
         if row and row["data"] != payload:
             conn.execute(
-                "INSERT INTO gtfs_meta_history (year, key, data) VALUES (?, ?, ?)",
+                _q("INSERT INTO gtfs_meta_history (year, key, data) VALUES (?, ?, ?)"),
                 (year, key, row["data"]),
             )
         conn.execute(
-            """
-            INSERT INTO gtfs_meta (year, key, data, updated_at)
-            VALUES (?, ?, ?, datetime('now'))
-            ON CONFLICT(year, key) DO UPDATE SET
-                data = excluded.data, updated_at = excluded.updated_at
-            """,
+            _q(
+                """
+                INSERT INTO gtfs_meta (year, key, data, updated_at)
+                VALUES (?, ?, ?, datetime('now'))
+                ON CONFLICT (year, key) DO UPDATE SET
+                    data = excluded.data, updated_at = excluded.updated_at
+                """
+            ),
             (year, key, payload),
         )
-        conn.commit()
     return data
 
 
@@ -270,7 +359,7 @@ def all_gtfs_meta(year):
     out = {}
     with _connect() as conn:
         rows = conn.execute(
-            "SELECT key, data FROM gtfs_meta WHERE year=?", (year,)
+            _q("SELECT key, data FROM gtfs_meta WHERE year=?"), (year,)
         ).fetchall()
     for r in rows:
         try:
@@ -287,27 +376,26 @@ def change_stamp(year):
     whenever route geometry or GTFS metadata is saved, replaced, or deleted."""
     with _connect() as conn:
         rv = conn.execute(
-            "SELECT COUNT(*), COALESCE(MAX(id), 0) FROM route_versions WHERE year=?",
+            _q("SELECT COUNT(*) AS c, COALESCE(MAX(id), 0) AS m FROM route_versions WHERE year=?"),
             (year,),
         ).fetchone()
         gm = conn.execute(
-            "SELECT COUNT(*), COALESCE(MAX(updated_at), '') FROM gtfs_meta WHERE year=?",
+            _q("SELECT COUNT(*) AS c, COALESCE(MAX(updated_at), '') AS m FROM gtfs_meta WHERE year=?"),
             (year,),
         ).fetchone()
         # History grows on every overwrite, catching same-second meta updates.
         gh = conn.execute(
-            "SELECT COALESCE(MAX(id), 0) FROM gtfs_meta_history WHERE year=?",
+            _q("SELECT COALESCE(MAX(id), 0) AS m FROM gtfs_meta_history WHERE year=?"),
             (year,),
         ).fetchone()
-    return (rv[0], rv[1], gm[0], gm[1], gh[0])
+    return (rv["c"], rv["m"], gm["c"], gm["m"], gh["m"])
 
 
 def delete_all(year, filename):
     """Remove every version for a route (revert to original). Returns rows deleted."""
     with _connect() as conn:
         cur = conn.execute(
-            "DELETE FROM route_versions WHERE year=? AND filename=?",
+            _q("DELETE FROM route_versions WHERE year=? AND filename=?"),
             (year, filename),
         )
-        conn.commit()
         return cur.rowcount

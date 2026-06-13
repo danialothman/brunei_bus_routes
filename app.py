@@ -70,12 +70,13 @@ GTFS_PARAMS = {
     "feed_lang": "ms",
 }
 
-# Route data is segregated by year so new datasets live alongside the repo
-# Route edits live in a SQLite DB under Flask's instance folder (gitignored), so
-# the shipped route files are never modified. Init at import time so it runs
-# under both `flask run` and `python app.py`.
+# Route edits live in a versioned DB, so the shipped route files are never
+# modified. Backend is chosen at runtime (see db.py): Postgres when DATABASE_URL
+# is set (e.g. Replit's managed Postgres, which survives redeploys), otherwise a
+# local SQLite file under Flask's instance folder (gitignored). Init at import
+# time so it runs under `flask run`, `python app.py`, and gunicorn alike.
 os.makedirs(app.instance_path, exist_ok=True)
-db.init_db(os.path.join(app.instance_path, "edits.db"))
+db.init_db(db_path=os.path.join(app.instance_path, "edits.db"))
 
 
 @app.context_processor
@@ -1449,4 +1450,7 @@ def favicon():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=8000)
+    # PORT is honoured for parity with hosts that inject it (Replit etc.); the
+    # dev server is for local use — production runs under gunicorn (see .replit).
+    port = int(os.environ.get("PORT", 8000))
+    app.run(debug=True, host="0.0.0.0", port=port)
