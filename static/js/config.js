@@ -44,6 +44,57 @@ APP.MAP_STYLES = {
   },
 };
 
+// Raster tile sources for the 3D ride-along (ground texture, minimap, and the
+// MapLibre base), keyed to the same four map types as the 2D map's style picker.
+// `fallback` is the colour shown under not-yet-loaded tiles / the scene backdrop.
+APP.RIDE_TILES = {
+  osm: {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    subdomains: ["a", "b", "c"],
+    maxZoom: 19,
+    fallback: "#e2e5e9",
+  },
+  satellite: {
+    url: "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    subdomains: [],
+    maxZoom: 19,
+    fallback: "#26331f",
+  },
+  terrain: {
+    url: "https://tile.opentopomap.org/{z}/{x}/{y}.png",
+    subdomains: [],
+    maxZoom: 17,
+    fallback: "#dfe3e8",
+  },
+  dark: {
+    url: "https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_all/{z}/{x}/{y}.png",
+    subdomains: ["a", "b", "c", "d"],
+    maxZoom: 19,
+    fallback: "#16161a",
+  },
+};
+
+// A concrete tile URL for canvas consumers (Three.js ground, minimap).
+APP.rideTileUrl = function (style, z, x, y) {
+  const t = APP.RIDE_TILES[style] || APP.RIDE_TILES.osm;
+  const s = t.subdomains.length
+    ? t.subdomains[Math.abs(x + y) % t.subdomains.length]
+    : "";
+  return t.url
+    .replace("{s}", s)
+    .replace("{z}", z)
+    .replace("{x}", x)
+    .replace("{y}", y);
+};
+
+// A MapLibre `tiles` array (subdomains expanded into separate URLs).
+APP.rideTileList = function (style) {
+  const t = APP.RIDE_TILES[style] || APP.RIDE_TILES.osm;
+  return t.subdomains.length
+    ? t.subdomains.map((s) => t.url.replace("{s}", s))
+    : [t.url];
+};
+
 // Dataset year that owns user-created/editable routes. Shipped routes from
 // other years are read-only and can only be copied into this year for editing.
 // Must match USER_ROUTE_YEAR in app.py.
