@@ -262,6 +262,7 @@
         if (traveled >= total) {
           playing = false;
           els.playpause.textContent = "↻";
+          APP.Arrival.show();
         }
       }
 
@@ -313,10 +314,19 @@
       if (traveled >= total) {
         traveled = 0;
         playing = true;
+        APP.Arrival.hide();
       } else {
         playing = !playing;
       }
       els.playpause.textContent = playing ? "⏸" : "▶";
+    });
+    APP.Arrival.init({
+      summary: routeName,
+      onReplay: () => {
+        traveled = 0;
+        playing = true;
+        els.playpause.textContent = "⏸";
+      },
     });
     els.speed.addEventListener("input", () => {
       speedKmh = parseFloat(els.speed.value);
@@ -363,6 +373,7 @@
       els.progress.style.width = `${(f * 100).toFixed(1)}%`;
       if (traveled < total) {
         els.playpause.textContent = playing ? "⏸" : "▶";
+        APP.Arrival.hide();
       }
     }
     // Skip to the previous / next stop along the route (dir -1 / +1). The
@@ -385,7 +396,10 @@
       }
       traveled = Math.min(1, Math.max(0, target)) * total;
       els.progress.style.width = `${((traveled / total) * 100).toFixed(1)}%`;
-      if (traveled < total) els.playpause.textContent = playing ? "⏸" : "▶";
+      if (traveled < total) {
+        els.playpause.textContent = playing ? "⏸" : "▶";
+        APP.Arrival.hide();
+      }
     }
     els.prevStop.addEventListener("click", () => jumpStop(-1));
     els.nextStop.addEventListener("click", () => jumpStop(1));

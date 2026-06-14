@@ -382,6 +382,20 @@ async function main() {
   curve.arcLengthDivisions = Math.max(400, pts.length * 2);
   const totalLength = curve.getLength();
 
+  // Heading over a short window rather than the instantaneous tangent. The raw
+  // tangent flips 180° at sub-metre back-and-forth artifacts in the geometry
+  // (the line still looks straight), which would snap the model around and back.
+  // A centred look-ahead/behind direction stays stable through those.
+  const HEADING_WINDOW = 4; // metres
+  function headingDir(u) {
+    const du = HEADING_WINDOW / totalLength;
+    const a = curve.getPointAt(Math.min(1, u + du));
+    const b = curve.getPointAt(Math.max(0, u - du));
+    const dir = new THREE.Vector3().subVectors(a, b);
+    if (dir.lengthSq() < 1e-6) return curve.getTangentAt(u).normalize();
+    return dir.normalize();
+  }
+
   // Ride state. Speed is a real km/h value (from the slider) so every route
   // moves at the same actual speed regardless of length — a true simulation.
   const kmhToMs = (k) => (k * 1000) / 3600;
@@ -393,10 +407,14 @@ async function main() {
   let stopsVisible = true;
   let scrubbing = false;
 
+  // Chase camera: higher up and further back for a roomier 3rd-person view.
+  const CAM_BACK = 34; // metres behind the bus
+  const CAM_HEIGHT = 21; // metres above the ground
+
   function placeAt(u) {
     const clamped = Math.min(Math.max(u, 0), 1);
     const p = curve.getPointAt(clamped);
-    const tan = curve.getTangentAt(clamped).normalize();
+    const tan = headingDir(clamped);
     bus.position.set(p.x, 0, p.z);
     bus.rotation.y = Math.atan2(tan.x, tan.z);
     if (person) {
@@ -416,12 +434,12 @@ async function main() {
       armR.rotation.x = swing * 0.7;
     }
     const desired = new THREE.Vector3(
-      p.x - tan.x * 17,
-      9,
-      p.z - tan.z * 17
+      p.x - tan.x * CAM_BACK,
+      CAM_HEIGHT,
+      p.z - tan.z * CAM_BACK
     );
     camera.position.lerp(desired, 0.1);
-    camera.lookAt(p.x + tan.x * 8, 2.5, p.z + tan.z * 8);
+    camera.lookAt(p.x + tan.x * 8, 3, p.z + tan.z * 8);
     return p;
   }
 
@@ -461,12 +479,13 @@ async function main() {
   }
 
   // Position camera instantly before first frame so we don't fly in from origin
-  camera.position.set(pts[0].x, 9, pts[0].z + 20);
+  camera.position.set(pts[0].x, CAM_HEIGHT, pts[0].z + CAM_BACK);
   placeAt(0);
+  const d0 = headingDir(0);
   camera.position.set(
-    pts[0].x - curve.getTangentAt(0).x * 17,
-    9,
-    pts[0].z - curve.getTangentAt(0).z * 17
+    pts[0].x - d0.x * CAM_BACK,
+    CAM_HEIGHT,
+    pts[0].z - d0.z * CAM_BACK
   );
 
   els.status.classList.add("hidden");
@@ -476,10 +495,19 @@ async function main() {
     if (traveled >= totalLength) {
       traveled = 0; // replay
       playing = true;
+      APP.Arrival.hide();
     } else {
       playing = !playing;
     }
     els.playpause.textContent = playing ? "⏸" : "▶";
+  });
+  APP.Arrival.init({
+    summary: routeName,
+    onReplay: () => {
+      traveled = 0;
+      playing = true;
+      els.playpause.textContent = "⏸";
+    },
   });
   els.speed.addEventListener("input", () => {
     speedKmh = parseFloat(els.speed.value);
@@ -527,6 +555,7 @@ async function main() {
     // Leaving the end clears the "replay" state so the icon reflects play/pause.
     if (traveled < totalLength) {
       els.playpause.textContent = playing ? "⏸" : "▶";
+      APP.Arrival.hide();
     }
     const busPos = placeAt(f);
     updateStopBanner(busPos);
@@ -596,6 +625,7 @@ async function main() {
       if (traveled >= totalLength) {
         playing = false;
         els.playpause.textContent = "↻";
+        APP.Arrival.show();
       }
     }
     const u = totalLength > 0 ? traveled / totalLength : 0;

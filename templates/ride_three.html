@@ -37,6 +37,17 @@
     <!-- Planned-trip legs (hidden for plain routes); active leg highlights as you ride. -->
     <div id="ride-legs" class="hidden"></div>
 
+    <!-- Arrival card: shown at the destination; replay / exit, dismissible. -->
+    <div id="arrival-card" class="hidden">
+      <button id="arrival-dismiss" class="arrival-x" title="Look around" aria-label="Dismiss">×</button>
+      <div class="arrival-title">🏁 Arrived</div>
+      <div class="arrival-sub" id="arrival-sub"></div>
+      <div class="arrival-actions">
+        <button type="button" id="arrival-replay">↻ Replay</button>
+        <a id="arrival-exit" href="/map">Exit</a>
+      </div>
+    </div>
+
     <div id="minimap"></div>
 
     <!-- Minimal music controls live inside the now-playing credit pill. -->
@@ -77,6 +88,7 @@
     <script src="{{ url_for('static', filename='js/config.js', v=asset_v) }}"></script>
     <script src="{{ url_for('static', filename='js/ride/route-path.js', v=asset_v) }}"></script>
     <script src="{{ url_for('static', filename='js/ride/ride-legs.js', v=asset_v) }}"></script>
+    <script src="{{ url_for('static', filename='js/ride/arrival.js', v=asset_v) }}"></script>
     <script src="{{ url_for('static', filename='js/ride/minimap.js', v=asset_v) }}"></script>
     <script src="{{ url_for('static', filename='js/ride/ride-music.js', v=asset_v) }}"></script>
     <script type="importmap">

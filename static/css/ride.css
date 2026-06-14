@@ -447,6 +447,79 @@ body {
   color: #111;
 }
 
+/* Arrival card — shown at the destination (centred, dismissible). */
+#arrival-card {
+  position: absolute;
+  top: 46%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 20;
+  min-width: 230px;
+  padding: 20px 24px 18px;
+  background: rgba(20, 20, 24, 0.88);
+  border-radius: 16px;
+  color: #fff;
+  text-align: center;
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.5);
+}
+#arrival-card.hidden {
+  display: none;
+}
+#arrival-card .arrival-title {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+#arrival-card .arrival-sub {
+  font-size: 13px;
+  opacity: 0.72;
+  margin: 2px 0 16px;
+}
+#arrival-card .arrival-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+#arrival-card .arrival-actions button,
+#arrival-card .arrival-actions a {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+}
+#arrival-card #arrival-replay {
+  background: #ffd166;
+  color: #111;
+}
+#arrival-card #arrival-exit {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+#arrival-card #arrival-exit:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+#arrival-card .arrival-x {
+  position: absolute;
+  top: 7px;
+  right: 10px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: #fff;
+  opacity: 0.5;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+#arrival-card .arrival-x:hover {
+  opacity: 1;
+}
+
 #ride-controls .speed {
   display: flex;
   align-items: center;
