@@ -89,35 +89,35 @@
 
       <section>
         <h2>Per-route bounty</h2>
-        <!-- TODO(owner): replace the BND XX placeholders with real rates before
-             publishing this page. -->
         <table class="guide-table">
           <tr>
             <th scope="row">Route fully captured</th>
             <td>
-              <strong>BND XX</strong> per route — GPS track + ordered stops with
-              names/codes + stop signboard photos, accepted after review.
+              {% if bounty.per_route %}<strong>{{ bounty.currency }} {{ bounty.per_route }}</strong> per route —
+              {% endif %}GPS track + ordered stops with names/codes + stop
+              signboard photos, accepted after review.{% if not bounty.per_route %}
+              <strong>Rate confirmed on onboarding.</strong>{% endif %}
             </td>
           </tr>
+          {% if bounty.timing_bonus %}
           <tr>
             <th scope="row">Timing board bonus</th>
             <td>
-              <strong>+BND XX</strong> when you also capture a clear photo of the
-              route's official departure-time signboard.
+              <strong>+{{ bounty.currency }} {{ bounty.timing_bonus }}</strong>
+              when you also capture a clear photo of the route's official
+              departure-time signboard.
             </td>
           </tr>
+          {% endif %}
           <tr>
             <th scope="row">Payment</th>
-            <td>
-              Paid after a route passes quality review. We agree the exact rate
-              and payment method with you when you're onboarded.
-            </td>
+            <td>{{ bounty.payment_note }}</td>
           </tr>
         </table>
         <p class="guide-note">
-          Rates above are indicative — final amounts are confirmed on
-          onboarding. Quality and accuracy beat speed: a route that needs redoing
-          isn't accepted.
+          Rates are indicative — final amounts are confirmed on onboarding.
+          Quality and accuracy beat speed: a route that needs redoing isn't
+          accepted.
         </p>
       </section>
 

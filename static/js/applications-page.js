@@ -56,6 +56,45 @@
     }
   });
 
+  // Save the per-route bounty rates shown on /join.
+  var bSave = document.getElementById("bSave");
+  if (bSave) {
+    bSave.addEventListener("click", function () {
+      var saved = document.getElementById("bSaved");
+      var body = {
+        currency: (document.getElementById("bCurrency") || {}).value || "",
+        per_route: (document.getElementById("bPerRoute") || {}).value || "",
+        timing_bonus: (document.getElementById("bTimingBonus") || {}).value || "",
+        payment_note: (document.getElementById("bPaymentNote") || {}).value || "",
+      };
+      fetch("/applications/bounty", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+        .then(function (r) {
+          if (!r.ok) throw new Error("HTTP " + r.status);
+          return r.json();
+        })
+        .then(function () {
+          if (saved) {
+            saved.textContent = "Saved ✓";
+            saved.className = "apps-saved is-ok";
+            window.setTimeout(function () {
+              saved.textContent = "";
+              saved.className = "apps-saved";
+            }, 1500);
+          }
+        })
+        .catch(function () {
+          if (saved) {
+            saved.textContent = "Failed";
+            saved.className = "apps-saved is-error";
+          }
+        });
+    });
+  }
+
   document.addEventListener("click", function (e) {
     var btn = e.target.closest(".js-delete");
     if (!btn) return;

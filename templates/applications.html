@@ -30,6 +30,38 @@
       </header>
 
       <section>
+        <h2>Per-route bounty (shown on /join)</h2>
+        <div class="bounty-form" id="bountyForm">
+          <label class="bounty-field bounty-narrow">
+            <span>Currency</span>
+            <input type="text" id="bCurrency" maxlength="8" value="{{ bounty.currency }}" />
+          </label>
+          <label class="bounty-field bounty-narrow">
+            <span>Per route</span>
+            <input type="text" id="bPerRoute" maxlength="40" placeholder="e.g. 15"
+              value="{{ bounty.per_route }}" />
+          </label>
+          <label class="bounty-field bounty-narrow">
+            <span>Timing-board bonus</span>
+            <input type="text" id="bTimingBonus" maxlength="40" placeholder="e.g. 5"
+              value="{{ bounty.timing_bonus }}" />
+          </label>
+          <label class="bounty-field bounty-wide">
+            <span>Payment note</span>
+            <textarea id="bPaymentNote" rows="2" maxlength="500">{{ bounty.payment_note }}</textarea>
+          </label>
+          <div class="bounty-actions">
+            <button type="button" class="btn btn-primary" id="bSave">Save bounty</button>
+            <span class="apps-saved" id="bSaved" aria-live="polite"></span>
+          </div>
+        </div>
+        <p class="guide-note">
+          Leave an amount blank to show "rate confirmed on onboarding" instead of
+          a figure. Free text is allowed (e.g. a range like <code>10–20</code>).
+        </p>
+      </section>
+
+      <section>
         {% if applications %}
         <table class="guide-table apps-table">
           <thead>

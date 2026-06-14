@@ -201,6 +201,15 @@ def _schema():
             created_at   TEXT NOT NULL DEFAULT {now}
         )
         """,
+        # App-wide key/value settings (JSON values), e.g. the hiring-page bounty
+        # rates editable from the admin area. Upsert-only.
+        f"""
+        CREATE TABLE IF NOT EXISTS settings (
+            key        TEXT NOT NULL PRIMARY KEY,
+            value      TEXT NOT NULL DEFAULT '',
+            updated_at TEXT NOT NULL DEFAULT {now}
+        )
+        """,
     ]
 
 
@@ -421,6 +430,32 @@ def delete_application(app_id):
             _q("DELETE FROM applications WHERE id=?"), (app_id,)
         )
         return cur.rowcount > 0
+
+
+def get_setting(key, default=None):
+    """Value string for an app setting, or `default` if unset."""
+    with _connect() as conn:
+        row = conn.execute(
+            _q("SELECT value FROM settings WHERE key=?"), (key,)
+        ).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(key, value):
+    """Upsert an app setting. Returns the saved value."""
+    with _connect() as conn:
+        conn.execute(
+            _q(
+                """
+                INSERT INTO settings (key, value, updated_at)
+                VALUES (?, ?, datetime('now'))
+                ON CONFLICT (key) DO UPDATE SET
+                    value = excluded.value, updated_at = excluded.updated_at
+                """
+            ),
+            (key, value),
+        )
+    return value
 
 
 def get_gtfs_meta(year, key):
