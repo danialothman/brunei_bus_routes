@@ -65,6 +65,14 @@ def init_db(db_path=None, dsn=None):
     with _connect() as conn:
         for stmt in _schema():
             conn.execute(stmt)
+    # Run each migration in its own transaction so an "already exists" failure
+    # (the expected case on fresh DBs / re-runs) rolls back only that statement.
+    for stmt in _migrations():
+        try:
+            with _connect() as conn:
+                conn.execute(_q(stmt))
+        except Exception:
+            pass
 
 
 @contextlib.contextmanager
@@ -175,6 +183,35 @@ def _schema():
             PRIMARY KEY (bucket, window_start)
         )
         """,
+        # Freelance field data-collection applications from the public /join
+        # hiring page. Submitted fields are read-only; status + admin_note are
+        # managed from the authed /applications view.
+        f"""
+        CREATE TABLE IF NOT EXISTS applications (
+            id           {idpk},
+            name         TEXT NOT NULL,
+            contact      TEXT NOT NULL,
+            districts    TEXT NOT NULL DEFAULT '',
+            transport    TEXT NOT NULL DEFAULT '',
+            availability TEXT NOT NULL DEFAULT '',
+            experience   TEXT NOT NULL DEFAULT '',
+            message      TEXT NOT NULL DEFAULT '',
+            status       TEXT NOT NULL DEFAULT 'New',
+            admin_note   TEXT NOT NULL DEFAULT '',
+            created_at   TEXT NOT NULL DEFAULT {now}
+        )
+        """,
+    ]
+
+
+def _migrations():
+    """Idempotent ALTERs to evolve tables created by an earlier schema. Each is
+    attempted in its own transaction and its 'column already exists' error
+    ignored, so they no-op on fresh DBs (which already have the columns) and on
+    re-runs. Add new column migrations here rather than mutating _schema()."""
+    return [
+        "ALTER TABLE applications ADD COLUMN status TEXT NOT NULL DEFAULT 'New'",
+        "ALTER TABLE applications ADD COLUMN admin_note TEXT NOT NULL DEFAULT ''",
     ]
 
 
@@ -320,6 +357,70 @@ def set_note(year, route, note):
             (year, route, note),
         )
     return note
+
+
+def add_application(fields):
+    """Insert a field-collection application and return its new id. `fields` is a
+    dict with name, contact, districts, transport, availability, experience,
+    message (the optional ones default to '')."""
+    cols = ("name", "contact", "districts", "transport",
+            "availability", "experience", "message")
+    values = tuple(fields.get(c, "") or "" for c in cols)
+    sql = _q(
+        f"INSERT INTO applications ({', '.join(cols)}) "
+        f"VALUES ({', '.join('?' for _ in cols)})"
+    )
+    with _connect() as conn:
+        if _BACKEND == "postgres":
+            row = conn.execute(sql + " RETURNING id", values).fetchone()
+            return row["id"]
+        cur = conn.execute(sql, values)
+        return cur.lastrowid
+
+
+def list_applications(limit=500):
+    """All applications, newest first, capped at `limit`."""
+    with _connect() as conn:
+        rows = conn.execute(
+            _q(
+                """
+                SELECT id, name, contact, districts, transport,
+                       availability, experience, message, status,
+                       admin_note, created_at
+                FROM applications
+                ORDER BY id DESC LIMIT ?
+                """
+            ),
+            (limit,),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def set_application_status(app_id, status):
+    """Update one application's status. Returns True if a row was updated."""
+    with _connect() as conn:
+        cur = conn.execute(
+            _q("UPDATE applications SET status=? WHERE id=?"), (status, app_id)
+        )
+        return cur.rowcount > 0
+
+
+def set_application_note(app_id, note):
+    """Update one application's admin note. Returns True if a row was updated."""
+    with _connect() as conn:
+        cur = conn.execute(
+            _q("UPDATE applications SET admin_note=? WHERE id=?"), (note, app_id)
+        )
+        return cur.rowcount > 0
+
+
+def delete_application(app_id):
+    """Delete one application. Returns True if a row was removed."""
+    with _connect() as conn:
+        cur = conn.execute(
+            _q("DELETE FROM applications WHERE id=?"), (app_id,)
+        )
+        return cur.rowcount > 0
 
 
 def get_gtfs_meta(year, key):

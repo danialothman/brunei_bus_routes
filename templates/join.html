@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Get paid to map Brunei's buses — freelance field data collection"
+    />
+    <title>Join — Field data collection · Brunei Bus Routes</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/styles.css', v=asset_v) }}"
+    />
+  </head>
+  <body class="guide-page join-page">
+    <div class="guide">
+      <header class="guide-masthead join-hero">
+        <div class="guide-kicker">Brunei Bus Routes · Field data collection</div>
+        <h1>Help map Brunei's buses — and get paid per route</h1>
+        <p class="guide-lede">
+          We're building a free, open, machine-readable map of every public bus
+          route in Brunei — the kind of data that powers journey planners and
+          Google Maps. The catch: the only nationwide dataset we have is from
+          2016 and it's full of gaps. We need people on the ground to ride the
+          routes and capture what's really there. You pick the routes, do the
+          legwork, and earn a <strong>bounty for each route you complete</strong>.
+        </p>
+        <a class="btn btn-primary join-cta" href="#apply">Apply to collect →</a>
+      </header>
+
+      <section>
+        <h2>Why this matters</h2>
+        <p>
+          Open the <a href="/">trip planner</a> and you'll see a warning on the
+          2016 data: routes are derived from incomplete KML files, so many are
+          missing stops, and journeys come out with detours that don't exist in
+          real life. The only way to fix that is to go and observe the buses —
+          where they actually run, where they actually stop, and when. That's the
+          job.
+        </p>
+      </section>
+
+      <section>
+        <h2>The work — one route at a time</h2>
+        <p>For each route you take on, you capture four things:</p>
+        <div class="join-cards">
+          <div class="join-card">
+            <div class="join-card-icon">🛰️</div>
+            <h3>Ride &amp; record</h3>
+            <p>
+              Ride the route end to end with a GPS track running (any phone
+              tracking app), so we get the real road path.
+            </p>
+          </div>
+          <div class="join-card">
+            <div class="join-card-icon">🚏</div>
+            <h3>Log the stops</h3>
+            <p>
+              Note every stop in order — its name, any stop code on the sign, and
+              where it is. Order matters; it's the order passengers experience.
+            </p>
+          </div>
+          <div class="join-card">
+            <div class="join-card-icon">📷</div>
+            <h3>Photograph signboards</h3>
+            <p>
+              Photograph each stop's signboard and the route's timing board, so
+              names and departure times can be transcribed accurately.
+            </p>
+          </div>
+          <div class="join-card">
+            <div class="join-card-icon">✅</div>
+            <h3>Submit for review</h3>
+            <p>
+              Send it in through the tools we provide. We run a quick quality
+              check, then it's accepted and you're paid.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Per-route bounty</h2>
+        <!-- TODO(owner): replace the BND XX placeholders with real rates before
+             publishing this page. -->
+        <table class="guide-table">
+          <tr>
+            <th scope="row">Route fully captured</th>
+            <td>
+              <strong>BND XX</strong> per route — GPS track + ordered stops with
+              names/codes + stop signboard photos, accepted after review.
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Timing board bonus</th>
+            <td>
+              <strong>+BND XX</strong> when you also capture a clear photo of the
+              route's official departure-time signboard.
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Payment</th>
+            <td>
+              Paid after a route passes quality review. We agree the exact rate
+              and payment method with you when you're onboarded.
+            </td>
+          </tr>
+        </table>
+        <p class="guide-note">
+          Rates above are indicative — final amounts are confirmed on
+          onboarding. Quality and accuracy beat speed: a route that needs redoing
+          isn't accepted.
+        </p>
+      </section>
+
+      <section>
+        <h2>What you'll need</h2>
+        <ul class="guide-rules">
+          <li>You're <strong>based in Brunei</strong> and can travel the routes.</li>
+          <li>A <strong>smartphone</strong> with working GPS and a camera.</li>
+          <li>Reliability and attention to detail — the data has to be trustworthy.</li>
+          <li>Your own transport helps for far or rural routes, but isn't required.</li>
+          <li>No technical background needed — we provide the tools and a guide.</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2>How it works</h2>
+        <ol class="guide-rules">
+          <li><strong>Apply</strong> using the form below.</li>
+          <li><strong>Onboard</strong> — we walk you through the
+            <a href="/gtfs/guide">data guide</a> and the tools.</li>
+          <li><strong>Claim routes</strong> you want to cover.</li>
+          <li><strong>Collect</strong> in the field and <strong>submit</strong>.</li>
+          <li><strong>Get paid</strong> once each route is reviewed and accepted.</li>
+        </ol>
+      </section>
+
+      <section id="apply">
+        <h2>Apply</h2>
+
+        {% if submitted %}
+        <div class="join-banner join-banner-ok">
+          ✓ Thanks — your application is in. We'll be in touch using the contact
+          details you gave us.
+        </div>
+        {% else %}
+        {% if error %}
+        <div class="join-banner join-banner-error">⚠ {{ error }}</div>
+        {% endif %}
+        <form class="join-form" method="post" action="/join">
+          <label class="join-field">
+            <span>Your name <em>*</em></span>
+            <input type="text" name="name" maxlength="120" required
+              value="{{ form.get('name', '') }}" />
+          </label>
+
+          <label class="join-field">
+            <span>Email or phone (WhatsApp) <em>*</em></span>
+            <input type="text" name="contact" maxlength="200" required
+              placeholder="you@example.com or +673 …"
+              value="{{ form.get('contact', '') }}" />
+          </label>
+
+          <fieldset class="join-field">
+            <span>Districts you can cover</span>
+            <div class="join-checks">
+              {% for d in districts %}
+              <label class="join-check">
+                <input type="checkbox" name="districts" value="{{ d }}"
+                  {% if d in form.get('districts', []) %}checked{% endif %} />
+                {{ d }}
+              </label>
+              {% endfor %}
+            </div>
+          </fieldset>
+
+          <label class="join-field">
+            <span>How you get around</span>
+            <select name="transport">
+              <option value="">— select —</option>
+              {% for t in transport_options %}
+              <option value="{{ t }}"
+                {% if form.get('transport') == t %}selected{% endif %}>{{ t }}</option>
+              {% endfor %}
+            </select>
+          </label>
+
+          <label class="join-field">
+            <span>Availability</span>
+            <input type="text" name="availability" maxlength="300"
+              placeholder="e.g. weekends, ~10 hours/week"
+              value="{{ form.get('availability', '') }}" />
+          </label>
+
+          <label class="join-field">
+            <span>Relevant experience (optional)</span>
+            <textarea name="experience" rows="3" maxlength="1000"
+              placeholder="Anything that helps — local knowledge, field/survey work, etc.">{{ form.get('experience', '') }}</textarea>
+          </label>
+
+          <label class="join-field">
+            <span>Anything else (optional)</span>
+            <textarea name="message" rows="3" maxlength="2000">{{ form.get('message', '') }}</textarea>
+          </label>
+
+          <button type="submit" class="btn btn-primary join-submit">Send application</button>
+        </form>
+        {% endif %}
+      </section>
+
+      <footer class="guide-footer">
+        <a class="btn btn-primary" href="#apply">Apply to collect →</a>
+        <span>
+          See the <a href="/gtfs/guide">data-entry guide</a> ·
+          <a href="/">trip planner</a> · <a href="/map">route map</a>
+        </span>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1714,6 +1714,223 @@ body.guide-page {
 }
 
 
+/* --- Join / hiring page (/join) — builds on the .guide-* system above --- */
+/* Accent call-to-action button, shared by the hero CTA and the submit button. */
+.join-cta,
+.join-submit {
+  display: inline-block;
+  padding: 10px 22px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-family: var(--gtfs-display);
+  font-size: 17px;
+  letter-spacing: 0.03em;
+  font-weight: 600;
+  background: var(--gtfs-accent);
+  border: 1px solid #e6b94f;
+  color: var(--gtfs-accent-ink);
+  cursor: pointer;
+}
+.join-cta {
+  margin-top: 16px;
+}
+.join-cta:hover,
+.join-submit:hover {
+  background: #ffdd85;
+  color: var(--gtfs-accent-ink);
+  text-decoration: none;
+}
+
+/* "The work" cards. */
+.join-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+  margin: 14px 0;
+}
+.join-card {
+  background: var(--gtfs-card);
+  border: 1px solid var(--gtfs-line);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+.join-card-icon {
+  font-size: 26px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+.join-card h3 {
+  margin: 0 0 6px;
+}
+.join-card p {
+  margin: 0;
+  color: var(--gtfs-ink-soft);
+}
+
+/* Application form. */
+.join-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.join-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-weight: normal;
+}
+.join-field > span {
+  font-family: var(--gtfs-display);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.03em;
+}
+.join-field em {
+  color: var(--gtfs-accent-ink);
+  font-style: normal;
+}
+.join-field input[type="text"],
+.join-field select,
+.join-field textarea {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--gtfs-ink);
+  background: var(--gtfs-card);
+  border: 1px solid var(--gtfs-line);
+  border-radius: 4px;
+}
+.join-field textarea {
+  resize: vertical;
+}
+.join-field input:focus,
+.join-field select:focus,
+.join-field textarea:focus {
+  outline: none;
+  border-color: var(--gtfs-accent);
+  box-shadow: 0 0 0 2px rgba(255, 209, 102, 0.4);
+}
+.join-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+.join-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-weight: normal;
+}
+
+/* Admin applications table (/applications) — wider than the reading column. */
+.guide-wide {
+  max-width: 1180px;
+}
+.apps-table {
+  font-size: 13px;
+}
+.apps-table td {
+  vertical-align: top;
+}
+.apps-table th {
+  width: auto;
+  white-space: nowrap;
+}
+.apps-when,
+.apps-contact,
+.apps-muted {
+  font-size: 12px;
+  color: var(--gtfs-ink-soft);
+}
+.apps-notes {
+  max-width: 240px;
+}
+.apps-status,
+.apps-adminnote {
+  width: 100%;
+  padding: 5px 7px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--gtfs-ink);
+  background: var(--gtfs-card);
+  border: 1px solid var(--gtfs-line);
+  border-radius: 4px;
+}
+.apps-adminnote {
+  resize: vertical;
+  min-width: 150px;
+}
+/* Status tint on the row's status cell, keyed off the row's data-status. */
+tr[data-status="Accepted"] .apps-status {
+  border-color: #3c9a3c;
+  background: #eef8ec;
+}
+tr[data-status="Rejected"] .apps-status {
+  border-color: #c0392b;
+  background: #fdeeec;
+}
+tr[data-status="Contacted"] .apps-status,
+tr[data-status="Reviewing"] .apps-status {
+  border-color: #e6b94f;
+  background: #fdf6e3;
+}
+.apps-actions {
+  white-space: nowrap;
+  text-align: center;
+}
+.apps-del {
+  border: 1px solid var(--gtfs-line);
+  background: var(--gtfs-card);
+  color: #c0392b;
+  border-radius: 4px;
+  padding: 3px 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.apps-del:hover {
+  background: #fdeeec;
+  border-color: #c0392b;
+}
+.apps-saved {
+  display: block;
+  margin-top: 4px;
+  font-size: 11px;
+  min-height: 13px;
+}
+.apps-saved.is-ok {
+  color: #3c9a3c;
+}
+.apps-saved.is-error {
+  color: #c0392b;
+}
+
+/* Success / error banners. */
+.join-banner {
+  padding: 12px 14px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+.join-banner-ok {
+  background: #e3f5e1;
+  border-left: 4px solid #3c9a3c;
+  color: #1f5a1f;
+}
+.join-banner-error {
+  background: #fde2e0;
+  border-left: 4px solid #c0392b;
+  color: #7a241b;
+}
+
+
 /* --- Trip planner (/planner) --- */
 .tp-sidebar {
   display: flex;

@@ -6,10 +6,11 @@
 #    every redeploy and does not share between instances.
 #  - The dev workspace "Run" button starts the Flask dev server; the deployment
 #    serves through gunicorn.
-#  - To enable editing, set two Secrets (Tools -> Secrets): EDITOR_PASSWORD (the
-#    shared editor password) and SECRET_KEY (a long random string for the session
-#    cookie). Fail-closed: without EDITOR_PASSWORD, editing is locked (no one can
-#    log in). See auth.py / README.
+#  - To enable editing, set Secrets (Tools -> Secrets): EDITOR_PASSWORD (the
+#    shared editor password), ADMIN_PASSWORD (a separate password gating the
+#    /applications admin area), and SECRET_KEY (a long random string for the
+#    session cookie). Fail-closed: without EDITOR_PASSWORD editing is locked, and
+#    without ADMIN_PASSWORD the admin area is locked. See auth.py / README.
 
 modules = ["python-3.11"]
 
