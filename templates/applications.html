@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content="Field data-collection applications" />
+    <title>Applications · Brunei Bus Routes</title>
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/styles.css', v=asset_v) }}"
+    />
+  </head>
+  <body class="guide-page">
+    <div class="guide guide-wide">
+      <header class="guide-masthead">
+        <div class="guide-kicker">Brunei Bus Routes · Admin</div>
+        <h1>Field-collection applications</h1>
+        <p class="guide-lede">
+          Submissions from the <a href="/join">hiring page</a>, newest first.
+          <span id="appCount">{{ applications|length }}</span> total.
+        </p>
+        <a class="btn btn-primary join-cta" href="/applications.csv">⬇ Export CSV</a>
+      </header>
+
+      <section>
+        {% if applications %}
+        <table class="guide-table apps-table">
+          <thead>
+            <tr>
+              <th scope="col">When</th>
+              <th scope="col">Applicant</th>
+              <th scope="col">Coverage</th>
+              <th scope="col">Notes</th>
+              <th scope="col">Status</th>
+              <th scope="col">Admin note</th>
+              <th scope="col"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in applications %}
+            <tr data-id="{{ a.id }}" data-status="{{ a.status }}">
+              <td class="apps-when">{{ a.created_at }}</td>
+              <td>
+                <strong>{{ a.name }}</strong><br />
+                <span class="apps-contact">{{ a.contact }}</span>
+              </td>
+              <td>
+                {{ a.districts }}{% if a.districts and a.transport %}<br />{% endif %}
+                {% if a.transport %}<span class="apps-muted">{{ a.transport }}</span>{% endif %}
+                {% if a.availability %}<br /><span class="apps-muted">{{ a.availability }}</span>{% endif %}
+              </td>
+              <td class="apps-notes">
+                {{ a.experience }}{% if a.experience and a.message %}<br /><br />{% endif %}{{ a.message }}
+              </td>
+              <td>
+                <select class="js-status apps-status">
+                  {% for s in statuses %}
+                  <option value="{{ s }}" {% if a.status == s %}selected{% endif %}>{{ s }}</option>
+                  {% endfor %}
+                </select>
+              </td>
+              <td>
+                <textarea class="js-note apps-adminnote" rows="2"
+                  placeholder="internal note…">{{ a.admin_note }}</textarea>
+              </td>
+              <td class="apps-actions">
+                <button type="button" class="js-delete apps-del" title="Delete this application">✕</button>
+                <span class="apps-saved" aria-live="polite"></span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="guide-note">No applications yet.</p>
+        {% endif %}
+      </section>
+
+      <footer class="guide-footer">
+        <a class="btn btn-primary" href="/join">Open the hiring page →</a>
+        <span><a href="/">trip planner</a> · <a href="/map">route map</a></span>
+      </footer>
+    </div>
+    <script src="{{ url_for('static', filename='js/applications-page.js', v=asset_v) }}"></script>
+  </body>
+</html>

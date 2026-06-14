@@ -801,6 +801,149 @@ def _validate_gtfs_feed_config(payload):
     return config, None
 
 
+# --- Hiring: freelance field data-collection applications --------------------
+# Districts of Brunei a collector can cover, and how they get around. Kept as
+# closed sets so the public form can't store arbitrary values.
+APPLICATION_DISTRICTS = ("Brunei-Muara", "Tutong", "Belait", "Temburong")
+APPLICATION_TRANSPORT = ("Own vehicle", "Motorcycle", "Public transport", "Other")
+# Admin review workflow stages for a submitted application.
+APPLICATION_STATUSES = ("New", "Reviewing", "Contacted", "Accepted", "Rejected")
+
+
+def _validate_application(form):
+    """Validate a /join application. `form` has name, contact, districts (list),
+    transport, availability, experience, message. Returns (fields, error) where
+    fields is ready for db.add_application (districts joined to a string)."""
+    name = (form.get("name") or "").strip()
+    if not name:
+        return None, "Please enter your name."
+    contact = (form.get("contact") or "").strip()
+    if not contact:
+        return None, "Please enter an email or phone number so we can reach you."
+
+    districts_in = form.get("districts") or []
+    if isinstance(districts_in, str):
+        districts_in = [districts_in]
+    districts = [d for d in districts_in if d in APPLICATION_DISTRICTS]
+    if len(districts) != len(districts_in):
+        return None, "Unknown district selected."
+
+    transport = (form.get("transport") or "").strip()
+    if transport and transport not in APPLICATION_TRANSPORT:
+        return None, "Unknown transport option."
+
+    fields = {
+        "name": name[:120],
+        "contact": contact[:200],
+        "districts": ", ".join(districts),
+        "transport": transport[:40],
+        "availability": (form.get("availability") or "").strip()[:300],
+        "experience": (form.get("experience") or "").strip()[:1000],
+        "message": (form.get("message") or "").strip()[:2000],
+    }
+    return fields, None
+
+
+@app.route("/join")
+def join_page():
+    # Public hiring page for freelance field data collectors.
+    return render_template(
+        "join.html", submitted=False, error=None, form={},
+        districts=APPLICATION_DISTRICTS, transport_options=APPLICATION_TRANSPORT,
+    )
+
+
+@app.route("/join", methods=["POST"])
+@ratelimit.rate_limited(limits=[(5, 60), (20, 3600)], scope="apply")
+def join_apply():
+    # Plain form POST (public, unauthenticated contact form — no privileged
+    # session action, so the editor's JSON/CSRF baseline doesn't apply here).
+    form = {
+        "name": request.form.get("name", ""),
+        "contact": request.form.get("contact", ""),
+        "districts": request.form.getlist("districts"),
+        "transport": request.form.get("transport", ""),
+        "availability": request.form.get("availability", ""),
+        "experience": request.form.get("experience", ""),
+        "message": request.form.get("message", ""),
+    }
+    fields, err = _validate_application(form)
+    if err:
+        return render_template(
+            "join.html", submitted=False, error=err, form=form,
+            districts=APPLICATION_DISTRICTS, transport_options=APPLICATION_TRANSPORT,
+        ), 400
+    db.add_application(fields)
+    return render_template(
+        "join.html", submitted=True, error=None, form={},
+        districts=APPLICATION_DISTRICTS, transport_options=APPLICATION_TRANSPORT,
+    )
+
+
+@app.route("/applications")
+@auth.admin_required()
+def applications_page():
+    # Admin view of submitted applications (newest first).
+    return render_template(
+        "applications.html",
+        applications=db.list_applications(),
+        statuses=APPLICATION_STATUSES,
+    )
+
+
+@app.route("/applications/<int:app_id>", methods=["POST"])
+@auth.admin_required(api=True)
+@ratelimit.rate_limited()
+def update_application(app_id):
+    # Update an application's review status and/or admin note.
+    payload = request.get_json(silent=True) or {}
+    updated = False
+    if "status" in payload:
+        status = payload.get("status")
+        if status not in APPLICATION_STATUSES:
+            return jsonify({"error": "unknown status"}), 400
+        if not db.set_application_status(app_id, status):
+            return jsonify({"error": "application not found"}), 404
+        updated = True
+    if "note" in payload:
+        note = payload.get("note", "")
+        if not isinstance(note, str):
+            return jsonify({"error": "note must be a string"}), 400
+        if not db.set_application_note(app_id, note[:2000]):
+            return jsonify({"error": "application not found"}), 404
+        updated = True
+    if not updated:
+        return jsonify({"error": "nothing to update"}), 400
+    return jsonify({"ok": True})
+
+
+@app.route("/applications/<int:app_id>", methods=["DELETE"])
+@auth.admin_required(api=True)
+@ratelimit.rate_limited()
+def remove_application(app_id):
+    if not db.delete_application(app_id):
+        return jsonify({"error": "application not found"}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/applications.csv")
+@auth.admin_required()
+def applications_csv():
+    # Download all applications as CSV (authed page download).
+    cols = ("id", "created_at", "name", "contact", "districts", "transport",
+            "availability", "experience", "message", "status", "admin_note")
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(cols)
+    for a in db.list_applications():
+        writer.writerow([a.get(c, "") for c in cols])
+    return Response(
+        buf.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="applications.csv"'},
+    )
+
+
 @app.route("/data/gtfs-meta")
 def get_gtfs_meta():
     """Per-route GTFS metadata overrides (names, color, schedule)."""
@@ -1166,8 +1309,8 @@ def plan_trip():
 
 @app.route("/login")
 def login_page():
-    # Shared-password gate for the editor. Already in? Skip straight through.
-    if auth.is_authed():
+    # One login form for both gates (editor + admin). Already in? Skip through.
+    if auth.is_authed() or auth.is_admin():
         return redirect(auth.safe_next(request.args.get("next")) or url_for("gtfs_page"))
     return render_template("login.html", next=request.args.get("next", ""), error=False)
 
@@ -1175,11 +1318,23 @@ def login_page():
 @app.route("/login", methods=["POST"])
 @ratelimit.rate_limited(limits=[(5, 60), (20, 3600)], scope="login")
 def login_submit():
-    # Tight rate tiers above slow password brute-forcing.
-    if auth.check_password(request.form.get("password")):
+    # Tight rate tiers above slow password brute-forcing. The single password
+    # field accepts either the editor or the admin password (distinct secrets),
+    # setting whichever session flag matches.
+    password = request.form.get("password")
+    is_editor = auth.check_password(password)
+    is_admin = auth.check_admin_password(password)
+    if is_editor or is_admin:
         session.permanent = True
-        session["authed"] = True
-        return redirect(auth.safe_next(request.form.get("next")) or url_for("gtfs_page"))
+        if is_editor:
+            session["authed"] = True
+        if is_admin:
+            session["admin"] = True
+        # Send admins to where they were headed (e.g. /applications); the editor
+        # default remains the workbench.
+        default = url_for("applications_page") if is_admin and not is_editor \
+            else url_for("gtfs_page")
+        return redirect(auth.safe_next(request.form.get("next")) or default)
     return render_template(
         "login.html", next=request.form.get("next", ""), error=True
     ), 401

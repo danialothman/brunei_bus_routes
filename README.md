@@ -149,22 +149,30 @@ The git-tracked route data and stop images travel with the repo, and the
 client-side bits (recent trips, ride-music settings) live in browser
 `localStorage` — neither is affected by the host.
 
-### Editor login
+### Editor & admin login
 
-The map, planner, and ride pages are public and read-only. **Editing** — route
-geometry, schedules, notes, the `/gtfs` workbench, and all write endpoints —
-requires logging in with a single shared password (`auth.py`).
+The map, planner, and ride pages are public and read-only. Two separate gates
+sit behind one login form (`auth.py`):
 
-Set two secrets (Repl → Tools → Secrets):
+- **Editing** — route geometry, schedules, notes, the `/gtfs` workbench, and all
+  write endpoints — requires the **editor** password.
+- **Admin** — the `/applications` area (field-collection applicant contacts and
+  their review status/notes) — requires the **admin** password. It's a distinct
+  secret so editor access doesn't expose applicant details.
+
+Set the secrets (Repl → Tools → Secrets):
 
 - `EDITOR_PASSWORD` — the editor password. **Fail-closed: if unset, editing is
-  locked** (no one can log in) and a warning is logged at startup. Set it to
-  enable the editor — locally and in production alike.
+  locked** (no one can log in) and a warning is logged at startup.
+- `ADMIN_PASSWORD` — the admin password gating `/applications`. **Fail-closed:
+  if unset, the admin area is locked** and a warning is logged. Keep it different
+  from `EDITOR_PASSWORD`.
 - `SECRET_KEY` — a long random string that signs the session cookie. Required so
   the login stays valid across gunicorn workers and autoscale instances; locally
   it falls back to a random per-process value (sessions reset on restart).
 
-Log in via the **✎ Log in** button (or visit `/login`). The session cookie is
+Log in via the **🔑 Log in** button (or visit `/login`); the single password
+field accepts either secret and unlocks the matching area. The session cookie is
 `HttpOnly`, `SameSite=Lax`, and `Secure` in production. Login attempts are rate
 limited to slow password guessing.
 
@@ -313,6 +321,22 @@ journeys always match what a GTFS consumer of the feed would compute.
 Routes without transcribed departures plan against their synthetic headway
 (default: every 30 min, 06:00–20:00), so waits and arrival times are nominal
 until real timetables are transcribed in the workbench.
+
+## Field data collection (hiring)
+
+Closing the gaps in the 2016 dataset needs people on the ground. The public
+**`/join`** page (linked as **✋ Join** from the planner and map navbars, and
+from the data-entry guide) recruits freelance field collectors on a per-route
+bounty basis and takes applications through a built-in form.
+
+- Submissions are stored in the app DB (`applications` table) — no third-party
+  form service.
+- **`/applications`** is the admin view, gated by `ADMIN_PASSWORD` (see
+  [Editor & admin login](#editor--admin-login)). Admins can set each
+  applicant's review status (New → Reviewing → Contacted → Accepted / Rejected),
+  add an internal note, delete entries, and export everything as CSV.
+- The per-route bounty figures on `/join` are placeholders (`BND XX` in
+  `templates/join.html`) — set real amounts before publishing.
 
 ## Technologies Used
 
