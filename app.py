@@ -809,6 +809,42 @@ APPLICATION_TRANSPORT = ("Own vehicle", "Motorcycle", "Public transport", "Other
 # Admin review workflow stages for a submitted application.
 APPLICATION_STATUSES = ("New", "Reviewing", "Contacted", "Accepted", "Rejected")
 
+# Hiring-page per-route bounty, editable by admins (stored in the settings table
+# under key "bounty"). Amounts are free text (e.g. "15" or "10–20") so ranges are
+# allowed; blank amounts render as "confirmed on onboarding" on /join.
+BOUNTY_FIELDS = {
+    "currency": 8,
+    "per_route": 40,
+    "timing_bonus": 40,
+    "payment_note": 500,
+}
+BOUNTY_DEFAULTS = {
+    "currency": "BND",
+    "per_route": "",
+    "timing_bonus": "",
+    "payment_note": (
+        "Paid after a route passes quality review. We agree the exact rate and "
+        "payment method with you when you're onboarded."
+    ),
+}
+
+
+def _get_bounty():
+    """Current bounty settings merged over the defaults (always a full dict)."""
+    out = dict(BOUNTY_DEFAULTS)
+    raw = db.get_setting("bounty")
+    if raw:
+        try:
+            data = json.loads(raw)
+        except ValueError:
+            data = {}
+        if isinstance(data, dict):
+            for k in BOUNTY_FIELDS:
+                v = data.get(k)
+                if isinstance(v, str) and v.strip():
+                    out[k] = v.strip()
+    return out
+
 
 def _validate_application(form):
     """Validate a /join application. `form` has name, contact, districts (list),
@@ -850,6 +886,7 @@ def join_page():
     return render_template(
         "join.html", submitted=False, error=None, form={},
         districts=APPLICATION_DISTRICTS, transport_options=APPLICATION_TRANSPORT,
+        bounty=_get_bounty(),
     )
 
 
@@ -872,11 +909,13 @@ def join_apply():
         return render_template(
             "join.html", submitted=False, error=err, form=form,
             districts=APPLICATION_DISTRICTS, transport_options=APPLICATION_TRANSPORT,
+            bounty=_get_bounty(),
         ), 400
     db.add_application(fields)
     return render_template(
         "join.html", submitted=True, error=None, form={},
         districts=APPLICATION_DISTRICTS, transport_options=APPLICATION_TRANSPORT,
+        bounty=_get_bounty(),
     )
 
 
@@ -888,6 +927,7 @@ def applications_page():
         "applications.html",
         applications=db.list_applications(),
         statuses=APPLICATION_STATUSES,
+        bounty=_get_bounty(),
     )
 
 
@@ -942,6 +982,22 @@ def applications_csv():
         mimetype="text/csv",
         headers={"Content-Disposition": 'attachment; filename="applications.csv"'},
     )
+
+
+@app.route("/applications/bounty", methods=["POST"])
+@auth.admin_required(api=True)
+@ratelimit.rate_limited()
+def save_bounty():
+    # Admin-set per-route bounty rates shown on /join.
+    payload = request.get_json(silent=True) or {}
+    data = {}
+    for field, cap in BOUNTY_FIELDS.items():
+        v = payload.get(field, "")
+        if not isinstance(v, str):
+            return jsonify({"error": f"{field} must be a string"}), 400
+        data[field] = v.strip()[:cap]
+    db.set_setting("bounty", json.dumps(data, ensure_ascii=False))
+    return jsonify({"ok": True, "bounty": _get_bounty()})
 
 
 @app.route("/data/gtfs-meta")

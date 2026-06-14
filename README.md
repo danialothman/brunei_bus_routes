@@ -335,8 +335,10 @@ bounty basis and takes applications through a built-in form.
   [Editor & admin login](#editor--admin-login)). Admins can set each
   applicant's review status (New → Reviewing → Contacted → Accepted / Rejected),
   add an internal note, delete entries, and export everything as CSV.
-- The per-route bounty figures on `/join` are placeholders (`BND XX` in
-  `templates/join.html`) — set real amounts before publishing.
+- The **per-route bounty** figures shown on `/join` (currency, per-route amount,
+  timing-board bonus, payment note) are edited from the `/applications` admin
+  page and stored in the DB (`settings` table). Leave an amount blank to show
+  "rate confirmed on onboarding" instead of a figure.
 
 ## Technologies Used
 
