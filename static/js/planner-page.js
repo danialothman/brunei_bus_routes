@@ -58,6 +58,8 @@ APP.PlannerPage = class {
       $(".tp-source .btn").removeClass("active");
       btn.addClass("active");
       this.year = btn.attr("data-year");
+      // The incomplete-coverage caveat applies to the shipped 2016 dataset.
+      $("#tpDataNote").toggle(this.year === "2016");
       this.loadStops();
       this.clearResults("Source changed — plan again.");
     });
