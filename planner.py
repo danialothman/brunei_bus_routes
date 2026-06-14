@@ -710,12 +710,41 @@ class Network:
             else:
                 merged.append(leg)
         legs = merged
+
+        # A short walk between two legs of the SAME route is a loop shortcut
+        # (one-way loops make travelling a little "backwards" mean riding part
+        # way, cutting across on foot, and catching the route again) — not a
+        # real transfer. Fold such ride -> walk -> ride runs into one continuous
+        # ride leg so it doesn't read as a pointless transfer to itself.
+        collapsed = []
+        i = 0
+        while i < len(legs):
+            leg = legs[i]
+            if leg["type"] == "ride":
+                leg = dict(leg)
+                while (i + 2 < len(legs)
+                       and legs[i + 1]["type"] == "walk"
+                       and legs[i + 2]["type"] == "ride"
+                       and legs[i + 2]["route_id"] == leg["route_id"]):
+                    nxt = legs[i + 2]
+                    leg["alight"] = nxt["alight"]
+                    leg["arrive"] = nxt["arrive"]
+                    leg["stops"] = leg["stops"] + nxt["stops"]
+                    leg["geometry"] = leg["geometry"] + nxt["geometry"]
+                    i += 2
+                collapsed.append(leg)
+            else:
+                collapsed.append(leg)
+            i += 1
+        legs = collapsed
+
+        ride_count = sum(1 for leg in legs if leg["type"] == "ride")
         departure = legs[0]["depart"]
         arrival = legs[-1]["arrive"]
         return {
             "departure": int(departure),
             "arrival": int(arrival),
             "duration": int(arrival - departure),
-            "transfers": max(0, rides - 1),
+            "transfers": max(0, ride_count - 1),
             "legs": legs,
         }
