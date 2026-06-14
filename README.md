@@ -290,6 +290,9 @@ journeys always match what a GTFS consumer of the feed would compute.
 
 - **Two data sources**, switchable in the sidebar: the **2016 official** dataset
   or **My routes** (the routes you drew and scheduled in the GTFS workbench).
+  The 2016 source carries a dismissable coverage caveat (its KML-derived stops
+  are incomplete, so journeys may show extra transfers or detours); ✕ collapses
+  it to a "show notice" link, and the choice persists in the browser.
 - Set start (A) and destination (B) by clicking the map or typing a stop name;
   pick a departure time and day of travel.
 - Every planned search lands in a **Recent trips** list (persisted in the
