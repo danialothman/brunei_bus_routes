@@ -36,3 +36,6 @@ instance/
 # Generated GTFS feed (build it with scripts/build_gtfs.py or /data/gtfs.zip)
 /gtfs.zip
 brunei-gtfs-*.zip
+
+# Local Claude Code config (personal slash commands, plans, etc.)
+.claude/

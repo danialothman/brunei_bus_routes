@@ -976,14 +976,42 @@ def gtfs_feed_inputs(year):
     return routes, resolved_agencies(year), params
 
 
+# The built GTFS feed is deterministic per year + edits, so cache the bytes
+# (keyed by the same change stamp the planner uses) instead of rebuilding it on
+# every export / validate / preview / planner-network call — each rebuild is
+# ~0.8s of CPU, so this both speeds things up and removes a spam-able hotspot.
+_FEED_CACHE = {}  # year -> (db change stamp, data bytes, stats)
+
+
+def _build_feed_cached(year):
+    """Build or reuse the year's GTFS feed. Returns (data, stats), or
+    (None, None) when the year has no exportable routes."""
+    stamp = db.change_stamp(year)
+    cached = _FEED_CACHE.get(year)
+    if cached and cached[0] == stamp:
+        return cached[1], cached[2]
+    routes, agencies, params = gtfs_feed_inputs(year)
+    if not routes:
+        return None, None
+    data, stats = gtfs.build_feed(routes, agencies, params)
+    _FEED_CACHE[year] = (stamp, data, stats)
+    return data, stats
+
+
+# Per-IP tiers for the compute-heavy GET endpoints — a separate bucket from the
+# write limits, generous for humans but a backstop against scripted spam.
+READ_LIMITS = [(60, 10), (300, 60)]
+
+
 @app.route("/data/gtfs-validate")
+@auth.login_required(api=True)
+@ratelimit.rate_limited(limits=READ_LIMITS, scope="read")
 def gtfs_validate():
     """Build the year's feed in memory and run the structural validator."""
     year = _resolve_year(request.args.get("year"))
-    routes, agencies, params = gtfs_feed_inputs(year)
-    if not routes:
+    data, stats = _build_feed_cached(year)
+    if data is None:
         return jsonify({"error": "no routes to export"}), 404
-    data, stats = gtfs.build_feed(routes, agencies, params)
     findings = gtfs.validate_feed(data)
     errors = sum(1 for f in findings if f["severity"] == "error")
     return jsonify({
@@ -1002,14 +1030,15 @@ GTFS_PREVIEW_MAX_ROWS = 500
 
 
 @app.route("/data/gtfs-preview")
+@auth.login_required(api=True)
+@ratelimit.rate_limited(limits=READ_LIMITS, scope="read")
 def gtfs_preview():
     """Build the year's feed in memory and return every file's parsed contents,
     so the workbench can show the data exactly as the export will emit it."""
     year = _resolve_year(request.args.get("year"))
-    routes, agencies, params = gtfs_feed_inputs(year)
-    if not routes:
+    data, stats = _build_feed_cached(year)
+    if data is None:
         return jsonify({"error": "no routes to export"}), 404
-    data, stats = gtfs.build_feed(routes, agencies, params)
     files = []
     with zipfile.ZipFile(io.BytesIO(data)) as zf:
         for name in zf.namelist():
@@ -1029,14 +1058,15 @@ def gtfs_preview():
 
 
 @app.route("/data/gtfs.zip")
+@ratelimit.rate_limited(limits=READ_LIMITS, scope="read")
 def gtfs_feed():
     # On-demand GTFS feed for the year, reflecting DB edits (via gather) and
-    # any feed-level settings saved through the GTFS editor.
+    # any feed-level settings saved through the GTFS editor. Public download, so
+    # rate-limited (and cached) rather than auth-gated.
     year = _resolve_year(request.args.get("year"))
-    routes, agencies, params = gtfs_feed_inputs(year)
-    if not routes:
+    data, _stats = _build_feed_cached(year)
+    if data is None:
         return jsonify({"error": "no routes to export"}), 404
-    data, _stats = gtfs.build_feed(routes, agencies, params)
     return Response(
         data,
         mimetype="application/zip",
@@ -1055,10 +1085,9 @@ def _planner_network(year):
     cached = _PLANNER_CACHE.get(year)
     if cached and cached[0] == stamp:
         return cached[1]
-    routes, agencies, params = gtfs_feed_inputs(year)
-    if not routes:
+    data, _stats = _build_feed_cached(year)
+    if data is None:
         return None
-    data, _stats = gtfs.build_feed(routes, agencies, params)
     net = planner.Network(data)
     _PLANNER_CACHE[year] = (stamp, net)
     return net
@@ -1079,6 +1108,7 @@ def planner_stops():
 
 
 @app.route("/data/plan")
+@ratelimit.rate_limited(limits=READ_LIMITS, scope="read")
 def plan_trip():
     """Point-to-point journeys: ?from=lon,lat&to=lon,lat&time=HH:MM&day=0..6."""
     year = _resolve_year(request.args.get("year"))
