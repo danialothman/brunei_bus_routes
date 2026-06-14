@@ -58,11 +58,16 @@ APP.PlannerPage = class {
       $(".tp-source .btn").removeClass("active");
       btn.addClass("active");
       this.year = btn.attr("data-year");
-      // The incomplete-coverage caveat applies to the shipped 2016 dataset.
-      $("#tpDataNote").toggle(this.year === "2016");
+      this.updateDataNote();
       this.loadStops();
       this.clearResults("Source changed — plan again.");
     });
+
+    // The incomplete-coverage caveat applies to the shipped 2016 dataset; the
+    // dismissed/shown choice persists across sessions.
+    $("#tpDataNoteDismiss").on("click", () => this.setDataNoteDismissed(true));
+    $("#tpDataNoteShow").on("click", () => this.setDataNoteDismissed(false));
+    this.updateDataNote();
 
     $("#tpPickFrom").on("click", () => this.armPick("from"));
     $("#tpPickTo").on("click", () => this.armPick("to"));
@@ -114,6 +119,33 @@ APP.PlannerPage = class {
     this.loadStops();
     this.renderTrips();
     if (restored) this.plan();
+  }
+
+  /**
+   * Show the coverage caveat only for the 2016 dataset. When dismissed it
+   * collapses to a small "show notice" link so the user can bring it back.
+   */
+  updateDataNote() {
+    let dismissed = false;
+    try {
+      dismissed = localStorage.getItem("tp-data-note-dismissed") === "1";
+    } catch (e) {
+      /* storage disabled — treat as not dismissed */
+    }
+    const is2016 = this.year === "2016";
+    $("#tpDataNote").toggle(is2016 && !dismissed);
+    $("#tpDataNoteShow").toggle(is2016 && dismissed);
+  }
+
+  /** Persist the dismissed/shown state of the coverage caveat, then re-render it. */
+  setDataNoteDismissed(dismissed) {
+    try {
+      if (dismissed) localStorage.setItem("tp-data-note-dismissed", "1");
+      else localStorage.removeItem("tp-data-note-dismissed");
+    } catch (e) {
+      /* storage full/disabled — the choice just won't persist */
+    }
+    this.updateDataNote();
   }
 
   // --- Recent trips (persist across sessions in localStorage) -----------------
@@ -190,6 +222,7 @@ APP.PlannerPage = class {
         .removeClass("active")
         .filter((_, el) => $(el).attr("data-year") === year)
         .addClass("active");
+      this.updateDataNote();
       this.loadStops();
     }
     this.from = t.from;
