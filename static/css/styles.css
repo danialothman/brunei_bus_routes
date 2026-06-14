@@ -1753,6 +1753,16 @@ body.guide-page {
   color: var(--gtfs-accent);
   border-color: var(--gtfs-ink);
 }
+.tp-data-note {
+  margin: 7px 0 0;
+  padding: 7px 9px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--gtfs-ink-soft);
+  background: rgba(255, 209, 102, 0.16);
+  border-left: 3px solid var(--gtfs-accent);
+  border-radius: 4px;
+}
 .tp-point-row {
   display: flex;
   align-items: center;
