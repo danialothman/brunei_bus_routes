@@ -16,6 +16,7 @@ Pure stdlib; no Flask imports.
 import csv
 import heapq
 import io
+import re
 import zipfile
 from bisect import bisect_left
 
@@ -45,6 +46,23 @@ def _secs(t):
 
 def _walk_secs(dist_m):
     return int(dist_m / WALK_SPEED) + TRANSFER_SLACK_S
+
+
+def _route_family(long_name):
+    """A route's name with a trailing '(X)' direction suffix stripped, e.g.
+    'BSB Circular (A)' -> 'BSB Circular'. Returns None when there is no such
+    suffix, so only genuine direction variants of one route get grouped."""
+    m = re.match(r"^(.*?)\s*\([A-Za-z]\)\s*$", long_name or "")
+    return m.group(1).strip() if m else None
+
+
+def _same_route(a, b):
+    """True if two ride legs are the same route, or two direction variants of
+    one route (e.g. a circular line's clockwise/anticlockwise loops)."""
+    if a["route_id"] == b["route_id"]:
+        return True
+    fam = _route_family(a.get("long_name"))
+    return fam is not None and fam == _route_family(b.get("long_name"))
 
 
 def _read(zf, name):
@@ -711,27 +729,36 @@ class Network:
                 merged.append(leg)
         legs = merged
 
-        # A short walk between two legs of the SAME route is a loop shortcut
-        # (one-way loops make travelling a little "backwards" mean riding part
-        # way, cutting across on foot, and catching the route again) — not a
-        # real transfer. Fold such ride -> walk -> ride runs into one continuous
-        # ride leg so it doesn't read as a pointless transfer to itself.
+        # A short walk between two legs of the SAME route — or between the two
+        # directions of one circular route (e.g. "BSB Circular (A)" anticlockwise
+        # and "(C)" clockwise) — is a loop shortcut, not a real transfer: the
+        # rider just stays on / picks the circular line. Fold such ride -> walk
+        # -> ride runs into one continuous leg, relabelled to the shared route
+        # name when the two folded directions differ.
         collapsed = []
         i = 0
         while i < len(legs):
             leg = legs[i]
             if leg["type"] == "ride":
                 leg = dict(leg)
+                family = _route_family(leg.get("long_name"))
+                crossed = False
                 while (i + 2 < len(legs)
                        and legs[i + 1]["type"] == "walk"
                        and legs[i + 2]["type"] == "ride"
-                       and legs[i + 2]["route_id"] == leg["route_id"]):
+                       and _same_route(leg, legs[i + 2])):
                     nxt = legs[i + 2]
+                    if nxt["route_id"] != leg["route_id"]:
+                        crossed = True
                     leg["alight"] = nxt["alight"]
                     leg["arrive"] = nxt["arrive"]
                     leg["stops"] = leg["stops"] + nxt["stops"]
                     leg["geometry"] = leg["geometry"] + nxt["geometry"]
                     i += 2
+                if crossed and family:  # folded across directions -> shared name
+                    leg["route_id"] = family
+                    leg["long_name"] = family
+                    leg["short_name"] = ""
                 collapsed.append(leg)
             else:
                 collapsed.append(leg)
