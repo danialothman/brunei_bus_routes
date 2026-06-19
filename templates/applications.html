@@ -18,6 +18,18 @@
     />
   </head>
   <body class="guide-page">
+    <nav class="guide-nav">
+      <a class="guide-nav-brand" href="/">Brunei Bus Routes</a>
+      <div class="guide-nav-links">
+        <span class="guide-nav-who">Signed in as Admin</span>
+        <a href="/join">✋ Hiring page</a>
+        {% if is_editor %}<a href="/gtfs">🕐 Workbench</a>{% endif %}
+        <a href="/">🧭 Planner</a>
+        <form method="POST" action="{{ url_for('logout') }}" class="guide-nav-logout">
+          <button type="submit">Log out</button>
+        </form>
+      </div>
+    </nav>
     <div class="guide guide-wide">
       <header class="guide-masthead">
         <div class="guide-kicker">Brunei Bus Routes · Admin</div>
@@ -40,11 +52,6 @@
             <span>Per route</span>
             <input type="text" id="bPerRoute" maxlength="40" placeholder="e.g. 15"
               value="{{ bounty.per_route }}" />
-          </label>
-          <label class="bounty-field bounty-narrow">
-            <span>Timing-board bonus</span>
-            <input type="text" id="bTimingBonus" maxlength="40" placeholder="e.g. 5"
-              value="{{ bounty.timing_bonus }}" />
           </label>
           <label class="bounty-field bounty-wide">
             <span>Payment note</span>
@@ -81,7 +88,9 @@
               <td class="apps-when">{{ a.created_at }}</td>
               <td>
                 <strong>{{ a.name }}</strong><br />
-                <span class="apps-contact">{{ a.contact }}</span>
+                {% if a.email %}<span class="apps-contact">✉ {{ a.email }}</span><br />{% endif %}
+                {% if a.phone %}<span class="apps-contact">☎ {{ a.phone }}</span>
+                {% elif not a.email %}<span class="apps-contact">{{ a.contact }}</span>{% endif %}
               </td>
               <td>
                 {{ a.districts }}{% if a.districts and a.transport %}<br />{% endif %}

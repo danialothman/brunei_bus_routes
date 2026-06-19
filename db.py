@@ -190,7 +190,9 @@ def _schema():
         CREATE TABLE IF NOT EXISTS applications (
             id           {idpk},
             name         TEXT NOT NULL,
-            contact      TEXT NOT NULL,
+            contact      TEXT NOT NULL DEFAULT '',
+            email        TEXT NOT NULL DEFAULT '',
+            phone        TEXT NOT NULL DEFAULT '',
             districts    TEXT NOT NULL DEFAULT '',
             transport    TEXT NOT NULL DEFAULT '',
             availability TEXT NOT NULL DEFAULT '',
@@ -221,6 +223,8 @@ def _migrations():
     return [
         "ALTER TABLE applications ADD COLUMN status TEXT NOT NULL DEFAULT 'New'",
         "ALTER TABLE applications ADD COLUMN admin_note TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE applications ADD COLUMN email TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE applications ADD COLUMN phone TEXT NOT NULL DEFAULT ''",
     ]
 
 
@@ -370,9 +374,9 @@ def set_note(year, route, note):
 
 def add_application(fields):
     """Insert a field-collection application and return its new id. `fields` is a
-    dict with name, contact, districts, transport, availability, experience,
-    message (the optional ones default to '')."""
-    cols = ("name", "contact", "districts", "transport",
+    dict with name, email, phone, contact, districts, transport, availability,
+    experience, message (the optional ones default to '')."""
+    cols = ("name", "email", "phone", "contact", "districts", "transport",
             "availability", "experience", "message")
     values = tuple(fields.get(c, "") or "" for c in cols)
     sql = _q(
@@ -393,7 +397,7 @@ def list_applications(limit=500):
         rows = conn.execute(
             _q(
                 """
-                SELECT id, name, contact, districts, transport,
+                SELECT id, name, email, phone, contact, districts, transport,
                        availability, experience, message, status,
                        admin_note, created_at
                 FROM applications

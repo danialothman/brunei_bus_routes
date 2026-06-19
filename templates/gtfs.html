@@ -46,8 +46,13 @@
             </select>
           </li>
         </ul>
+        {% if is_admin %}
+        <a href="{{ url_for('applications_page') }}"
+          class="btn btn-default btn-sm navbar-btn"
+          title="You're also signed in as admin — manage hiring applications">✋ Applications</a>
+        {% endif %}
         <form method="POST" action="{{ url_for('logout') }}" style="display:inline; margin:0">
-          <button type="submit" class="btn btn-default btn-sm navbar-btn" title="Log out of the editor">Log out</button>
+          <button type="submit" class="btn btn-default btn-sm navbar-btn" title="Log out">Log out</button>
         </form>
         <button
           type="button"

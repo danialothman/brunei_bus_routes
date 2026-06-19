@@ -21,6 +21,14 @@
     />
   </head>
   <body class="guide-page join-page">
+    <nav class="guide-nav">
+      <a class="guide-nav-brand" href="/">Brunei Bus Routes</a>
+      <div class="guide-nav-links">
+        <a href="/">🧭 Planner</a>
+        <a href="/map">🗺 Map</a>
+        <a href="/gtfs/guide">📋 Data guide</a>
+      </div>
+    </nav>
     <div class="guide">
       <header class="guide-masthead join-hero">
         <div class="guide-kicker">Brunei Bus Routes · Field data collection</div>
@@ -72,8 +80,8 @@
             <div class="join-card-icon">📷</div>
             <h3>Photograph signboards</h3>
             <p>
-              Photograph each stop's signboard and the route's timing board, so
-              names and departure times can be transcribed accurately.
+              Photograph each stop's signboard so stop names and codes can be
+              transcribed accurately.
             </p>
           </div>
           <div class="join-card">
@@ -99,16 +107,6 @@
               <strong>Rate confirmed on onboarding.</strong>{% endif %}
             </td>
           </tr>
-          {% if bounty.timing_bonus %}
-          <tr>
-            <th scope="row">Timing board bonus</th>
-            <td>
-              <strong>+{{ bounty.currency }} {{ bounty.timing_bonus }}</strong>
-              when you also capture a clear photo of the route's official
-              departure-time signboard.
-            </td>
-          </tr>
-          {% endif %}
           <tr>
             <th scope="row">Payment</th>
             <td>{{ bounty.payment_note }}</td>
@@ -164,11 +162,20 @@
           </label>
 
           <label class="join-field">
-            <span>Email or phone (WhatsApp) <em>*</em></span>
-            <input type="text" name="contact" maxlength="200" required
-              placeholder="you@example.com or +673 …"
-              value="{{ form.get('contact', '') }}" />
+            <span>Email</span>
+            <input type="email" name="email" maxlength="200"
+              placeholder="you@example.com"
+              value="{{ form.get('email', '') }}" />
           </label>
+
+          <label class="join-field">
+            <span>Phone / WhatsApp</span>
+            <input type="tel" name="phone" maxlength="60"
+              placeholder="+673 …"
+              value="{{ form.get('phone', '') }}" />
+          </label>
+
+          <p class="join-field-hint">Give at least one — an email or a phone number — so we can reach you.</p>
 
           <fieldset class="join-field">
             <span>Districts you can cover</span>
@@ -205,11 +212,6 @@
             <span>Relevant experience (optional)</span>
             <textarea name="experience" rows="3" maxlength="1000"
               placeholder="Anything that helps — local knowledge, field/survey work, etc.">{{ form.get('experience', '') }}</textarea>
-          </label>
-
-          <label class="join-field">
-            <span>Anything else (optional)</span>
-            <textarea name="message" rows="3" maxlength="2000">{{ form.get('message', '') }}</textarea>
           </label>
 
           <button type="submit" class="btn btn-primary join-submit">Send application</button>

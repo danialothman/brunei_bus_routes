@@ -1715,6 +1715,72 @@ body.guide-page {
 
 
 /* --- Join / hiring page (/join) — builds on the .guide-* system above --- */
+/* Top nav for the guide-style pages (no Bootstrap here) — a clear way back to
+   the rest of the app, since the footer links are easy to miss. */
+.guide-nav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 24px;
+  background: var(--gtfs-ink);
+  border-bottom: 3px solid var(--gtfs-accent);
+}
+.guide-nav-brand {
+  font-family: var(--gtfs-display);
+  font-weight: 700;
+  font-size: 17px;
+  letter-spacing: 0.03em;
+  color: var(--gtfs-accent);
+  text-decoration: none;
+}
+.guide-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+.guide-nav-links a {
+  color: #f3f4f2;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+.guide-nav-links a:hover {
+  color: var(--gtfs-accent);
+  background: none;
+}
+.guide-nav-who {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gtfs-accent);
+  border: 1px solid var(--gtfs-accent);
+  border-radius: 3px;
+  padding: 2px 8px;
+}
+.guide-nav-logout {
+  display: inline;
+  margin: 0;
+}
+.guide-nav-logout button {
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #f3f4f2;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.guide-nav-logout button:hover {
+  color: var(--gtfs-accent);
+}
+
 /* Accent call-to-action button, shared by the hero CTA and the submit button. */
 .join-cta,
 .join-submit {
@@ -1810,6 +1876,11 @@ body.guide-page {
 }
 .join-field textarea {
   resize: vertical;
+}
+.join-field-hint {
+  margin: -6px 0 0;
+  font-size: 12px;
+  color: var(--gtfs-ink-soft);
 }
 .join-field input:focus,
 .join-field select:focus,
