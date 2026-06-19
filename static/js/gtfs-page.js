@@ -306,6 +306,12 @@ APP.GtfsPage = class {
     });
     source.on("change", () => {
       if (source.getState() === "ready" && source.getFeatures().length) {
+        // Tag features with the route context so the stop info popup can look up
+        // this stop's photos (same as the public map's route-manager does).
+        source.getFeatures().forEach((f) => {
+          f.set("routeYear", year, true);
+          f.set("routeFile", file, true);
+        });
         const ext = source.getExtent();
         if (ext && isFinite(ext[0])) {
           // Keep the fitted route clear of the timing panel docked on the

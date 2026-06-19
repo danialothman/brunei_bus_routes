@@ -117,6 +117,12 @@ APP.RouteManager = class {
     });
     source.on("change", () => {
       if (source.getState() === "ready") {
+        // Tag each feature with its route context so the stop info panel can
+        // look up photos for the clicked stop (year + route file + coords).
+        source.getFeatures().forEach((f) => {
+          f.set("routeYear", m.year, true);
+          f.set("routeFile", m.file, true);
+        });
         if (source.getFeatures().length > 0 && layer.getVisible()) {
           this.maybeZoomTo(layer);
         }
@@ -236,8 +242,11 @@ APP.RouteManager = class {
           (cat.years || []).indexOf(APP.USER_ROUTE_YEAR) >= 0;
         const palette = APP.ROUTE_COLORS;
         let i = 0;
-        const header = (text) =>
-          out.append($('<div class="route-group"></div>').text(text));
+        const header = (text) => {
+          const el = $('<div class="route-group"></div>').text(text);
+          out.append(el);
+          return el;
+        };
         const addRow = (year, file, kind, isUser, names) => {
           const id = this._id(year, file);
           const color = palette[i++ % palette.length];
@@ -256,16 +265,39 @@ APP.RouteManager = class {
             d.user.forEach((f) => addRow(year, f, "kml", true, d.names || {}));
           }
         });
-        // Then shipped routes + geojson paths, per year.
+        // Then shipped routes + geojson paths, per year. Each shipped (official)
+        // year shows its source credit right under its first group header, so
+        // it's not implied for user routes and isn't buried below the list.
         (cat.years || []).forEach((year) => {
           const d = cat[year] || {};
           const names = d.names || {};
+          const official = year !== APP.USER_ROUTE_YEAR;
+          // Add an ⓘ toggle to each official group header; clicking it shows/hides
+          // a source-credit callout under that header.
+          const maybeCredit = (headerEl, what) => {
+            if (!official) return;
+            const note = $('<div class="route-credit" style="display:none"></div>').text(
+              `${year} ${what}: data from Land Transport Department docs `
+              + "provided for the EOI for the Provision of Public Bus Services."
+            );
+            const icon = $(
+              '<button type="button" class="route-credit-info" aria-expanded="false"'
+              + ' title="Data source"></button>'
+            ).text("ⓘ");
+            icon.on("click", () => {
+              const show = !note.is(":visible");
+              note.toggle(show);
+              icon.attr("aria-expanded", String(show)).toggleClass("is-open", show);
+            });
+            headerEl.append(icon);
+            headerEl.after(note);
+          };
           if (d.routes && d.routes.length) {
-            header(`${year} · Routes (kml)`);
+            maybeCredit(header(`${year} · Routes & Stops`), "routes & stops");
             d.routes.forEach((f) => addRow(year, f, "kml", false, names));
           }
           if (d.geojson && d.geojson.length) {
-            header(`${year} · GeoJSON paths`);
+            maybeCredit(header(`${year} · GeoJSON paths`), "paths");
             d.geojson.forEach((f) => addRow(year, f, "geojson", false, names));
           }
         });

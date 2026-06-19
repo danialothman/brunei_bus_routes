@@ -219,6 +219,7 @@
           <a class="btn btn-danger dismiss">X</a>
           <h3 class="name"></h3>
           <h5 class="location"></h5>
+          <div class="info-photos" style="display: none"></div>
         </div>
         <div id="editorToolbar" style="display: none">
           <span class="ed-title">✎ <span id="edRouteName"></span></span>
@@ -442,9 +443,33 @@
       </div>
     </div>
 
+    <!-- Per-stop photos -->
+    <div class="modal fade" id="stopPhotoModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h4 class="modal-title">📷 Stop photos — <span id="stopPhotoName"></span></h4>
+          </div>
+          <div class="modal-body">
+            <div id="stopPhotoGrid" class="gep-photo-grid"></div>
+            <div class="gep-photo-upload">
+              <input type="file" id="stopPhotoFile"
+                accept="image/jpeg,image/png,image/webp" />
+              <button type="button" class="btn btn-primary btn-sm" id="stopPhotoUpload">Upload</button>
+              <span id="stopPhotoStatus" class="gep-status"></span>
+            </div>
+            <p class="gep-hint">JPEG, PNG or WEBP, up to 5 MB. Photos are stored
+              with the route data and shown to editors.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
     <script src="{{ url_for('static', filename='js/config.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/lightbox.js') }}"></script>
     <script src="{{ url_for('static', filename='js/info-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/editor-manager.js') }}"></script>
     <script src="{{ url_for('static', filename='js/stop-image-manager.js') }}"></script>

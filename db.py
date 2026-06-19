@@ -118,9 +118,11 @@ def _schema():
     if _BACKEND == "postgres":
         idpk = "BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY"
         now = "((now())::text)"
+        blob = "BYTEA"
     else:
         idpk = "INTEGER PRIMARY KEY AUTOINCREMENT"
         now = "(datetime('now'))"
+        blob = "BLOB"
     return [
         f"""
         CREATE TABLE IF NOT EXISTS route_versions (
@@ -212,6 +214,26 @@ def _schema():
             updated_at TEXT NOT NULL DEFAULT {now}
         )
         """,
+        # Editor-uploaded photos of a bus stop. Bytes live in the DB (the
+        # filesystem is ephemeral on Replit). A stop has no stable id, so photos
+        # are keyed by the stop's rounded "lon,lat" (stable across reorder/rename).
+        f"""
+        CREATE TABLE IF NOT EXISTS stop_photos (
+            id         {idpk},
+            year       TEXT NOT NULL,
+            filename   TEXT NOT NULL,
+            stop_key   TEXT NOT NULL,
+            stop_name  TEXT NOT NULL DEFAULT '',
+            mimetype   TEXT NOT NULL,
+            image      {blob} NOT NULL,
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT NOT NULL DEFAULT {now}
+        )
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_stop_photos_stop
+        ON stop_photos (year, filename, stop_key)
+        """,
     ]
 
 
@@ -225,6 +247,7 @@ def _migrations():
         "ALTER TABLE applications ADD COLUMN admin_note TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE applications ADD COLUMN email TEXT NOT NULL DEFAULT ''",
         "ALTER TABLE applications ADD COLUMN phone TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE stop_photos ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0",
     ]
 
 
@@ -460,6 +483,90 @@ def set_setting(key, value):
             (key, value),
         )
     return value
+
+
+def add_stop_photo(year, filename, stop_key, stop_name, mimetype, data):
+    """Store one stop photo (bytes) and return its new id. New photos append to
+    the end of the stop's existing order."""
+    sql = _q(
+        "INSERT INTO stop_photos "
+        "(year, filename, stop_key, stop_name, mimetype, image, sort_order) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)"
+    )
+    with _connect() as conn:
+        nxt = conn.execute(
+            _q(
+                "SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM stop_photos "
+                "WHERE year=? AND filename=? AND stop_key=?"
+            ),
+            (year, filename, stop_key),
+        ).fetchone()["n"]
+        values = (year, filename, stop_key, stop_name, mimetype, data, nxt)
+        if _BACKEND == "postgres":
+            return conn.execute(sql + " RETURNING id", values).fetchone()["id"]
+        return conn.execute(sql, values).lastrowid
+
+
+def list_stop_photos(year, filename, stop_key):
+    """Photo metadata (no bytes) for one stop, in display order."""
+    with _connect() as conn:
+        rows = conn.execute(
+            _q(
+                """
+                SELECT id, created_at FROM stop_photos
+                WHERE year=? AND filename=? AND stop_key=?
+                ORDER BY sort_order ASC, id ASC
+                """
+            ),
+            (year, filename, stop_key),
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def set_stop_photo_order(ids):
+    """Set each photo's sort_order to its position in `ids`."""
+    with _connect() as conn:
+        for i, pid in enumerate(ids):
+            conn.execute(
+                _q("UPDATE stop_photos SET sort_order=? WHERE id=?"), (i, pid)
+            )
+    return True
+
+
+def stop_photo_counts(year, filename):
+    """{stop_key: count} for a route, for per-stop badges."""
+    with _connect() as conn:
+        rows = conn.execute(
+            _q(
+                """
+                SELECT stop_key, COUNT(*) AS n FROM stop_photos
+                WHERE year=? AND filename=? GROUP BY stop_key
+                """
+            ),
+            (year, filename),
+        ).fetchall()
+    return {r["stop_key"]: r["n"] for r in rows}
+
+
+def get_stop_photo(photo_id):
+    """{mimetype, image bytes} for one photo, or None."""
+    with _connect() as conn:
+        row = conn.execute(
+            _q("SELECT mimetype, image FROM stop_photos WHERE id=?"), (photo_id,)
+        ).fetchone()
+    if not row:
+        return None
+    # psycopg returns a memoryview for BYTEA; normalise to bytes for both backends.
+    return {"mimetype": row["mimetype"], "image": bytes(row["image"])}
+
+
+def delete_stop_photo(photo_id):
+    """Delete one stop photo. Returns True if a row was removed."""
+    with _connect() as conn:
+        cur = conn.execute(
+            _q("DELETE FROM stop_photos WHERE id=?"), (photo_id,)
+        )
+        return cur.rowcount > 0
 
 
 def get_gtfs_meta(year, key):

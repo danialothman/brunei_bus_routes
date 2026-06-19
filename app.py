@@ -51,6 +51,9 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=bool(os.environ.get("SECRET_KEY")),
     PERMANENT_SESSION_LIFETIME=datetime.timedelta(days=14),
+    # Cap request bodies so an oversized stop-photo upload is rejected (413) before
+    # it reaches our code. Every other endpoint takes small JSON, so this is safe.
+    MAX_CONTENT_LENGTH=6 * 1024 * 1024,
 )
 
 # The route data is segregated by year so new datasets live alongside the repo
@@ -1638,6 +1641,113 @@ def stop_image(year, filename):
     if not path:
         return "Stop image not found", 404
     return send_from_directory(os.path.dirname(path), os.path.basename(path))
+
+
+# --- Editor-uploaded stop photos (bytes stored in the DB) --------------------
+STOP_PHOTO_MAX_BYTES = 5 * 1024 * 1024
+# Accept only real images; the type is decided by sniffing magic bytes, not the
+# client-declared content-type, so a renamed non-image can't slip through.
+_IMAGE_SNIFFERS = {
+    "image/jpeg": lambda b: b[:3] == b"\xff\xd8\xff",
+    "image/png": lambda b: b[:8] == b"\x89PNG\r\n\x1a\n",
+    "image/webp": lambda b: b[:4] == b"RIFF" and b[8:12] == b"WEBP",
+}
+# stop_key is the stop's rounded "lon,lat" (computed identically client- and
+# server-side); validated to a strict shape before it touches the DB.
+_STOP_KEY_RE = re.compile(r"-?\d{1,3}\.\d{1,6},-?\d{1,3}\.\d{1,6}")
+
+
+def _validate_image(file_storage):
+    """Validate an uploaded image. Returns (mimetype, data, error)."""
+    if file_storage is None or not file_storage.filename:
+        return None, None, "no file uploaded"
+    data = file_storage.read()
+    if not data:
+        return None, None, "empty file"
+    if len(data) > STOP_PHOTO_MAX_BYTES:
+        return None, None, "image too large (max 5 MB)"
+    for mimetype, sniff in _IMAGE_SNIFFERS.items():
+        if sniff(data):
+            return mimetype, data, None
+    return None, None, "unsupported image type (use JPEG, PNG, or WEBP)"
+
+
+@app.route("/data/stop-photo", methods=["POST"])
+@auth.login_required(api=True)
+@ratelimit.rate_limited()
+def upload_stop_photo():
+    year = _resolve_year(request.form.get("year"))
+    route = (request.form.get("route") or "").strip()[:200]
+    stop_key = (request.form.get("stop_key") or "").strip()[:40]
+    stop_name = (request.form.get("stop_name") or "").strip()[:200]
+    if not route:
+        return jsonify({"error": "route required"}), 400
+    if not _STOP_KEY_RE.fullmatch(stop_key):
+        return jsonify({"error": "bad stop_key"}), 400
+    mimetype, data, err = _validate_image(request.files.get("photo"))
+    if err:
+        return jsonify({"error": err}), 400
+    photo_id = db.add_stop_photo(year, route, stop_key, stop_name, mimetype, data)
+    return jsonify({"ok": True, "id": photo_id}), 201
+
+
+# Listing + serving photos is public (read-only) so the map's stop info panel can
+# show them; uploading and deleting stay editor-gated below.
+@app.route("/data/stop-photos")
+def list_stop_photos():
+    year = _resolve_year(request.args.get("year"))
+    route = (request.args.get("route") or "").strip()[:200]
+    stop_key = (request.args.get("stop") or "").strip()[:40]
+    if not route or not stop_key:
+        return jsonify({"error": "route and stop required"}), 400
+    return jsonify({"photos": db.list_stop_photos(year, route, stop_key)})
+
+
+@app.route("/data/stop-photo-counts")
+@auth.login_required(api=True)
+def stop_photo_counts():
+    year = _resolve_year(request.args.get("year"))
+    route = (request.args.get("route") or "").strip()[:200]
+    if not route:
+        return jsonify({"error": "route required"}), 400
+    return jsonify({"counts": db.stop_photo_counts(year, route)})
+
+
+@app.route("/data/stop-photo/<int:photo_id>")
+def serve_stop_photo(photo_id):
+    photo = db.get_stop_photo(photo_id)
+    if not photo:
+        return "Stop photo not found", 404
+    return Response(
+        photo["image"],
+        mimetype=photo["mimetype"],
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@app.route("/data/stop-photo/<int:photo_id>", methods=["DELETE"])
+@auth.login_required(api=True)
+@ratelimit.rate_limited()
+def delete_stop_photo(photo_id):
+    if not db.delete_stop_photo(photo_id):
+        return jsonify({"error": "stop photo not found"}), 404
+    return jsonify({"ok": True})
+
+
+@app.route("/data/stop-photo-order", methods=["POST"])
+@auth.login_required(api=True)
+@ratelimit.rate_limited()
+def order_stop_photos():
+    # Set the display order of a stop's photos from an ordered list of ids.
+    payload = request.get_json(silent=True) or {}
+    ids = payload.get("ids")
+    if not isinstance(ids, list) or not ids or len(ids) > 200:
+        return jsonify({"error": "ids must be a non-empty list"}), 400
+    for x in ids:
+        if not isinstance(x, int) or isinstance(x, bool):
+            return jsonify({"error": "ids must be integers"}), 400
+    db.set_stop_photo_order(ids)
+    return jsonify({"ok": True})
 
 
 @app.route("/data/route-note")
