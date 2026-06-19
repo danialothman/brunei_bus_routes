@@ -336,9 +336,9 @@ bounty basis and takes applications through a built-in form.
   applicant's review status (New → Reviewing → Contacted → Accepted / Rejected),
   add an internal note, delete entries, and export everything as CSV.
 - The **per-route bounty** figures shown on `/join` (currency, per-route amount,
-  timing-board bonus, payment note) are edited from the `/applications` admin
-  page and stored in the DB (`settings` table). Leave an amount blank to show
-  "rate confirmed on onboarding" instead of a figure.
+  payment note) are edited from the `/applications` admin page and stored in the
+  DB (`settings` table). Leave the amount blank to show "rate confirmed on
+  onboarding" instead of a figure.
 
 ## Technologies Used
 

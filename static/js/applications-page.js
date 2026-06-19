@@ -64,7 +64,6 @@
       var body = {
         currency: (document.getElementById("bCurrency") || {}).value || "",
         per_route: (document.getElementById("bPerRoute") || {}).value || "",
-        timing_bonus: (document.getElementById("bTimingBonus") || {}).value || "",
         payment_note: (document.getElementById("bPaymentNote") || {}).value || "",
       };
       fetch("/applications/bounty", {

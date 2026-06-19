@@ -815,13 +815,11 @@ APPLICATION_STATUSES = ("New", "Reviewing", "Contacted", "Accepted", "Rejected")
 BOUNTY_FIELDS = {
     "currency": 8,
     "per_route": 40,
-    "timing_bonus": 40,
     "payment_note": 500,
 }
 BOUNTY_DEFAULTS = {
     "currency": "BND",
     "per_route": "",
-    "timing_bonus": "",
     "payment_note": (
         "Paid after a route passes quality review. We agree the exact rate and "
         "payment method with you when you're onboarded."
@@ -847,15 +845,18 @@ def _get_bounty():
 
 
 def _validate_application(form):
-    """Validate a /join application. `form` has name, contact, districts (list),
-    transport, availability, experience, message. Returns (fields, error) where
-    fields is ready for db.add_application (districts joined to a string)."""
+    """Validate a /join application. `form` has name, email, phone, districts
+    (list), transport, availability, experience, message. Returns (fields, error)
+    where fields is ready for db.add_application (districts joined to a string)."""
     name = (form.get("name") or "").strip()
     if not name:
         return None, "Please enter your name."
-    contact = (form.get("contact") or "").strip()
-    if not contact:
-        return None, "Please enter an email or phone number so we can reach you."
+    email = (form.get("email") or "").strip()
+    phone = (form.get("phone") or "").strip()
+    if not email and not phone:
+        return None, "Please give an email or a phone number so we can reach you."
+    if email and "@" not in email:
+        return None, "That email doesn't look right — check it, or leave it blank."
 
     districts_in = form.get("districts") or []
     if isinstance(districts_in, str):
@@ -868,9 +869,14 @@ def _validate_application(form):
     if transport and transport not in APPLICATION_TRANSPORT:
         return None, "Unknown transport option."
 
+    email = email[:200]
+    phone = phone[:60]
     fields = {
         "name": name[:120],
-        "contact": contact[:200],
+        "email": email,
+        "phone": phone,
+        # Combined contact kept for the legacy column / quick display.
+        "contact": " · ".join(c for c in (email, phone) if c),
         "districts": ", ".join(districts),
         "transport": transport[:40],
         "availability": (form.get("availability") or "").strip()[:300],
@@ -897,7 +903,8 @@ def join_apply():
     # session action, so the editor's JSON/CSRF baseline doesn't apply here).
     form = {
         "name": request.form.get("name", ""),
-        "contact": request.form.get("contact", ""),
+        "email": request.form.get("email", ""),
+        "phone": request.form.get("phone", ""),
         "districts": request.form.getlist("districts"),
         "transport": request.form.get("transport", ""),
         "availability": request.form.get("availability", ""),
@@ -928,6 +935,7 @@ def applications_page():
         applications=db.list_applications(),
         statuses=APPLICATION_STATUSES,
         bounty=_get_bounty(),
+        is_editor=auth.is_authed(),
     )
 
 
@@ -970,8 +978,8 @@ def remove_application(app_id):
 @auth.admin_required()
 def applications_csv():
     # Download all applications as CSV (authed page download).
-    cols = ("id", "created_at", "name", "contact", "districts", "transport",
-            "availability", "experience", "message", "status", "admin_note")
+    cols = ("id", "created_at", "name", "email", "phone", "districts",
+            "transport", "availability", "experience", "message", "status", "admin_note")
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(cols)
@@ -1365,10 +1373,17 @@ def plan_trip():
 
 @app.route("/login")
 def login_page():
-    # One login form for both gates (editor + admin). Already in? Skip through.
-    if auth.is_authed() or auth.is_admin():
-        return redirect(auth.safe_next(request.args.get("next")) or url_for("gtfs_page"))
-    return render_template("login.html", next=request.args.get("next", ""), error=False)
+    # One login form for both gates (editor + admin). A direct visit while
+    # signed in skips to that role's home. When redirected here with ?next= (a
+    # gate bounced the visitor), always render the form — never redirect back, or
+    # an admin-only session sent to /gtfs would bounce in a loop. The form shows
+    # an account banner so a partly-signed-in visitor knows their state.
+    next_url = request.args.get("next", "")
+    authed, admin = auth.is_authed(), auth.is_admin()
+    if not next_url and (authed or admin):
+        return redirect(url_for("gtfs_page") if authed else url_for("applications_page"))
+    return render_template("login.html", next=next_url, error=False,
+                           authed=authed, admin=admin)
 
 
 @app.route("/login", methods=["POST"])
@@ -1392,7 +1407,8 @@ def login_submit():
             else url_for("gtfs_page")
         return redirect(auth.safe_next(request.form.get("next")) or default)
     return render_template(
-        "login.html", next=request.form.get("next", ""), error=True
+        "login.html", next=request.form.get("next", ""), error=True,
+        authed=auth.is_authed(), admin=auth.is_admin(),
     ), 401
 
 
@@ -1426,7 +1442,9 @@ def map_page():
 @auth.login_required()
 def gtfs_page():
     # Dedicated GTFS workbench: route list + geometry editor + schedule forms.
-    return render_template("gtfs.html")
+    # Pass admin state so an editor who is also an admin sees a link across to
+    # the hiring applications area.
+    return render_template("gtfs.html", is_admin=auth.is_admin())
 
 
 @app.route("/gtfs/guide")
