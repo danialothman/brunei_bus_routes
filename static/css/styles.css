@@ -116,6 +116,8 @@ body {
   padding: 10px 14px;
   top: auto;
   bottom: 0;
+  /* Sit above the routes sidebar (z-index 1000) so it's never hidden. */
+  z-index: 1200;
 }
 #info .name {
   font-family: var(--gtfs-display);
@@ -135,6 +137,95 @@ body {
 
 #info .dismiss {
   float: right;
+}
+#info .info-photos {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
+}
+#info .info-photos img {
+  height: 90px;
+  width: auto;
+  max-width: 140px;
+  object-fit: cover;
+  border: 1px solid var(--gtfs-line);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Shared image lightbox (lightbox.js). */
+.lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  background: rgba(0, 0, 0, 0.85);
+  /* Rapid open/close clicks would otherwise select the image (blue highlight). */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.lightbox-overlay.is-open {
+  display: flex;
+}
+.lightbox-img {
+  max-width: 95%;
+  max-height: 95%;
+  object-fit: contain;
+  box-shadow: 0 6px 40px rgba(0, 0, 0, 0.6);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+.lightbox-close {
+  position: absolute;
+  top: 14px;
+  right: 22px;
+  border: 0;
+  background: none;
+  color: #fff;
+  font-size: 36px;
+  line-height: 1;
+  cursor: pointer;
+}
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 0;
+  background: rgba(0, 0, 0, 0.4);
+  color: #fff;
+  font-size: 40px;
+  line-height: 1;
+  width: 52px;
+  height: 72px;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.lightbox-nav:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+.lightbox-prev {
+  left: 16px;
+}
+.lightbox-next {
+  right: 16px;
+}
+.lightbox-counter {
+  position: absolute;
+  bottom: 18px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  color: #fff;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
 }
 
 #map {
@@ -302,6 +393,11 @@ textarea:focus-visible {
 body.editing #sidebar {
   top: 108px;
 }
+/* While a stop's info banner is open (docked bottom-centre), lift the sidebar's
+   bottom so the two don't overlap. Toggled by InfoManager. */
+body.stop-selected #sidebar {
+  bottom: 230px;
+}
 .sidebar-title {
   font-family: var(--gtfs-display);
   font-weight: 600;
@@ -335,6 +431,34 @@ body.editing #sidebar {
 }
 .route-group:first-child {
   margin-top: 0;
+}
+/* ⓘ toggle next to a shipped (official) group header — clicking it shows the
+   source-credit callout below. */
+.route-credit-info {
+  margin-left: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--gtfs-accent);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.route-credit-info:hover,
+.route-credit-info:focus,
+.route-credit-info.is-open {
+  color: var(--gtfs-ink);
+  outline: none;
+}
+.route-credit {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--gtfs-ink);
+  background: rgba(255, 209, 102, 0.16);
+  border-left: 3px solid var(--gtfs-accent);
+  border-radius: 0 4px 4px 0;
+  padding: 6px 9px;
+  margin: 4px 0 8px;
 }
 
 /* --- Route editor --- */
@@ -987,12 +1111,12 @@ body.editing #gtfsEditBtn {
      minmax, so no cell's content (header labels, input intrinsic widths) can
      change a track — columns cannot drift the way two independently-resolved
      flex containers did. */
-  --gep-stop-cols: 26px 40px minmax(60px, 1fr) minmax(56px, 72px) minmax(56px, 72px);
+  --gep-stop-cols: 26px 40px minmax(60px, 1fr) minmax(56px, 72px) minmax(56px, 72px) 30px;
 }
 /* Edit mode (JS toggles the class): one extra ↑↓✕ tools track, sized by the
    rows' identical tool spans; the head simply leaves that cell empty. */
 #gepStopsList.gep-has-tools {
-  --gep-stop-cols: 26px 40px minmax(60px, 1fr) minmax(56px, 72px) minmax(56px, 72px) max-content;
+  --gep-stop-cols: 26px 40px minmax(60px, 1fr) minmax(56px, 72px) minmax(56px, 72px) 30px max-content;
 }
 /* Head and data rows share the same grid, hence identical column edges by
    construction. (JS keeps .gep-stops-head distinct from .gep-stop-row.) */
@@ -1097,6 +1221,107 @@ body.editing #gtfsEditBtn {
 }
 .gep-stop-tools .gep-stop-del {
   color: var(--gtfs-danger);
+}
+
+/* Per-stop photo button + count badge. */
+.gep-stop-photo-col {
+  text-align: center;
+}
+.gep-stop-photo {
+  position: relative;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.7;
+}
+.gep-stop-photo:hover {
+  opacity: 1;
+}
+.gep-photo-badge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 14px;
+  padding: 0 3px;
+  font-size: 9px;
+  line-height: 14px;
+  text-align: center;
+  color: #fff;
+  background: var(--gtfs-danger, #c0392b);
+  border-radius: 8px;
+}
+/* Stop-photo modal: thumbnail grid + upload row. */
+.gep-photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.gep-photo-cell {
+  position: relative;
+}
+.gep-photo-cell img {
+  width: 100%;
+  height: 110px;
+  object-fit: cover;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  display: block;
+  cursor: pointer;
+}
+.gep-photo-del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 22px;
+  padding: 0;
+}
+.gep-photo-del:hover {
+  background: var(--gtfs-danger, #c0392b);
+}
+/* Reorder controls, bottom-left of each thumbnail (shown when >1 photo). */
+.gep-photo-order {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  display: flex;
+  gap: 3px;
+}
+.gep-photo-order button {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 22px;
+  padding: 0;
+}
+.gep-photo-order button:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.85);
+}
+.gep-photo-order button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.gep-photo-upload {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 #gtfsTimingBody {

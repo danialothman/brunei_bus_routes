@@ -261,6 +261,12 @@ full flow is draw → schedule → download. The GTFS pane covers:
   names and coordinates, reorder/remove, and click-to-locate on the map;
   edits save as new geometry versions (official routes become editable via
   the ✎ copy flow)
+- **Stop photos** — each stop row has a 📷 button to upload field photos of the
+  stop (JPEG/PNG/WEBP, ≤5 MB), with a count badge and a thumbnail panel to view
+  or delete them. Images are stored **in the database** (not the filesystem,
+  which is ephemeral on Replit) and keyed to the stop's rounded coordinates, so
+  they survive reordering/renaming. Editor-only
+  (`/data/stop-photo*` endpoints, magic-byte validated)
 - **Feed settings** — the operator list (multiple companies supported; the
   first is the default for unassigned routes), holiday exceptions ("no
   service" or "Sunday timetable" per date → weekday-aware

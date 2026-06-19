@@ -39,3 +39,6 @@ brunei-gtfs-*.zip
 
 # Local Claude Code config (personal slash commands, plans, etc.)
 .claude/
+
+# Local Claude Code project guidance (personal, not shared)
+CLAUDE.md

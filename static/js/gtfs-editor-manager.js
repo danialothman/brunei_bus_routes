@@ -17,6 +17,7 @@ APP.GtfsEditorManager = class {
     this._stopsTimer = null;
     this._populating = false; // suppress autosave while filling the form
     this._timingDismissed = false; // user closed the timing panel this session
+    this._photoCounts = {}; // {stop_key: count} for the current route's stop photos
   }
 
   init() {
@@ -269,6 +270,7 @@ APP.GtfsEditorManager = class {
         };
         this.stopsStatus.textContent = "";
         this._renderStops();
+        this._loadPhotoCounts();
       })
       .catch((err) => {
         this.stopsStatus.textContent = "Load failed";
@@ -337,6 +339,7 @@ APP.GtfsEditorManager = class {
     head.append($('<span class="gep-stop-name">Name</span>'));
     head.append($('<span class="gep-stop-coord">Lat</span>'));
     head.append($('<span class="gep-stop-coord">Lon</span>'));
+    head.append($('<span class="gep-stop-photo-col">📷</span>'));
     list.append(head);
     stops.forEach((s, i) => {
       const row = $('<div class="gep-stop-row"></div>').attr("data-i", i);
@@ -363,6 +366,16 @@ APP.GtfsEditorManager = class {
           .val(s.lon.toFixed(6))
           .prop("disabled", !editable)
       );
+      // Per-stop photo button (keyed by rounded lon,lat — see the upload flow);
+      // a badge shows how many photos this stop already has.
+      const pkey = `${s.lon.toFixed(6)},${s.lat.toFixed(6)}`;
+      const pn = this._photoCounts[pkey] || 0;
+      const photo = $('<button type="button" class="gep-stop-photo" title="Stop photos"></button>')
+        .attr("data-key", pkey)
+        .attr("data-name", s.name || "")
+        .text("📷");
+      if (pn) photo.append($('<span class="gep-photo-badge"></span>').text(pn));
+      row.append(photo);
       if (showTools) {
         const tools = $('<span class="gep-stop-tools"></span>');
         tools.append($('<a class="gep-stop-up" title="Move earlier">↑</a>'));
@@ -372,6 +385,159 @@ APP.GtfsEditorManager = class {
       }
       list.append(row);
     });
+  }
+
+  // --- Stop photos ---------------------------------------------------------------
+
+  /** Fetch the current route's per-stop photo counts and refresh the badges. */
+  _loadPhotoCounts() {
+    const ctx = this.current;
+    if (!ctx) return;
+    const q = `?year=${encodeURIComponent(ctx.year)}&route=${encodeURIComponent(ctx.file)}`;
+    fetch(`/data/stop-photo-counts${q}`)
+      .then((r) => (r.ok ? r.json() : { counts: {} }))
+      .then((d) => {
+        if (!this.current || this.current.file !== ctx.file) return; // stale
+        this._photoCounts = d.counts || {};
+        this._renderPhotoBadges();
+      })
+      .catch(() => {});
+  }
+
+  /** Update the photo-count badges in place without rebuilding the rows. */
+  _renderPhotoBadges() {
+    $("#gepStopsList .gep-stop-photo").each((_, btn) => {
+      const n = this._photoCounts[$(btn).attr("data-key")] || 0;
+      $(btn).find(".gep-photo-badge").remove();
+      if (n) $(btn).append($('<span class="gep-photo-badge"></span>').text(n));
+    });
+  }
+
+  /** Open the photo panel for one stop (keyed by its rounded lon,lat). */
+  _openStopPhotos(stopKey, stopName) {
+    if (!this.current) return;
+    this._photoStop = { key: stopKey, name: stopName };
+    document.getElementById("stopPhotoName").textContent = stopName || "(unnamed stop)";
+    const file = document.getElementById("stopPhotoFile");
+    if (file) file.value = "";
+    document.getElementById("stopPhotoStatus").textContent = "";
+    this._loadStopPhotoGrid();
+    $("#stopPhotoModal").modal("show");
+  }
+
+  _loadStopPhotoGrid() {
+    const ctx = this.current;
+    const stop = this._photoStop;
+    if (!ctx || !stop) return;
+    const grid = $("#stopPhotoGrid").html('<span class="gep-status">Loading…</span>');
+    const q = `?year=${encodeURIComponent(ctx.year)}&route=${encodeURIComponent(ctx.file)}`
+      + `&stop=${encodeURIComponent(stop.key)}`;
+    fetch(`/data/stop-photos${q}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const photos = d.photos || [];
+        this._photos = photos; // current display order, for reordering
+        grid.empty();
+        if (!photos.length) {
+          grid.html('<span class="gep-status">No photos yet.</span>');
+          return;
+        }
+        const srcs = photos.map((p) => `/data/stop-photo/${p.id}`);
+        const multi = photos.length > 1;
+        photos.forEach((p, i) => {
+          const cell = $('<div class="gep-photo-cell"></div>').attr("data-id", p.id);
+          cell.append(
+            $('<img alt="stop photo" title="Click to enlarge" />')
+              .attr("src", srcs[i])
+              .on("click", () => APP.lightbox(srcs, i))
+          );
+          cell.append(
+            $('<button type="button" class="gep-photo-del" title="Delete photo">✕</button>')
+              .attr("data-id", p.id)
+          );
+          if (multi) {
+            // Reorder controls — disabled at the ends.
+            const tools = $('<div class="gep-photo-order"></div>');
+            tools.append(
+              $('<button type="button" class="gep-photo-up" title="Move earlier">↑</button>')
+                .attr("data-id", p.id)
+                .prop("disabled", i === 0)
+            );
+            tools.append(
+              $('<button type="button" class="gep-photo-down" title="Move later">↓</button>')
+                .attr("data-id", p.id)
+                .prop("disabled", i === photos.length - 1)
+            );
+            cell.append(tools);
+          }
+          grid.append(cell);
+        });
+      })
+      .catch(() => grid.html('<span class="gep-status">Failed to load.</span>'));
+  }
+
+  _uploadStopPhoto() {
+    const ctx = this.current;
+    const stop = this._photoStop;
+    const input = document.getElementById("stopPhotoFile");
+    const statusEl = document.getElementById("stopPhotoStatus");
+    if (!ctx || !stop || !input || !input.files.length) {
+      statusEl.textContent = "Choose an image first.";
+      return;
+    }
+    const fd = new FormData();
+    fd.append("year", ctx.year);
+    fd.append("route", ctx.file);
+    fd.append("stop_key", stop.key);
+    fd.append("stop_name", stop.name || "");
+    fd.append("photo", input.files[0]);
+    statusEl.textContent = "Uploading…";
+    fetch("/data/stop-photo", { method: "POST", body: fd })
+      .then((r) => r.json().then((d) => ({ ok: r.ok, d })))
+      .then(({ ok, d }) => {
+        if (!ok) {
+          statusEl.textContent = d.error || "Upload failed.";
+          return;
+        }
+        statusEl.textContent = "Saved ✓";
+        input.value = "";
+        this._loadStopPhotoGrid();
+        this._loadPhotoCounts();
+      })
+      .catch(() => { statusEl.textContent = "Upload failed."; });
+  }
+
+  _deleteStopPhoto(id) {
+    fetch(`/data/stop-photo/${id}`, { method: "DELETE" })
+      .then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        this._loadStopPhotoGrid();
+        this._loadPhotoCounts();
+      })
+      .catch(() => {
+        document.getElementById("stopPhotoStatus").textContent = "Delete failed.";
+      });
+  }
+
+  /** Move a photo earlier/later in the stop's order and persist the new order. */
+  _reorderStopPhoto(id, delta) {
+    const ids = (this._photos || []).map((p) => p.id);
+    const i = ids.indexOf(id);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= ids.length) return;
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+    fetch("/data/stop-photo-order", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    })
+      .then((r) => {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        this._loadStopPhotoGrid();
+      })
+      .catch(() => {
+        document.getElementById("stopPhotoStatus").textContent = "Reorder failed.";
+      });
   }
 
   _stopAt(el) {
@@ -1253,6 +1419,20 @@ APP.GtfsEditorManager = class {
       if (i == null || !this.page) return;
       const s = this._stopsData()[i];
       if (s) this.page.focusStop(s.lon, s.lat);
+    });
+    stopsList.on("click", ".gep-stop-photo", (e) => {
+      const btn = e.currentTarget;
+      this._openStopPhotos(btn.getAttribute("data-key"), btn.getAttribute("data-name"));
+    });
+    // Stop-photo modal: upload, and delete (delegated — thumbnails are rebuilt).
+    $("#stopPhotoUpload").on("click", () => this._uploadStopPhoto());
+    $("#stopPhotoGrid").on("click", ".gep-photo-del", (e) => {
+      this._deleteStopPhoto(parseInt(e.currentTarget.getAttribute("data-id"), 10));
+    });
+    $("#stopPhotoGrid").on("click", ".gep-photo-up, .gep-photo-down", (e) => {
+      const id = parseInt(e.currentTarget.getAttribute("data-id"), 10);
+      const delta = $(e.currentTarget).hasClass("gep-photo-up") ? -1 : 1;
+      this._reorderStopPhoto(id, delta);
     });
     stopsList.on("input", ".gep-stop-name", (e) => {
       const i = this._stopAt(e.currentTarget);
